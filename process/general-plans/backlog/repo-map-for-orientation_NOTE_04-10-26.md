@@ -30,4 +30,4 @@ None defined. Needs a decision from Taylor to bring it into scope.
 
 ## Prerequisite
 
-See `repo-fingerprint-prerequisite_NOTE_04-10-26.md`.
+None recorded. A "repo fingerprint" note was filed on 2026-10-04 and withdrawn the same day: Taylor confirmed the idea is replaced by the product Phase 3 atlas (PRD RTE-2), which is part of `product-phase-3-dynamic-skill-routing_NOTE_04-10-26.md`.

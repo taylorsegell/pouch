@@ -38,7 +38,8 @@ Carried from spec section 10 M3:
 - `adapter` trait and `claude_code` adapter, destination `.claude/skills` (spec 4.7), with an evidence URL or spike result for every claim (spec 4.7; an adapter without evidence fails a unit test, spec 8).
 - `fsops` with typed paths `SourcePath`, `DestPath`, `StatePath`; no write function accepts a `SourcePath` (spec 4.9).
 - `plan::diff` including the `proptest` idempotency and carry-forward properties (spec 4.8, 8).
-- `apply` with journal, receipt, history capped at 20, advisory project lock via `fs4`, resume and rollback in core (spec 4.10, 2.4, 2.5).
+- `apply` with journal, receipt, history capped at 20, advisory project lock via `fs4` (spec 4.10, 2.4, 2.5).
+- Journal-based `resume` and `rollback` (spec 4.10), as part of the apply path, reachable from the CLI per spec 5 (decision 3, 2026-10-04). Rollback from history and `reconcile` stay in milestone M4.
 - `add`, `rm`, `use <bundle> --replace|--add`, `deactivate [--all]` (spec 5).
 - SES-1 and SES-2 output (PRD 7.8; spec 5 plan rendering).
 - Default strategy and `strategies()` for the adapter taken from the M0 Outcome (spec 10 M0).
@@ -47,10 +48,11 @@ Carried from spec section 10 M3:
 
 ## Acceptance Criteria
 
-Closes (spec section 10 M3): AC-13, AC-15, AC-16, AC-17, AC-18, AC-19, AC-21, AC-22, AC-23, AC-24, AC-25, AC-29, AC-30, AC-31, AC-32, AC-33, AC-40, AC-53. Criteria text: PRD section 13.2.
+Closes (spec section 10 M3): AC-2, AC-13, AC-15, AC-16, AC-17, AC-18, AC-19, AC-21, AC-22, AC-23, AC-24, AC-25, AC-29, AC-30, AC-31, AC-32, AC-40, AC-53. Criteria text: PRD section 13.2.
 
 | Criterion | Proven by | Strategy |
 |---|---|---|
+| AC-2 | `ac_02_source_tree_unchanged` (full activate, modify, deactivate cycle; blake3 source tree hash identical before and after; uses the M1 hash helper) | Fully-Automated |
 | AC-13 | `ac_13_*` | Fully-Automated |
 | AC-15 | `ac_15_*` | Fully-Automated |
 | AC-16 | `ac_16_*` plus `plan::diff` proptest | Fully-Automated |
@@ -64,13 +66,21 @@ Closes (spec section 10 M3): AC-13, AC-15, AC-16, AC-17, AC-18, AC-19, AC-21, AC
 | AC-25 | `ac_25_*` | Fully-Automated |
 | AC-29 | `ac_29_*` (output text and evidence line) | Fully-Automated |
 | AC-30 | `ac_30_*` (SES-2 caveat on `rm` and `deactivate`) | Fully-Automated |
-| AC-31 | `ac_31_*` (interruption test `FsOps` fails at step N) | Fully-Automated |
+| AC-31 | `ac_31_*` (interruption test `FsOps` fails at step N; both `resume` and `rollback` reach a consistent state, proved by comparing the destination and the receipt directly to the expected state) | Fully-Automated |
 | AC-32 | `ac_32_*` (one of three entries fails) | Fully-Automated |
-| AC-33 | `ac_33_*` (rollback restores prior destination and receipt) | Fully-Automated |
 | AC-40 | `ac_40_*` | Fully-Automated |
 | AC-53 | `ac_53_*` (second mutating command refuses while locked; exit 11) | Fully-Automated |
 
-Note (reported to Taylor, umbrella items 2 and 3): AC-33 needs a `rollback` entry point and the spec 8 interruption tests assert `reconcile` reports zero divergence, but the CLI `rollback` and `reconcile` are scoped in milestone M4. RESEARCH must decide how M3 proves AC-31 to AC-33 without taking M4 scope silently (core-level rollback and resume are in spec 1.3 `apply.rs`); record the decision and surface it to Taylor if it moves scope.
+Scope decision (resolved 2026-10-04, decision 3): journal-based `resume` and `rollback` are built here. In this milestone the interruption test (AC-31, AC-32) proves consistency by comparing the destination and the receipt directly to the expected state; it does not call `reconcile`. Milestone M4 adds the "reconcile reports zero divergence" assertion to the same test (spec 8 Interruption). AC-33 (rollback from history) moves to milestone M4. AC-2 closes here because it needs `apply` for the full cycle; the read-side test already exists from milestone M1.
+
+### Performance and success-target checks (exit-gate checks; spec 9, PRD 13.1)
+
+| ID | Check | How measured |
+|---|---|---|
+| S2 | One command adds one skill to an existing selection | `s2_one_command_add`: project with an existing selection, one `unam add <skill> --yes` invocation, assert the skill is active and the receipt updated; the test counts invocations (exactly one) |
+| S3 | Zero source mutations by any operation | blake3 source tree hash asserted unchanged in every mutating test (and `ac_02_source_tree_unchanged`) |
+| S4 | Zero foreign destination files modified or deleted | foreign fixture file asserted byte-identical in every mutating test (and `ac_23_*`) |
+| S9 (claude-code) | No adapter claim without an evidence URL or spike result | unit test `adapter_claims_have_evidence` over the `claude_code` adapter (spec 8 adapters) |
 
 ---
 
@@ -84,7 +94,7 @@ Note (reported to Taylor, umbrella items 2 and 3): AC-33 needs a `rollback` entr
 
 ## Blast Radius
 
-- `crates/unam-core/src/adapter/mod.rs`, `adapter/claude_code.rs`, `fsops.rs`, `plan.rs`, `apply.rs`, `state.rs`; `hash.rs` (needed for the invariants in every mutating test if not already created)
+- `crates/unam-core/src/adapter/mod.rs`, `adapter/claude_code.rs`, `fsops.rs`, `plan.rs`, `apply.rs`, `state.rs`; `hash.rs` (created in milestone M1; reused for the invariants in every mutating test and for `ac_02_source_tree_unchanged`)
 - `crates/unam-cli/src/cli/` (add, rm, use, deactivate), `output.rs` (plan rendering, SES-1, SES-2)
 - `crates/unam-cli/tests/` new `ac_NN_*` files, interruption fixtures, foreign-file fixtures, `insta` snapshots
 - Runtime files created by the product in TEMPORARY project directories only: `<root>/.unam/` (applied receipt, journal, history, lock)
@@ -102,7 +112,7 @@ Refined at PLAN-SUPPLEMENT; spec sections cited, not copied.
 
 - [ ] A1. Define typed paths and `fsops` (atomic write, symlink, copy) per spec 4.9; compile-time guarantee that no write function accepts `SourcePath`.
 - [ ] A2. Implement `state` IO for receipt, journal, history, and the project lock (spec 2.4, 2.5, 4.10).
-- [ ] A3. Implement `hash` (blake3 tree hashing) if not present; wire the two non-negotiable invariants into the shared test helper.
+- [ ] A3. Reuse the milestone M1 `hash` helper (blake3 tree hashing); extend it only if M1 left a gap; wire the two non-negotiable invariants (source tree hash unchanged; foreign file byte-identical) into the shared test helper so every mutating test asserts them from here on.
 
 ### Step B: Adapter and plan
 
@@ -111,15 +121,16 @@ Refined at PLAN-SUPPLEMENT; spec sections cited, not copied.
 
 ### Step C: Apply and commands
 
-- [ ] C1. Implement `apply` executor per spec 4.10: journal before mutation, receipt after, history cap 20, advisory lock, partial-failure reporting, resume, rollback (core).
+- [ ] C1. Implement `apply` executor per spec 4.10: journal before mutation, receipt after, history cap 20, advisory lock, partial-failure reporting, journal-based resume and rollback (spec 4.10), reachable from the CLI per spec 5.
 - [ ] C2. Implement `add`, `rm`, `use --replace|--add`, `deactivate [--all]` (spec 5; exit codes 5, 6, 7, 10, 11) with `--yes` still printing the plan.
 - [ ] C3. Implement SES-1 and SES-2 output (PRD 7.8); refuse collisions with foreign skills (ownership rules, spec 4.9, 4.10).
 
 ### Step D: Tests
 
-- [ ] D1. Write the `ac_NN_*` tests listed above; interruption tests use a test `FsOps` that errors at step N (spec 8 Interruption).
+- [ ] D1. Write the `ac_NN_*` tests listed above, including `ac_02_source_tree_unchanged`; interruption tests use a test `FsOps` that errors at step N (spec 8 Interruption) and assert consistency by comparing destination and receipt directly to the expected state (no `reconcile` call; milestone M4 adds it).
 - [ ] D2. Assert both invariants (source tree hash unchanged; foreign fixture file byte-identical) in every mutating test.
 - [ ] D3. Snapshot all new `--json` outputs with `insta`; assert exit codes per spec 5.
+- [ ] D3a. Write the performance and success-target checks S2 (`s2_one_command_add`) and S9 for claude-code (`adapter_claims_have_evidence`); S3 and S4 are the invariants from D2.
 - [ ] D4. Hybrid gate: Taylor names the first real project to adopt `unam` by the end of this milestone and runs one real activation in it (outside this repository).
 
 ---
@@ -133,11 +144,15 @@ cargo clippy --workspace --all-targets -- -D warnings
 # Expected: exit 0
 cargo test --workspace
 # Expected: all tests pass
-cargo test -p unam --test <file> ac_13   # repeat for each criterion in the table above
+cargo test -p unam --test <file> ac_13   # repeat for each criterion in the table above, including ac_02_source_tree_unchanged
 # Expected: pass
+cargo test -p unam --test <file> s2_one_command_add
+# Expected: pass (PRD S2)
+cargo test -p unam-core adapter_claims_have_evidence
+# Expected: pass (PRD S9, claude-code adapter)
 ```
 
-- All checklist items checked; the 18 criteria above green; both invariants asserted in every mutating test.
+- All checklist items checked; the 18 criteria above green (AC-2 included, AC-33 not); S2, S3, S4, S9 (claude-code) checks green; both invariants asserted in every mutating test.
 - Regression: M1 and M2 criteria tests still green; M1 and M2 CLI snapshots unchanged.
 - High-risk evidence pack produced per `vc-risk-evidence-pack` (manual-first).
 - First real adopting project named by Taylor (brief open question, due end of this milestone).
@@ -148,7 +163,7 @@ cargo test -p unam --test <file> ac_13   # repeat for each criterion in the tabl
 ## Phase Completion Rules
 
 - CODE DONE means code exists with gates unverified; VERIFIED requires the exit gate green plus the regression check and a recorded validate-contract.
-- Interrupted or failed `apply` states must reconcile to a consistent state in tests before this milestone can be VERIFIED.
+- Interrupted or failed `apply` states must reach a consistent state, proved by comparing the destination and receipt to the expected state, before this milestone can be VERIFIED (both `resume` and `rollback` paths).
 - Commit execution changes on `main` before starting milestone M4; no push.
 
 ---
@@ -158,7 +173,6 @@ cargo test -p unam --test <file> ac_13   # repeat for each criterion in the tabl
 - M0 gate not met, or M2 not VERIFIED.
 - First real adopting project not named by the end of this milestone (brief open question): not a code blocker; report to Taylor and keep M4 start pending his naming it.
 - M0 Outcome says symlinks are not discovered for the adapter: strategy default changes to `copy`; spec claims affected are reported to Taylor, not edited.
-- The AC-31 to AC-33 scope ambiguity above cannot be resolved without moving M4 scope: report to Taylor.
 - Any test run would touch this repository, the skill library, or real user config: stop (hard safety constraint).
 
 ---
@@ -167,7 +181,7 @@ cargo test -p unam --test <file> ac_13   # repeat for each criterion in the tabl
 
 Orchestrator reads this before deciding which subagent to spawn next. The canonical 7-step inner loop `R -> I -> P -> PVL -> E -> EVL -> UP` SKIPS SPEC (SPEC runs once in the outer program loop).
 
-- [ ] 1. RESEARCH: research-agent: M2 report read; M0 Outcome applied; test context loaded; plan drift checked; AC-31 to AC-33 scope question analyzed
+- [ ] 1. RESEARCH: research-agent: M2 report read; M0 Outcome applied; test context loaded; plan drift checked; decision 3 scope (journal-based resume and rollback in M3) confirmed against spec 4.10 and spec 5
 - [ ] 2. INNOVATE: innovate-agent: approach decided; Decision Summary written
 - [ ] 3. PLAN-SUPPLEMENT: plan-agent: existing phase plan updated; Inner Loop Refresh Note if sections changed (or "n/a: research clean")
 - [ ] 4. PVL: vc-validate-agent: full V1-V7; validate-contract written per `.claude/skills/vc-validate-findings/references/example-validate-output.md` (Status / Gate / Plan updates applied / Execute-agent instructions / Test gates / High-risk pack / Backlog artifacts / Known gaps / Accepted by)
@@ -188,7 +202,7 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 
 ## Public Contracts
 
-- Commands `add`, `rm`, `use`, `deactivate`, exit codes 5, 6, 7, 10, 11, and `--json` envelope (spec 5).
+- Commands `add`, `rm`, `use`, `deactivate`, journal-based `resume` and `rollback`, exit codes 5, 6, 7, 10, 11, and `--json` envelope (spec 5).
 - Receipt, journal, history formats (spec 2.4, 2.5) and the `<root>/.unam/` layout.
 - Adapter trait (spec 4.7), extended by M5 without breaking `claude_code`.
 - Ownership guarantees: never overwrite or delete foreign files (PRD G11, S4).
@@ -200,6 +214,7 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 | Gate / Scenario | Strategy | Proves SPEC criterion |
 |---|---|---|
 | `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace` | Fully-Automated | spec 8 gates |
+| `ac_02_source_tree_unchanged` full cycle leaves the source tree hash identical | Fully-Automated | AC-2 (S3) |
 | `ac_13_*` two skills from two categories reach active | Fully-Automated | AC-13 |
 | `ac_15_*` `--yes` still prints the plan; plan matches filesystem | Fully-Automated | AC-15 |
 | `ac_16_*` and `plan::diff` proptest idempotency | Fully-Automated | AC-16 |
@@ -213,11 +228,13 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 | `ac_25_*` every created entry in receipt with source ID and strategy | Fully-Automated | AC-25 |
 | `ac_29_*` no-restart statement with evidence | Fully-Automated | AC-29 |
 | `ac_30_*` SES-2 caveat on every removal | Fully-Automated | AC-30 |
-| `ac_31_*` interruption leaves journal; next command detects (exit 10) | Fully-Automated (test `FsOps`) | AC-31 |
+| `ac_31_*` interruption leaves journal; next command detects (exit 10); `resume` and `rollback` each reach a consistent state compared directly to expected | Fully-Automated (test `FsOps`) | AC-31 |
 | `ac_32_*` partial failure keeps two of three applied and names failure | Fully-Automated | AC-32 |
-| `ac_33_*` rollback restores prior destination and receipt | Fully-Automated | AC-33 |
 | `ac_40_*` skill in two bundles appears once with two provenance records | Fully-Automated | AC-40 |
 | `ac_53_*` lock refuses concurrent mutation (exit 11) | Fully-Automated | AC-53 |
+| `s2_one_command_add` one invocation adds one skill to an existing selection | Fully-Automated | PRD S2 |
+| Source tree hash and foreign-file byte-identity asserted in every mutating test | Fully-Automated | PRD S3, S4 |
+| `adapter_claims_have_evidence` for `claude_code` | Fully-Automated | PRD S9 (claude-code) |
 | First real activation in Taylor's adopting project (outside this repository) | Hybrid (precondition: project named; real agent installed) | PRD 12 daily-use path; brief open question |
 | Evidence-pack review of destructive-write paths | Agent-Probe (orchestrator and reviewer judgment) | PRD S4, G11 |
 

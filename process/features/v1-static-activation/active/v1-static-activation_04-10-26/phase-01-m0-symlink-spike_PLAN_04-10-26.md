@@ -39,7 +39,7 @@ The spike is a MANUAL procedure that Taylor runs by hand against real agents. Th
 - Fill the results table: adapter by strategy, with agent version and date on every row; Windsurf is "not tested".
 - Fill the Outcome section: default strategy per adapter (`claude-code`, `agents-neutral`), and any adapter claim in the spec that the results contradict.
 - Apply the decision rule in the spike file (symlink not discovered means that adapter drops `symlink`, defaults to `copy`, and the reason is recorded).
-- Record any claim change for later propagation to `docs/adapters.md` (does not exist yet; deferred to milestones M4/M7 and needs Taylor's permission per the umbrella contradictions list) and `process/context/product/all-product.md` (update trigger).
+- Record any claim change for later propagation to `docs/adapters.md` (does not exist yet; the M0 Outcome may be recorded there once it exists, created by milestones M4/M7; it is a new spec-called document, not one of the five protected design documents) and `process/context/product/all-product.md` (update trigger).
 
 ---
 
@@ -370,7 +370,7 @@ Reminder: the only write outside `$SPIKE` was the sanctioned Hermes trust entry 
 
 - [ ] C1. Fill all 9 rows of the results table by the transcription rules: version and date on every row (Windsurf: "not tested").
 - [ ] C2. Fill the Outcome section: default strategy per adapter (`claude-code`, `agents-neutral`) by the decision rule; record the sequencing deviation (two-run isolation for Claude Code and Cursor).
-- [ ] C3. List any spec or PRD adapter claim the results contradict; report to Taylor (do not edit `docs/`). Note `docs/adapters.md` does not exist; recording there is deferred to M4/M7 and needs Taylor's permission.
+- [ ] C3. List any spec or PRD adapter claim the results contradict; report to Taylor (do not edit `docs/`). Note `docs/adapters.md` does not exist yet; the Outcome may be recorded there once it exists (milestones M4/M7).
 - [ ] C4. Update the spike Status line from "not run" to the actual state (for example "run 2026-10-04; Windsurf not tested"), keeping the `**Status:**` line format.
 - [ ] C5. Cleanup per the Cleanup section (Hermes untrust first, guarded delete, then checks); Taylor confirms.
 
@@ -433,12 +433,12 @@ Notes on the gates:
 
 ## Contradictions and Open Items for Taylor
 
-1. Procedure deviation (sequencing only; procedure unchanged): Claude Code and Cursor are run twice with the other destination moved aside, because the procedure places the same probe names in both destinations and the table could not otherwise attribute discovery to a destination.
-2. Windsurf is not installed; its row is "not tested", which leaves its behavior "not documented" per the decision rule.
-3. `docs/adapters.md` does not exist yet; the decision rule says to record reasons there. Deferred to M4/M7; needs Taylor's permission.
-4. Cursor is tested through `cursor-agent` (CLI), not the Cursor app UI; record that in Notes. If the app UI behaves differently, that is outside this spike.
-5. Hermes project-local skills need `hermes skills trust`; the before/after result is recorded because it affects the `agents-neutral` default. The trust write to `~/.hermes/config.yaml` is the one sanctioned exception to "nothing outside `$SPIKE`" and is reversed by untrust at cleanup.
-6. Known residue (not provable offline): each agent writes its own trust and session records outside skill dirs on first run in a new directory (for example Claude Code project trust and session records, Codex and Cursor trust or session records). The spike cannot prevent or prove removal of these; they are named here, not cleaned.
+1. RESOLVED 2026-10-04 (decisions 6 and 7). Procedure deviation (sequencing only; procedure unchanged): Claude Code and Cursor are run twice with the other destination moved aside (one folder hidden per run), because the procedure places the same probe names in both destinations and the table could not otherwise attribute discovery to a destination. Taylor accepted this run order. Spec 10 M0 now points to `spike/symlink-discovery.md`, which is authoritative for the procedure, so the spec/spike procedure contradiction is closed.
+2. STILL OPEN (named residual). Windsurf is not installed; its row is "not tested", which leaves its behavior "not documented" per the decision rule.
+3. RESOLVED 2026-10-04 (decision 4). `docs/adapters.md` does not exist yet; the decision rule says to record reasons there. Only the five kickoff design documents are protected; `docs/adapters.md` is a new spec-called document that agents may create and maintain (milestones M4/M7). The M0 Outcome may be recorded there once it exists. No Taylor permission is needed for it.
+4. STILL OPEN (noted in the results). Cursor is tested through `cursor-agent` (CLI), not the Cursor app UI; record that in Notes. If the app UI behaves differently, that is outside this spike.
+5. RESOLVED 2026-10-04 (decision 12): Taylor accepted the Hermes trust write as planned (backup, single write, remove in cleanup, show the diff before deleting); no runbook change. Hermes project-local skills need `hermes skills trust`; the before/after result is recorded because it affects the `agents-neutral` default. The trust write to `~/.hermes/config.yaml` is the one sanctioned exception to "nothing outside `$SPIKE`" and is reversed by untrust at cleanup.
+6. STILL OPEN (named residual). Known residue (not provable offline): each agent writes its own trust and session records outside skill dirs on first run in a new directory (for example Claude Code project trust and session records, Codex and Cursor trust or session records). The spike cannot prevent or prove removal of these; they are named here, not cleaned.
 
 ---
 

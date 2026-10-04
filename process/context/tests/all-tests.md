@@ -82,5 +82,6 @@ git diff --check
 
 ## Known Gaps
 
-- No milestone in spec section 10 lists AC-2 as closed, although spec section 12 names `ac_02_source_tree_unchanged` as the first test to write and section 8 asserts it in every mutating test. Reported to Taylor on 04-10-26; not resolved here.
+- AC-2 closes in milestone M3 (spec 10, decided 2026-10-04). The first test, in M1, is the read-side source-tree-unchanged test (register, scan, search leave the source tree hash unchanged); the invariant is asserted in every mutating test from M3 on.
+- Interruption tests (AC-31, AC-32) prove consistency in M3 by comparing destination and receipt to the expected state; M4 adds the `reconcile` zero-divergence assertion (spec 8).
 - No CI exists until milestone M1.

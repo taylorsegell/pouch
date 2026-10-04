@@ -42,7 +42,8 @@ Confirmed by Taylor on 04-10-26: the skill library path `~/Developer/01-AI/skill
 
 Additional rules set for the harness-setup session (04-10-26), kept as standing practice:
 
-- Do not move, rename, or rewrite anything in `docs/`. Report contradictions between documents, or between them and the toolkit, to Taylor; do not resolve them.
+- The five design documents that existed at kickoff are protected: `docs/PROJECT-BRIEF.md`, `docs/KICKOFF-PROMPT.md`, `docs/spec/PRD-unambiguous.md`, `docs/spec/unam-technical-spec.md`, `docs/adr/ADR-0001-dynamic-skill-routing.md`. Never move, rename, or rewrite them; an edit needs Taylor's explicit permission for that specific edit. New files the spec calls for (for example `docs/adapters.md`, `docs/json.md`) may be created and maintained. Report contradictions between documents, or between them and the toolkit, to Taylor; do not resolve them.
+- Product Phase 1 is done when AC-1 to AC-43 and AC-53 pass (PRD 13.2: every criterion is Phase 1 unless under its "Phase 2" or "Phase 3" heading) and Taylor uses the tool daily. Milestones M6 and M7 are product Phase 2: not researched, planned further, or executed until Taylor clears the hard stop after M5.
 - Do not run any skill-management tool against this repository.
 - Do not add a license file without asking (PRD Q11 is open).
 - Commit on `main` (see CLAUDE.md commit policy); never push without explicit approval.

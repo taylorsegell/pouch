@@ -21,6 +21,8 @@ metadata:
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 
+**PRODUCT PHASE 2 HOLD (2026-10-04).** This milestone is product Phase 2. It must not be researched, planned further, or executed until Taylor clears the stop after M5 (see the umbrella `## Product Phase 1 Gate`). The checks recorded below (decision 11) are recorded now; nothing else in this plan changes until the stop is cleared.
+
 ---
 
 ## Overview
@@ -34,13 +36,15 @@ Milestone M7 makes the tool releasable and understandable by a stranger (spec se
 Carried from spec section 10 M7:
 
 - README with the primary scenario as the first example (PRD Journey A).
-- `docs/adapters.md` generated from `doctor --evidence` (M4) and `docs/json.md` documenting the `--json` schemas (spec 5).
+- `docs/adapters.md` (created in milestone M4, regenerated here from `doctor --evidence`) and `docs/json.md` documenting the `--json` schemas (spec 5). Both are new spec-called documents that agents may create and maintain; only the five kickoff design documents are protected (decision 4, 2026-10-04).
 - CHANGELOG.
 - License file (PRD Q11 decision required; never added without asking).
 - Release workflow via `cargo-dist`; `cargo install` and Homebrew tap (spec 9 binary targets: macOS universal, Linux x86_64 and aarch64).
-- Crate and package naming settled per PRD Q11 (`unam` versus `unambiguous` with a `unam` binary).
+- Crate published name and license settled per PRD Q11 (`unam` versus `unambiguous` with a `unam` binary). Q11 covers only the crates.io published name and the license; nothing before M7 depends on it; it stays an M7 entry condition (decision 5, 2026-10-04).
 
-Notes: `docs/adapters.md` and `docs/json.md` live under `docs/`, which agents never edit; Taylor performs or explicitly permits those writes (umbrella item 4). Publishing to crates.io, creating or pushing a Homebrew tap, and pushing tags or any remote are NOT part of this plan's execution; they are Taylor's explicit go-ahead only.
+- Binary targets check (spec 9 binary row; decision 11): single binary via `cargo-dist` for macOS universal, Linux x86_64, and Linux aarch64.
+
+Notes: the five kickoff design documents (`docs/PROJECT-BRIEF.md`, `docs/KICKOFF-PROMPT.md`, `docs/spec/PRD-unambiguous.md`, `docs/spec/unam-technical-spec.md`, `docs/adr/ADR-0001-dynamic-skill-routing.md`) are never edited by agents without Taylor's explicit per-edit permission. Publishing to crates.io, creating or pushing a Homebrew tap, and pushing tags or any remote are NOT part of this plan's execution; they are Taylor's explicit go-ahead only.
 
 ---
 
@@ -53,6 +57,7 @@ Closes: none listed in spec section 10 for M7. Supports PRD success criterion S1
 | S11 (PRD 13.1) | clean-environment walkthrough of the README to first activation | Hybrid (precondition: clean macOS or Linux account or container; Taylor or reviewer follows the README) |
 | S9 (PRD 13.1) | `doctor --evidence` lists a URL or spike result for every claim; `docs/adapters.md` matches it | Fully-Automated (output check) plus Agent-Probe (doc match) |
 | Release workflow validity | local `cargo-dist` plan or dry run, no publish | Hybrid (precondition: `cargo-dist` installed) |
+| Binary targets (spec 9): the local `cargo dist plan` output lists artifacts for macOS universal, Linux x86_64, and Linux aarch64 and a single binary `unam` | local `cargo dist plan` output inspected (no publish) | Hybrid (precondition: `cargo-dist` installed; assertion on the plan output automated) |
 
 ---
 
@@ -61,15 +66,14 @@ Closes: none listed in spec section 10 for M7. Supports PRD success criterion S1
 - FIRST ITEM, HARD STOP GATE: the product Phase 1 gate in the umbrella plan (`## Product Phase 1 Gate`) shows `Confirmed by Taylor` with date and evidence. If NOT CONFIRMED or AWAITING TAYLOR, do not start any step, including RESEARCH. Never auto-proceeded under /goal.
 - Milestone M0 gate met: the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter.
 - Milestone M6 VERIFIED with its report.
-- PRD Q11 (crate name and license) decided by Taylor before this milestone starts (brief: "before M7"). No license file is created before then.
-- Taylor's explicit permission for any writes under `docs/`.
+- PRD Q11 (crates.io published name and license) decided by Taylor before this milestone starts (brief: "before M7"). No license file is created before then.
 
 ---
 
 ## Blast Radius
 
 - `README.md`, `CHANGELOG.md`, license file (only after Q11 decision)
-- `docs/adapters.md`, `docs/json.md` (permission-gated; see Notes)
+- `docs/adapters.md`, `docs/json.md` (new spec-called documents; agents may create and maintain them; see Notes)
 - Release workflow file and `cargo-dist` config; crate and package metadata in `Cargo.toml` files (name, license, description) if Q11 renames anything
 - Not touched: skill library, `spike/`, toolkit directories; no remote, registry, or tap is modified
 
@@ -82,20 +86,20 @@ Refined at PLAN-SUPPLEMENT after RESEARCH; spec sections cited, not copied.
 ### Step A: Verify gates
 
 - [ ] A1. Read the umbrella gate record; stop if not confirmed.
-- [ ] A2. Confirm Q11 is decided and recorded; confirm permission for `docs/` writes.
+- [ ] A2. Confirm Q11 (crates.io published name and license) is decided and recorded.
 
 ### Step B: Documentation
 
 - [ ] B1. Write README with the primary scenario (PRD Journey A) as the first example and the honesty caveats (PRD G12, SES-2).
-- [ ] B2. Generate `docs/adapters.md` from `unam doctor --evidence` run against temporary directories only; never run `unam` against this repository.
+- [ ] B2. Regenerate `docs/adapters.md` (created in milestone M4) from `unam doctor --evidence` run against temporary directories only; never run `unam` against this repository.
 - [ ] B3. Write `docs/json.md` from the `insta` snapshots (spec 5 envelope).
 - [ ] B4. Write CHANGELOG for v1.
 
 ### Step C: Release mechanics (local only)
 
 - [ ] C1. Apply Q11 naming to package metadata; add the license file chosen by Taylor.
-- [ ] C2. Finalize the `cargo-dist` release workflow and the install story (`cargo install`, Homebrew tap formula as a file only).
-- [ ] C3. Run a local `cargo-dist` plan or build; do not publish, push, tag remotely, or create a tap repository.
+- [ ] C2. Finalize the `cargo-dist` release workflow (targets: macOS universal, Linux x86_64, Linux aarch64; spec 9) and the install story (`cargo install`, Homebrew tap formula as a file only).
+- [ ] C3. Run a local `cargo dist plan` or build and check the output lists the three spec 9 binary targets and a single binary; do not publish, push, tag remotely, or create a tap repository.
 
 ### Step D: Tests and walkthrough
 
@@ -118,7 +122,8 @@ cargo run -p unam -- doctor --evidence   # against temp dirs via env overrides o
 # Expected: every adapter claim listed with a URL or spike result
 ```
 
-- README, CHANGELOG, `docs/adapters.md`, `docs/json.md`, license, and release workflow exist (docs and license written only with Taylor's permission).
+- README, CHANGELOG, `docs/adapters.md`, `docs/json.md`, license, and release workflow exist (the license is written only after Taylor decides Q11; no edit to any of the five protected design documents).
+- Local `cargo dist plan` lists macOS universal, Linux x86_64, and Linux aarch64 and a single binary (spec 9).
 - README walkthrough meets S11 or the shortfall is recorded.
 - No publish, push, or tag was performed by an agent.
 - Phase report written to the report destination above.
@@ -137,7 +142,6 @@ cargo run -p unam -- doctor --evidence   # against temp dirs via env overrides o
 
 - Product Phase 1 gate not confirmed by Taylor.
 - PRD Q11 (crate name and license) undecided: no license file, no rename; report to Taylor.
-- Permission for `docs/` writes not granted: produce drafts inside this task folder as `_REF_` files for Taylor to place.
 - M0 gate not met, or M6 not VERIFIED.
 - Any step that needs publish, push, crates.io, or Homebrew tap action: stop and hand to Taylor.
 

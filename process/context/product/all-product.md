@@ -38,7 +38,9 @@ Read this entrypoint when:
 3. `docs/adr/ADR-0001-dynamic-skill-routing.md` decides how for product Phase 3.
 4. `docs/PROJECT-BRIEF.md` is standing context and rules; it points to the three above.
 
-A disagreement between documents is reported to Taylor, never resolved by an agent. The documents in `docs/` are never moved, renamed, or rewritten by an agent.
+A disagreement between documents is reported to Taylor, never resolved by an agent. The five kickoff design documents (the brief, the kickoff prompt, the PRD, the spec, ADR-0001) are never moved, renamed, or rewritten by an agent without Taylor's explicit permission for that specific edit. New files the spec calls for, such as `docs/adapters.md` and `docs/json.md`, may be created and maintained.
+
+Decision log: Taylor's 2026-10-04 decisions edited spec sections 8, 10, 11, 12 and PRD section 12 (commit ae120c5). The rationale for each is recorded in the v1 umbrella plan's "Contradictions and Open Items" section.
 
 ## Vocabulary
 

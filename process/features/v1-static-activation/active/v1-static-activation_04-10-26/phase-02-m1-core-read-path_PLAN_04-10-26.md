@@ -54,10 +54,17 @@ Closes (spec section 10 M1): AC-1, AC-3, AC-4, AC-5, AC-6, AC-38 (read-side). Cr
 | AC-5 | `ac_05_*` | Fully-Automated |
 | AC-6 | `ac_06_*` | Fully-Automated |
 | AC-38 (read-side) | `ac_38_*` (unmounted or missing source reported unreachable, no mutation) | Fully-Automated |
+| S3 (read-side; first test, not an AC closure) | `source_tree_unchanged_read_side` (register, scan, search leave the source tree hash unchanged) | Fully-Automated |
+| Spec 9 cold scan under 300 ms (exit-gate check) | `perf_cold_scan` | Hybrid (see Exit Gate) |
 
-### Open item: AC-2
+### AC-2 and the source-tree invariant (resolved 2026-10-04, decision 1)
 
-AC-2 (source tree hash identical before and after a full activate, modify, deactivate cycle) is not listed as closed by any milestone in spec section 10. Spec section 12 names `ac_02_source_tree_unchanged` as the first test to write and spec section 8 asserts the invariant in every mutating test. Status: reported to Taylor; not assigned by spec. This plan does not assign it. RESEARCH for this milestone must not silently adopt it; if Taylor assigns it, the assignment is recorded here and in the umbrella coverage map.
+AC-2 (source tree hash identical before and after a full activate, modify, deactivate cycle) closes in milestone M3, because the full cycle needs `apply`. Milestone M1 does two things for it (spec 12 "First test to write"; spec 8; PRD S3):
+
+- writes the source-tree hash helper (blake3 tree hash, spec 8), and
+- writes the read-side test as the FIRST test of the milestone: register, scan, and search leave the source tree hash unchanged (proves PRD S3 for read operations; does NOT close AC-2).
+
+The invariant is then asserted in every mutating test from milestone M3 on. M1 does not close AC-2 and does not list it in its Closes line.
 
 ---
 
@@ -72,7 +79,7 @@ AC-2 (source tree hash identical before and after a full activate, modify, deact
 ## Blast Radius
 
 - `Cargo.toml` (virtual workspace, resolver "3"), `Cargo.lock`
-- `crates/unam-core/Cargo.toml`, `src/lib.rs`, `error.rs`, `config.rs`, `source.rs`, `catalog/{mod,scan,frontmatter,search}.rs`; `hash.rs` only if M1 research finds it is first needed here (spec 1.3 lists it, spec 10 does not assign it)
+- `crates/unam-core/Cargo.toml`, `src/lib.rs`, `error.rs`, `config.rs`, `source.rs`, `catalog/{mod,scan,frontmatter,search}.rs`; `hash.rs` (the blake3 source-tree hash helper, created in M1 as the first-test dependency; reused by M3 and later)
 - `crates/unam-cli/Cargo.toml` (package `unam`), `src/main.rs`, `src/cli/` (source, search, show), `src/output.rs`
 - `crates/unam-cli/tests/` and `tests/fixtures/`
 - CI workflow file and `cargo-dist` configuration (paths chosen at RESEARCH; spec 10 names them without paths)
@@ -89,7 +96,7 @@ Refined at PLAN-SUPPLEMENT after RESEARCH; spec sections are cited, not copied.
 
 - [ ] A1. Create the workspace and both crates per spec 12 and 1.3 (package `unam` for the binary); add dependencies per spec 1.4 via `cargo add`; commit `Cargo.lock`.
 - [ ] A2. Configure clippy so `unwrap` is denied outside tests (spec 7); confirm `cargo clippy --workspace --all-targets -- -D warnings` passes on the empty skeleton.
-- [ ] A3. Add CI running fmt, clippy, and test on macOS and Linux (all-tests.md "CI target"); add `cargo-dist` config (see Blockers: Q11 naming).
+- [ ] A3. Add CI running fmt, clippy, and test on macOS and Linux (all-tests.md "CI target"); add `cargo-dist` config (crate and package names per spec 1.3: `unam-core`, `unam-cli`, package and binary `unam`).
 - [ ] A4. Create the error enum with remedy strings for the variants M1 needs (spec 7).
 
 ### Step B: Config and sources
@@ -106,10 +113,10 @@ Refined at PLAN-SUPPLEMENT after RESEARCH; spec sections are cited, not copied.
 
 ### Step D: Tests
 
+- [ ] D0. FIRST TEST, written before any other test: implement the source-tree hash helper (`hash.rs`, blake3 tree hash per spec 8) and write `source_tree_unchanged_read_side` in `crates/unam-cli/tests/`: register a fixture source, scan, and search, then assert the tree hash of the source is identical before and after (spec 12; PRD S3). Keep the helper reusable so milestone M3 asserts it in every mutating test.
 - [ ] D1. Build fixtures per spec 8 Integration; point every env override at `tempfile` directories.
 - [ ] D2. Write `ac_01_*`, `ac_03_*`, `ac_04_*`, `ac_05_*`, `ac_06_*`, `ac_38_*` as integration tests in `crates/unam-cli/tests/`; write the frontmatter and search unit tests inline.
-- [ ] D3. Write the first source-tree hash helper only if M1 research confirms it is needed here (see AC-2 open item); keep it test-only.
-- [ ] D4. Measure cold scan (500-skill fixture) and warm start against spec 9 targets and record in the phase report (not an exit gate unless Taylor assigns it).
+- [ ] D3. Performance check (exit gate): generate a 500-skill fixture in a `tempfile` directory (nested categories, valid frontmatter) and write `perf_cold_scan` in `crates/unam-cli/tests/`: run a cold scan (no cache) five times in a release build and assert the median wall-clock time is under 300 ms (spec 9 "Cold scan, 500 skills, local SSD"). Record the measured median in the phase report. Warm start is a milestone M6 check, not M1.
 
 ---
 
@@ -124,9 +131,13 @@ cargo test --workspace
 # Expected: all tests pass
 cargo test -p unam --test <file> ac_01   # repeat for ac_03, ac_04, ac_05, ac_06, ac_38
 # Expected: pass
+cargo test -p unam --test <file> source_tree_unchanged_read_side
+# Expected: pass (first test; PRD S3 read-side)
+cargo test -p unam --release --test <file> perf_cold_scan
+# Expected: pass; median cold scan of the generated 500-skill fixture under 300 ms (spec 9)
 ```
 
-- All checklist items checked; AC-1, 3, 4, 5, 6, 38 (read-side) tests green.
+- All checklist items checked; AC-1, 3, 4, 5, 6, 38 (read-side) tests green; `source_tree_unchanged_read_side` green; `perf_cold_scan` green (measured median recorded in the phase report).
 - No test touches the real `~/.config/unam`, `~/.claude/skills`, `~/.agents/skills`, the skill library, or this repository.
 - Regression: M0 table and Outcome unchanged.
 - Phase report written to the report destination above.
@@ -144,8 +155,6 @@ cargo test -p unam --test <file> ac_01   # repeat for ac_03, ac_04, ac_05, ac_06
 ## Blockers That Would Justify BLOCKED Status
 
 - M0 gate not met (table unfilled or Outcome missing).
-- PRD Q11 (crate name and license): M1 fixes package names (`unam-core`, `unam`) and adds `cargo-dist` config while Q11 is open until before M7. Proceed with the spec names; record that Q11 may rename packages (umbrella item 5). BLOCK only if Taylor says the name must be settled first.
-- AC-2 ownership unresolved: not a blocker (reported, not assigned).
 - Frontmatter parser crate choice (`serde_norway`) fails the spec 8 cases: fall back per spec 1.4 note (`serde-saphyr`) via a recorded decision.
 
 ---
@@ -154,7 +163,7 @@ cargo test -p unam --test <file> ac_01   # repeat for ac_03, ac_04, ac_05, ac_06
 
 Orchestrator reads this before deciding which subagent to spawn next. The canonical 7-step inner loop `R -> I -> P -> PVL -> E -> EVL -> UP` SKIPS SPEC (SPEC runs once in the outer program loop).
 
-- [ ] 1. RESEARCH: research-agent: M0 report and Outcome read; test context loaded; plan drift checked; AC-2 open item re-surfaced to Taylor
+- [ ] 1. RESEARCH: research-agent: M0 report and Outcome read; test context loaded; plan drift checked; first-test and perf-check tasks (D0, D3) confirmed
 - [ ] 2. INNOVATE: innovate-agent: approach decided; Decision Summary written
 - [ ] 3. PLAN-SUPPLEMENT: plan-agent: existing phase plan updated; Inner Loop Refresh Note if sections changed (or "n/a: research clean")
 - [ ] 4. PVL: vc-validate-agent: full V1-V7; validate-contract written per `.claude/skills/vc-validate-findings/references/example-validate-output.md` (Status / Gate / Plan updates applied / Execute-agent instructions / Test gates / High-risk pack / Backlog artifacts / Known gaps / Accepted by)
@@ -193,7 +202,8 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 | `ac_05_*` (name/dir mismatch warns; bad YAML skipped with diagnostic) | Fully-Automated | AC-5 |
 | `ac_06_*` (search across three categories, one result set) | Fully-Automated | AC-6 |
 | `ac_38_*` (unmounted source unreachable, no mutation) | Fully-Automated (simulated missing path) | AC-38 read-side |
-| Cold scan and warm start measurement | Hybrid (local SSD, 500-skill fixture) | spec 9 targets (recorded, not gating) |
+| `source_tree_unchanged_read_side` (register, scan, search; source tree hash identical) | Fully-Automated | PRD S3 (read-side); prerequisite for AC-2 closing in M3 |
+| `perf_cold_scan`: median cold scan of a generated 500-skill fixture under 300 ms (release build, five runs) | Hybrid (precondition: local SSD, release build; assertion automated) | spec 9 cold scan target |
 
 No Known-Gap rows. Snapshot tests (`insta`) cover `--json` output of each M1 command.
 

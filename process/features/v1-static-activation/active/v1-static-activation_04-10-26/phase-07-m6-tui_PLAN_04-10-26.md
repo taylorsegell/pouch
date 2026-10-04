@@ -21,6 +21,8 @@ metadata:
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 
+**PRODUCT PHASE 2 HOLD (2026-10-04).** This milestone is product Phase 2. It must not be researched, planned further, or executed until Taylor clears the stop after M5 (see the umbrella `## Product Phase 1 Gate`). The checks recorded below (decision 11) are recorded now; nothing else in this plan changes until the stop is cleared.
+
 ---
 
 ## Overview
@@ -36,7 +38,7 @@ Carried from spec section 10 M6:
 - Picker, plan view, result view, and the interrupted modal (spec 6: layout, keys, markers, state machine; `ratatui` and `crossterm`).
 - Bare `unam` opens the picker for the current project (spec 5).
 - Parity test: every TUI action calls a core function that is also reachable from the CLI; the TUI never calls `fsops` directly (spec 6, 1.1).
-- Warm start target under 50 ms for a 500-skill catalog (spec 9): measure and record.
+- Performance checks (spec 9; decision 11, 2026-10-04), as exit-gate checks: warm start to the picker under 50 ms for a 500-skill catalog, and resident memory under 50 MB. Measured as in "Performance checks" below.
 
 ---
 
@@ -49,11 +51,18 @@ Closes (spec section 10 M6): AC-44. Criteria text: PRD section 13.2.
 | AC-44 | `ac_44_*` (bare `unam`, type a query, space on a result, enter twice yields an active skill; driven through a test backend or pseudo-terminal) | Hybrid (precondition: pseudo-terminal harness or `ratatui` test backend); automated assertions on the resulting filesystem state |
 | TUI parity (spec section 10 M6) | `tui_parity_*` | Fully-Automated |
 
+### Performance checks (exit-gate checks; spec 9)
+
+| Check | How measured |
+|---|---|
+| Warm start to picker under 50 ms (500-skill catalog) | Generated 500-skill fixture in a temp directory with a warm cache (one prior scan); time from process start to first picker render using the `ratatui` test backend; median of five runs in a release build on local SSD; assert under 50 ms; test `perf_warm_start_picker` |
+| Memory under 50 MB resident | Run the picker on the same fixture in a release build under `/usr/bin/time -l` (macOS) or `/usr/bin/time -v` (Linux) and read the peak resident set size; assert under 50 MB; test `perf_memory_picker` |
+
 ---
 
 ## Entry Gate
 
-- FIRST ITEM, HARD STOP GATE: the product Phase 1 gate in the umbrella plan (`## Product Phase 1 Gate`) shows `Confirmed by Taylor` with a date and the evidence message. If it reads NOT CONFIRMED or AWAITING TAYLOR, do not start any step of this milestone, including RESEARCH. This gate is never auto-proceeded under /goal. Basis: PRD section 12 (product Phase 1 "done when" every P0 and P1 acceptance criterion passes and the tool is in daily use), spec section 10 after M5, brief "Out of scope".
+- FIRST ITEM, HARD STOP GATE: the product Phase 1 gate in the umbrella plan (`## Product Phase 1 Gate`) shows `Confirmed by Taylor` with a date and the evidence message. If it reads NOT CONFIRMED or AWAITING TAYLOR, do not start any step of this milestone, including RESEARCH. This gate is never auto-proceeded under /goal. Basis: PRD section 12 (product Phase 1 "done when" AC-1 to AC-43 and AC-53 pass and Taylor uses the tool daily), spec section 10 after M5, brief "Out of scope".
 - Milestone M0 gate met: the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter.
 - Milestone M5 VERIFIED with its report and the product Phase 1 completeness report.
 
@@ -87,7 +96,7 @@ Refined at PLAN-SUPPLEMENT after RESEARCH; spec sections cited, not copied.
 
 - [ ] C1. Write `ac_44_*` through a test backend or pseudo-terminal in a temp project; assert the destination state.
 - [ ] C2. Write the parity test: enumerate TUI actions and assert each maps to a core function also reachable from the CLI.
-- [ ] C3. Measure warm start against spec 9 and record in the phase report.
+- [ ] C3. Write `perf_warm_start_picker` and `perf_memory_picker` per the "Performance checks" table; record the measured values in the phase report.
 - [ ] C4. Run the full M1 to M5 regression suite and the two invariants.
 
 ---
@@ -103,9 +112,13 @@ cargo test --workspace
 # Expected: all tests pass
 cargo test -p unam --test <file> ac_44
 # Expected: pass
+cargo test -p unam --release --test <file> perf_warm_start_picker
+# Expected: pass; median warm start to picker under 50 ms (spec 9)
+cargo test -p unam --release --test <file> perf_memory_picker
+# Expected: pass; peak resident set size under 50 MB (spec 9)
 ```
 
-- All checklist items checked; AC-44 and the parity test green; both invariants asserted in mutating tests.
+- All checklist items checked; AC-44, the parity test, and both performance checks green; both invariants asserted in mutating tests.
 - Regression: M1 to M5 criteria tests green.
 - Phase report written to the report destination above.
 
@@ -165,7 +178,8 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 | `ac_44_*` query, space, enter, enter yields an active skill | Hybrid (pseudo-terminal or test backend; assertions automated) | AC-44, S10 |
 | `tui_parity_*` every TUI action reaches a core function also on the CLI | Fully-Automated | spec 10 M6 parity requirement |
 | Real-terminal manual run by Taylor of the primary scenario | Hybrid (precondition: TTY, temp project) | PRD 12 product Phase 2 done condition (one interactive step) |
-| Warm start measurement | Hybrid (500-skill fixture, local SSD) | spec 9 (recorded, not gating) |
+| `perf_warm_start_picker` median under 50 ms | Hybrid (precondition: release build, local SSD, 500-skill fixture; assertion automated) | spec 9 warm start |
+| `perf_memory_picker` peak resident under 50 MB | Hybrid (precondition: release build, `/usr/bin/time`; assertion automated) | spec 9 memory |
 
 No Known-Gap rows.
 

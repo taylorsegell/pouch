@@ -27,7 +27,7 @@ metadata:
 
 Milestone M5 adds the second adapter, `agents-neutral` (`.agents/skills`), with shared-destination reporting, ancestor warnings, the Hermes followup, a cross-adapter duplicate check, and the generated bundle brief with opt-out (spec section 10 M5; spec 4.7, 4.8, 4.10, 5; PRD D3, 7.6, 7.9, 10.2, 10.3; AC-43). Estimated 1 to 2 days (spec 10).
 
-M5 completes product Phase 1 in code (spec section 10: "M5 completes PRD Phase 1"). Product Phase 1 is DONE only by the PRD definition (PRD section 12): every P0 and P1 acceptance criterion passes AND the tool is in daily use. That second half is Taylor's confirmation, not this milestone's tests. The program HARD STOPS after this milestone.
+M5 completes product Phase 1 in code (spec section 10: "M5 completes PRD Phase 1"). Product Phase 1 is DONE only by this definition (PRD section 12 and PRD 13.2; decision 10, 2026-10-04): AC-1 to AC-43 and AC-53 pass (PRD 13.2 rule: every AC is product Phase 1 unless it sits under the "Phase 2" or "Phase 3" heading) AND Taylor uses the tool daily. That second half is Taylor's confirmation, not this milestone's tests. The program HARD STOPS after this milestone.
 
 ---
 
@@ -39,6 +39,7 @@ Carried from spec section 10 M5:
 - `WriteGenerated` bundle brief (generated brief skill, opt-out) per spec 4.8, 4.10 and PRD Q5 current answer.
 - Default strategy and `strategies()` for `agents-neutral` taken from the M0 Outcome.
 - Two targets in one project holding different selections (spec 4.5, PRD ACT-3).
+- Performance and success-target checks (decision 11, 2026-10-04), listed under "Performance and success-target checks" below.
 
 ---
 
@@ -52,6 +53,17 @@ Closes (spec section 10 M5): AC-20, AC-42, AC-43, AC-24 (second adapter). Criter
 | AC-42 | `ac_42_*` (nested project under an ancestor-scanning target warns and names the ancestor) | Fully-Automated |
 | AC-43 | `ac_43_*` (every `agents-neutral` plan names codex, cursor, windsurf-devin, hermes as consumers) | Fully-Automated |
 | AC-24 (second adapter) | `ac_24_*` extended: no agent config file created or modified for `agents-neutral` | Fully-Automated |
+
+### Performance and success-target checks (exit-gate checks; spec 9, PRD 13.1)
+
+| ID | Check | How measured |
+|---|---|---|
+| S9 (agents-neutral) | No adapter claim without an evidence URL or spike result | unit test `adapter_claims_have_evidence` over the `agents_neutral` adapter (spec 8 adapters; checklist A1) |
+| S1 | Cold-cache time from invoking the tool to a verified-active two-skill selection under 60 s, median under 30 s | Measured ONCE at the product Phase 1 exit on Taylor's real library, read-only: register `~/Developer/01-AI/skillzone/` as a source (never written), fresh `UNAM_CACHE_DIR`, destination is a temporary project outside this repository; time the scripted sequence `source add`, add two skills with `--yes`, `status`; five runs, each under 60 s and the median under 30 s; record in the phase report |
+| S6 | Estimated catalog cost of a typical selection at least 90 percent lower than the whole library | Measured ONCE at the product Phase 1 exit on the same real library, read-only: compute the spec 4.8 estimate (step 10 formula) for Taylor's typical selection and for the whole cataloged library; assert the selection estimate is at most 10 percent of the library estimate; record both numbers |
+| Network none; background processes none (spec 9) | Confirmed, not assumed | (a) `cargo tree -p unam --edges normal` lists no HTTP or socket client crate; (b) source search for `std::net`, `TcpStream`, `UdpSocket`, and process spawning that outlives the command finds none outside tests; (c) test `no_background_process`: after each CLI command exits, no `unam` process remains (`pgrep -x unam` empty) |
+
+S5 (median active selection size under 10 after four weeks) is OBSERVATIONAL, not a gate: it is taken four weeks after product Phase 1 is in daily use. Record it as a follow-up in the umbrella plan ("S5 follow-up") and in this milestone's phase report exit notes; do not wait for it to close this milestone.
 
 ---
 
@@ -93,10 +105,12 @@ Refined at PLAN-SUPPLEMENT; spec sections cited, not copied.
 
 - [ ] C1. Write `ac_20_*`, `ac_42_*`, `ac_43_*`; extend `ac_24_*` for the second adapter; snapshot new `--json` output.
 - [ ] C2. Assert both invariants in every mutating test; run the full M1 to M4 regression suite.
+- [ ] C3. Write the checks from the performance table: `no_background_process`, the dependency and source audit (a) and (b), and the S9 unit test for `agents_neutral`; prepare the scripted S1 and S6 measurement for the product Phase 1 exit run.
 
 ### Step D: Product Phase 1 completeness report
 
-- [ ] D1. Write a report section listing every acceptance criterion closed by M1 to M5 with its test name and status, flagging AC-2 (unassigned, see umbrella) and any criterion not yet green. This is evidence for Taylor, not a decision.
+- [ ] D1. Write a report section listing every acceptance criterion closed by M1 to M5 with its test name and status, for the product Phase 1 set AC-1 to AC-43 and AC-53 (AC-2 is closed by milestone M3 and AC-33 by milestone M4), flagging any criterion not yet green, plus the S1 and S6 measurements and the S5 follow-up note. This is evidence for Taylor, not a decision.
+- [ ] D2. Run the S1 and S6 measurements once on Taylor's real library (read-only; temporary destination project; never this repository) and record the results in the report.
 
 ---
 
@@ -111,13 +125,17 @@ cargo test --workspace
 # Expected: all tests pass
 cargo test -p unam --test <file> ac_20   # repeat for ac_42, ac_43, ac_24
 # Expected: pass
+cargo test -p unam-core adapter_claims_have_evidence
+# Expected: pass for both adapters (PRD S9)
+cargo test -p unam --test <file> no_background_process
+# Expected: pass; plus `cargo tree -p unam --edges normal` shows no HTTP or socket client crate (spec 9)
 ```
 
 - All checklist items checked; AC-20, 42, 43, 24 (second adapter) tests green; both invariants asserted.
 - Regression: M1 to M4 criteria tests green.
-- Product Phase 1 completeness report written (checklist step D1).
+- Product Phase 1 completeness report written (checklist step D1); S1 and S6 measured once on the real library and recorded (D2); network and background-process checks green; S5 follow-up recorded (observational, not a gate).
 - Phase report written to the report destination above.
-- FINAL ITEM, HARD STOP: the program STOPS here. Do not start research, plan refresh, or any step of milestone M6 or M7. Update the umbrella `## Current Execution State` to "Product Phase 1 Gate: AWAITING TAYLOR" and report to Taylor. The gate requires Taylor's explicit confirmation that product Phase 1 is done by the PRD definition (every P0 and P1 acceptance criterion passes and the tool is in daily use; PRD section 12; spec section 10 after M5; brief "Out of scope"). It is never auto-proceeded under /goal.
+- FINAL ITEM, HARD STOP: the program STOPS here. Do not start research, plan refresh, or any step of milestone M6 or M7. Update the umbrella `## Current Execution State` to "Product Phase 1 Gate: AWAITING TAYLOR" and report to Taylor. The gate requires Taylor's explicit confirmation that product Phase 1 is done: AC-1 to AC-43 and AC-53 pass and Taylor uses the tool daily (PRD section 12 and 13.2; spec section 10 after M5; brief "Out of scope"). It is never auto-proceeded under /goal.
 
 ---
 
@@ -178,6 +196,9 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 | `ac_42_*` ancestor warning names the ancestor | Fully-Automated | AC-42 |
 | `ac_43_*` consumers named on every `agents-neutral` plan | Fully-Automated | AC-43 |
 | `ac_24_*` no agent config file touched, second adapter | Fully-Automated | AC-24 |
+| `adapter_claims_have_evidence` over `agents_neutral` | Fully-Automated | PRD S9 |
+| `no_background_process` plus `cargo tree` and source audit | Fully-Automated | spec 9 network none, background none |
+| S1 and S6 scripted measurement on Taylor's real library (read-only, temporary destination) | Hybrid (precondition: the real library present; once, at the product Phase 1 exit) | PRD S1, S6 |
 | Hermes followup wording and shared-destination notice read for honesty (no overclaim) | Agent-Probe (reviewer judgment against PRD G12) | PRD G12 honesty; AC-28 consistency |
 | Product Phase 1 completeness report cross-checked against spec section 10 | Agent-Probe | PRD 12 done condition (evidence for the gate) |
 
