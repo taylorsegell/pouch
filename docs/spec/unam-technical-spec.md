@@ -719,7 +719,7 @@ Each PRD acceptance criterion maps to one test, named `ac_NN_*`. Non-negotiable 
 - `blake3` tree hash of the source fixture is identical before and after (AC-2, S3).
 - Foreign fixture file is byte-identical after (AC-23, S4).
 
-**Interruption** (`AC-31`, `AC-32`): a test implementation of `FsOps` errors on step N. Assert journal contents, `Interrupted` on the next command, and that both `resume` and `rollback` reach a consistent state verified by `reconcile` reporting zero divergence.
+**Interruption** (`AC-31`, `AC-32`): a test implementation of `FsOps` errors on step N. Assert journal contents, `Interrupted` on the next command, and that both `resume` and `rollback` reach a consistent state. In M3 consistency is proved by comparing the destination and the receipt directly to the expected state; from M4 the test also asserts that `reconcile` reports zero divergence.
 
 **CLI** (`assert_cmd`): every command's `--json` output snapshotted with `insta`; SES-2 caveat asserted present on `rm` and `deactivate` output (AC-30); exit codes per §5.
 
@@ -747,13 +747,7 @@ Milestones are sequenced so each ends in something usable. Each lists the accept
 
 ### M0: Gating spike (half day)
 
-Procedure in `spike/symlink-discovery.md`:
-1. Create a throwaway Git repo. Create two probe skills in a scratch source dir.
-2. Symlink probe A into `.claude/skills/probe-a` and `.agents/skills/probe-a`; copy probe B into both.
-3. Start Claude Code in the repo; ask it to list available skills. Record whether A and B appear and whether `/reload-skills` was needed.
-4. Start Codex in the repo; same. Record whether a restart was needed.
-5. If Cursor or Windsurf is installed, repeat; otherwise mark "not tested".
-6. Fill the table: adapter × strategy → discovered, refresh needed.
+Procedure and results table: `spike/symlink-discovery.md`, which is authoritative for the procedure.
 
 Outcome: `defaults.strategy` per adapter is set from evidence. If symlinks fail for an adapter, that adapter's `strategies()` drops `Symlink` and the doc records why.
 
@@ -773,13 +767,15 @@ Outcome: `defaults.strategy` per adapter is set from evidence. If symlinks fail 
 ### M3: Plan and apply for `claude-code` (3 to 4 days)
 
 - `adapter` trait and `claude_code`; `fsops` with typed paths; `plan::diff`; `apply` with journal, receipt, history; `add`, `rm`, `use`, `deactivate`.
+- Journal-based `resume` and `rollback` (§4.10), as part of the apply path.
 - SES-1 and SES-2 output.
-- Closes: AC-13, AC-15, AC-16, AC-17, AC-18, AC-19, AC-21, AC-22, AC-23, AC-24, AC-25, AC-29, AC-30, AC-31, AC-32, AC-33, AC-40, AC-53.
+- Closes: AC-2, AC-13, AC-15, AC-16, AC-17, AC-18, AC-19, AC-21, AC-22, AC-23, AC-24, AC-25, AC-29, AC-30, AC-31, AC-32, AC-40, AC-53.
 
 ### M4: Verify, status, reconcile, rollback (2 days)
 
 - `verify` six-state classification and shadow analysis; `status`; `reconcile [--repair]`; `rollback` from history; `doctor`.
-- Closes: AC-14, AC-26, AC-27, AC-28, AC-34, AC-36, AC-37, AC-39, AC-41.
+- `source relocate` (§4.2), which needs receipts and the project index.
+- Closes: AC-14, AC-26, AC-27, AC-28, AC-33, AC-34, AC-36, AC-37, AC-39, AC-41.
 
 ### M5: `agents-neutral` adapter and generated briefs (1 to 2 days)
 
@@ -824,6 +820,8 @@ Total: roughly three working weeks of focused effort for one engineer, with the 
 - **Isolated destination policy** needs `cursor` and `windsurf-devin` adapters writing to vendor directories; the trait already supports it, the evidence table does not yet.
 - **Bundle composition** (bundles referencing bundles) needs cycle detection in `bundle` and provenance depth in `DesiredEntry`.
 - **Team use** of committed selections needs alias indirection: a committed `selection.yaml` referencing `skillzone:` must map to the cloner's own alias. A `[aliases]` section in `config.toml` mapping foreign aliases to local ones is the likely shape.
+- **`adopt`** (PRD OWN-6, product Phase 2) brings hand-placed skills in a destination under management after matching and confirmation.
+- **Remote sources** (PRD SRC-7, product Phase 2) add Git URL and HTTP skill endpoint sources alongside local paths.
 - **Native Hermes adapter** emitting bundle manifests into `$HERMES_BUNDLES_DIR` would close the loop with the reference model and is small once `slugify` parity is confirmed.
 - **Windows**: `fsops::symlink_dir` becomes `symlink_dir` on Windows with a capability probe in `doctor`; `copy` becomes the default there.
 
@@ -846,4 +844,4 @@ cargo add -p unam-core --dev proptest insta
 cargo add -p unam --dev assert_cmd predicates tempfile insta
 ```
 
-First test to write: `ac_02_source_tree_unchanged`, because it is the invariant everything else must preserve.
+First test to write: the read-side source-tree-unchanged test in M1 (register, scan, and search leave the source tree hash unchanged), because it is the invariant everything else must preserve. AC-2, which covers the full activate, modify, deactivate cycle, closes in M3.

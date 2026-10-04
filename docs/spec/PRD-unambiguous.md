@@ -780,7 +780,7 @@ Maps to spec milestones M6 and M7 plus the spec's v2 themes.
 
 **Measurement (RTE-10, G16).** Exposure is logged locally per turn. Where the target makes skill loads observable, wasted exposures (exposed, never loaded) and missed exposures (loaded by explicit invocation after not being exposed) become computable. This is the phase's success metric; without it the phase is a guess.
 
-**In:** DIS-11, DIS-12, RTE-1 to RTE-10, SES-5, EDG-14, EDG-15; hook adapters for targets that document a per-message hook; metadata backfill tooling for the author's own library.
+**In:** DIS-11, DIS-12, RTE-1 to RTE-12, SES-5, EDG-14, EDG-15; hook adapters for targets that document a per-message hook; metadata backfill tooling for the author's own library.
 
 **Done when:** on the author's own library and projects, measured wasted-exposure rate is below a threshold set after a baseline week, and no Phase 1 or 2 acceptance criterion regresses.
 
