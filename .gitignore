@@ -1,0 +1,20 @@
+# Rust
+/target
+**/*.rs.bk
+
+# OS
+.DS_Store
+
+# unam project state, in case unam is ever pointed at a project inside this repo
+.unam/applied.json
+.unam/journal.json
+.unam/history/
+.unam/lock
+.unam/atlas.json
+
+# local tooling
+.claude/hooks/.logs/
+.codex/hooks/.logs/
+.codex/statusline.cjs
+node_modules/
+*.log
