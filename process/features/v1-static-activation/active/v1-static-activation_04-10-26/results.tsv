@@ -1,0 +1,5 @@
+iteration	timestamp	gaps_found	fail_count	concern_count	applied	saturation_status	loop_status	notes
+0	2026-10-04T00:00:00Z	11	0	11	0	n/a	baseline	M0 PVL first pass: Gate CONDITIONAL, 11 concerns
+1	2026-10-04T00:00:00Z	11	0	11	11	n/a	CONTINUING	All 11 concerns applied; re-validate from V1
+2	2026-10-04T00:00:00Z	2	0	2	2	improving	CONTINUING	C1 refresh cell rule and C2 hermes diff-before-delete applied
+3	2026-10-04T00:00:00Z	0	0	0	0	saturated	HALTED_SUCCESS	Gate PASS; PHASE_COMPLETE VALIDATE
