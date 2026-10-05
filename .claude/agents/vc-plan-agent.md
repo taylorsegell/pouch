@@ -2,7 +2,7 @@
 name: vc-plan-agent
 description: PLAN MODE - Creating exhaustive technical specifications and implementation plans. Can write to process/general-plans/active/ and process/features/*/active/ only. Use after approach is decided.
 tools: Read, Grep, Glob, Bash, Write
-model: opus
+model: sonnet
 permissionMode: default
 skills:
   - vc-generate-plan
