@@ -160,7 +160,7 @@ TEST GATES (every milestone exit; cargo gates from M1):
 
 VALIDATE CONTRACT: per milestone, written by vc-validate-agent into each plan before EXECUTE.
 
-START: Milestone M1 (phase 2 of 8), loop step 1 RESEARCH (not started; awaiting Taylor).
+START: Milestone M2 (phase 3 of 8), loop step 1 RESEARCH.
 ```
 
 ---
@@ -237,8 +237,9 @@ Program-level summary. The authoritative per-step checkboxes are in each milesto
 | Milestone | Next loop step | Note |
 |---|---|---|
 | M0 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-05. Report: `phase-01-m0-symlink-spike_REPORT_04-10-26.md`. Default strategy: symlink for both adapters |
-| M1 | 1 RESEARCH (not started) | M0 entry dependency met; awaiting Taylor |
-| M2 to M5 | not started | Blocked behind M1 in sequence |
+| M1 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-05. Report: `phase-02-m1-core-read-path_REPORT_04-10-26.md`. 164 tests, G1 to G13 green |
+| M2 | 1 RESEARCH (not started) | M1 entry dependency met |
+| M3 to M5 | not started | Blocked behind M2 in sequence |
 | M6, M7 | not started | Product Phase 2, held: no research, planning, or execution until Taylor clears the stop after M5 |
 
 ---
@@ -331,7 +332,7 @@ Check (2026-10-04): every AC-1 to AC-43 and AC-53 is mapped exactly once, except
 
 ## Contradictions and Open Items
 
-Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits are in commit ae120c5). Items still open are marked STILL OPEN.
+Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits are in commit ae120c5). Items still open are marked STILL OPEN. Items 15 to 21 were added 2026-10-05 at the milestone M1 PLAN-SUPPLEMENT (reports to Taylor, resolved provisionally by INNOVATE under autopilot). Items 22 and 23 were added 2026-10-05 at milestone M1 PVL cycle 1.
 
 1. RESOLVED 2026-10-04 (decision 1). AC-2 closes in M3 (needs apply for the full cycle). M1 writes the source-tree hash helper and the read-side test (register, scan, search leave the source tree hash unchanged) as the FIRST test; the invariant is asserted in every mutating test from M3 on. The M1 "AC-2 open item" is replaced by these tasks.
 2. RESOLVED 2026-10-04 (decision 2). `source relocate` is built in M4 (needs receipts and the project index). M4 closes AC-37.
@@ -347,6 +348,15 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 12. RESOLVED 2026-10-04 (decision 8). PRD 12 now says RTE-1 to RTE-12 for product Phase 3 "In:". No plan in this program references the old range; closed.
 13. RESOLVED 2026-10-04 (decision 9). OWN-6 (`adopt`) and SRC-7 (remote sources) are product Phase 2 and now listed in spec 11. The charter out-of-scope list matches; closed.
 14. RESOLVED 2026-10-04 (decision 12). The Hermes trust write in the M0 runbook is accepted as planned (backup, single write, remove in cleanup, show the diff before deleting); marked resolved in the M0 plan; no runbook change.
+15. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; resolved provisionally by INNOVATE under autopilot). Spec 1.4 says "Library on macOS" for the `directories` crate, which contradicts spec section 2 and PRD section 9 (both give `~/.config/unam`, `~/.cache/unam`, `~/.local/share/unam` on macOS and Linux). PRD 9 followed; the `directories` crate is dropped and `paths.rs` resolves the paths. Reported, not resolved in the design documents.
+16. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). The data dir (project index, `projects.json`) has no `UNAM_*` override in spec section 2 or PRD 9. Not added in M1 (the three documented overrides are unchanged); tests isolate it through `HOME` and `XDG_DATA_HOME`. Taylor to confirm whether a fourth override is wanted.
+17. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). The spec has no `Diagnostic` type and no catalog-level diagnostics, yet spec 4.2, 4.3, and AC-5 require named diagnostics. M1 adds `Diagnostic { code, severity, message, path, remedy }`, per-skill diagnostics, and a catalog-level list carrying the source alias; JSON arrays are always present. Code names are recorded in the M1 plan as stable contract.
+18. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). M1 gets a temporary `lookup(ref)` in the catalog module that handles all three spec 4.6 reference forms (exit 4 with candidates, exit 5 listing every candidate, never picking) so `show` works. It is explicitly temporary: milestone M2's `resolve.rs` supersedes it. M1 also reads a provisional `<data dir>/projects.json` for the `source rm` exit-3 check (index absent means no references); milestone M2's `project.rs` owns the real index format and replaces that reader.
+19. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). `dist-workspace.toml` is hand-written and unverified (`dist` is not installed; milestone M7 verifies with `dist plan`). Spec section 9 names a macOS universal binary, but the research evidence does not support a universal target, so M1 lists per-arch targets (`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`) and makes no universal claim. The M7 entry in the Per-Phase Exit Gate table still says "macOS universal"; to be reconciled when milestone M7 is researched (held).
+20. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). M1 CLI search uses `nucleo-matcher` (Pattern::parse, match_list) instead of the full `nucleo` crate named in spec 1.4. The picker in milestone M6 may adopt full `nucleo` if it needs incremental matching. Match-index output (spec 4.3) is deferred to milestone M6.
+21. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; needs Taylor's decision). PRD requirement SRC-4 lists "rename" among source operations, but the spec CLI (section 5) has no `source rename` command. M1 does not build it; sources are keyed by alias in the data model as the spec says. Suggested milestone: M4 (alongside `source relocate`, which already updates references). Taylor to confirm the milestone.
+22. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional; added at M1 PVL cycle 1). Spec 5 says bare `unam` prints status and usage. M1 prints usage only (plus a line that status arrives later) because the `status` command is built in milestone M4; bare `unam` does not load the config. Taylor to confirm; milestone M4 adds status to bare `unam`.
+23. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional; added at M1 PVL cycle 1). PRD DIS-1 says any directory containing `SKILL.md` is a skill. M1 ignores a `SKILL.md` placed directly at a source root (warning `root-skill-skipped`; the walk still scans the root's children) because a skill needs a non-empty relative path for its ID (`alias:rel/path`). Taylor to confirm, or decide how a root-level skill should be identified.
 
 ---
 
@@ -362,7 +372,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 |---|---|
 | 0 (pre-program, plan creation) | PLANNED (this plan set written 04-10-26) |
 | 1 of 8: M0 Gating spike | VERIFIED (WITH_GAPS) 2026-10-05 (gates G1 to G6 PASS; Windsurf and Cursor editor not tested) |
-| 2 of 8: M1 Core read path | PLANNED |
+| 2 of 8: M1 Core read path | VERIFIED (WITH_GAPS) 2026-10-05 (G1 to G13 PASS, 164 tests; perf margin noisy, CI not run, 9 design departures awaiting Taylor: items 15 to 23) |
 | 3 of 8: M2 Bundles and selection | PLANNED |
 | 4 of 8: M3 Plan and apply for claude-code | PLANNED |
 | 5 of 8: M4 Verify, status, reconcile, rollback | PLANNED |
@@ -444,20 +454,22 @@ No criterion is carried by Known-Gap. If a milestone discovers an untestable beh
 
 ## Current Execution State
 
-Last updated: 2026-10-05 (M0 UPDATE PROCESS closeout)
-Current phase: 2 of 8 (milestone M1)
-Phase 2 name: M1 Core read path
-Phase 2 status: PLANNED (loop step 1 RESEARCH not started; awaiting Taylor)
-Phase 1 EVL: PASS (gates G1, G2, G3, G4a, G4b-claude-code, G4b-agents-neutral, G5, G6; WITH_GAPS)
+Last updated: 2026-10-05 (M1 UPDATE PROCESS closeout)
+Current phase: 3 of 8 (milestone M2)
+Phase 3 name: M2 Bundles and selection
+Phase 3 status: PLANNED (loop step 1 RESEARCH not started)
+Phase 2 EVL: PASS (gates G1 to G13, 164 tests; CLEAN with gaps)
+Phase 2 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-02-m1-core-read-path_REPORT_04-10-26.md
 Phase 1 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-01-m0-symlink-spike_REPORT_04-10-26.md
-Next phase: 2 of 8 (milestone M1), entry gate met
-Completed phases: phase 0 (plan creation); phase 1 of 8 (milestone M0), VERIFIED (WITH_GAPS) 2026-10-05
-Current loop step: RESEARCH (step 1 of milestone M1; not started)
-Validate-contract status: M1 not written
+Next phase: 3 of 8 (milestone M2), entry gate met (Hermes slugify parity decision pending at M2 RESEARCH)
+Completed phases: phase 0 (plan creation); phase 1 of 8 (milestone M0), VERIFIED (WITH_GAPS) 2026-10-05; phase 2 of 8 (milestone M1), VERIFIED (WITH_GAPS) 2026-10-05
+Current loop step: RESEARCH (step 1 of milestone M2; not started)
+Validate-contract status: M2 not written
+Open items awaiting Taylor: 15 to 23 (M1 design departures; see Contradictions and Open Items)
 Program Net Gate: PENDING
 Product Phase 1 Gate: NOT CONFIRMED
 Milestones M6 and M7: product Phase 2, held (no research, planning, or execution until Taylor clears the stop)
-Latest validator run: 2026-10-05, M0 UPDATE PROCESS (see the M0 phase report)
+Latest validator run: 2026-10-05, M1 UPDATE PROCESS (see the M1 phase report)
 
 Loop step values: RESEARCH | INNOVATE | PLAN-SUPPLEMENT | PVL | EXECUTE | EVL | UPDATE-PROCESS
 Orchestrator rule: read "Current loop step" and "Validate-contract status" before spawning any subagent. Never spawn execute-agent when loop step is RESEARCH, INNOVATE, PLAN-SUPPLEMENT, or PVL.
@@ -474,4 +486,4 @@ Note: The Stable Program Goal above is fixed. This section is the only part that
 
 ## Next Step
 
-M0 is VERIFIED (WITH_GAPS). Next is milestone M1 (phase 2 of 8), loop step 1 RESEARCH, not started; awaiting Taylor. M6 and M7 stay held behind the Product Phase 1 Gate.
+M0 and M1 are VERIFIED (WITH_GAPS). Next is milestone M2 (phase 3 of 8), loop step 1 RESEARCH, not started. M6 and M7 stay held behind the Product Phase 1 Gate.

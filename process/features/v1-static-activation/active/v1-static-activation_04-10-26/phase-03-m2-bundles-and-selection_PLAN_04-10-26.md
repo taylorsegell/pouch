@@ -61,9 +61,9 @@ Closes (spec section 10 M2): AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-35 (desir
 
 ## Entry Gate
 
-- Milestone M0 gate met: the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter.
-- Milestone M1 VERIFIED with its report; M1 Forward Preview read.
-- Hermes `slugify` parity decision available or explicitly deferred with the `#[ignore]` case in place (see Blockers).
+- [x] Milestone M0 gate met: the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter.
+- [x] Milestone M1 VERIFIED with its report (2026-10-05, WITH_GAPS: `phase-02-m1-core-read-path_REPORT_04-10-26.md`); M1 Forward Preview read at M2 RESEARCH.
+- [ ] Hermes `slugify` parity decision available or explicitly deferred with the `#[ignore]` case in place (see Blockers).
 
 ---
 

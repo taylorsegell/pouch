@@ -1,6 +1,6 @@
 ---
 name: context:all-tests
-description: "Test runners, commands, and verification gates for unam (cargo; planned until milestone M1)"
+description: "Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1; CI written, not yet run)"
 keywords: tests, testing, cargo test, clippy, fmt, verification, acceptance criteria, ac_nn, insta, proptest, assert_cmd, fixtures, ci, gates
 related: [context:all-product]
 date: 04-10-26
@@ -8,7 +8,7 @@ date: 04-10-26
 
 # Unambiguous - All Tests
 
-Last updated: 2026-10-04
+Last updated: 2026-10-05
 
 Attach this file first when the task involves testing, verification, or test debugging.
 
@@ -16,7 +16,7 @@ Attach this file first when the task involves testing, verification, or test deb
 
 ## Current State
 
-**No test suite exists yet.** There is no Cargo workspace until the first task of milestone M1. Until then the only runnable gates are the harness validators listed below. Every cargo command in this file is planned (spec section 8) and becomes runnable in M1.
+**A real suite exists (milestone M1, 164 tests, all green at EVL on 2026-10-05):** unam-core unit 107, unam-cli unit 5, integration files `ac_read_path` (6), `cache_cli` (6), `read_side_invariant` (1), `search_cli` (6), `show_cli` (7), `snapshots` (10), `source_cli` (10), `usage` (5), and `perf_cold_scan` (1, in `unam-core`). The cargo commands below are runnable. Integration tests use the `TestEnv` harness in `crates/unam-cli/tests/common/mod.rs`; every mutating or reading test asserts the source-tree invariant.
 
 ## Scope
 
@@ -48,17 +48,18 @@ Attach this file first when the task involves testing, verification, or test deb
 
 ## Commands
 
-Planned (runnable from milestone M1):
+Runnable (from the repo root; first export `PATH="$HOME/.cargo/bin:$PATH"` and `INSTA_UPDATE=no`):
 
 | Scope | Command | Notes |
 |---|---|---|
 | format | `cargo fmt --all --check` | CI gate |
-| lint | `cargo clippy --workspace --all-targets -- -D warnings` | `unwrap` denied outside tests via clippy config |
-| all tests | `cargo test --workspace` | unit + integration |
+| lint | `cargo clippy --workspace --all-targets --locked -- -D warnings` | `unwrap` denied outside tests via clippy config |
+| all tests | `cargo test --workspace --locked` | unit + integration |
 | one criterion | `cargo test -p unam --test <file> ac_NN` | integration tests live in `unam-cli` (package `unam`) |
-| update snapshots | `cargo insta review` | requires `cargo-insta` |
+| update snapshots | no `cargo-insta` installed | use the no-`cargo-insta` Insta procedure in the M1 plan (`INSTA_UPDATE=no` in gates) |
+| cold-scan perf | `cargo test --release -p unam-core --test perf_cold_scan` | Hybrid; gate is the median of five runs, limit 300 ms |
 
-CI target: macOS and Linux runners, all three gates.
+CI target: macOS and Linux runners, all three gates. `.github/workflows/ci.yml` is written but has not been run (no push yet).
 
 Runnable now (harness validators, from the repo root):
 
@@ -75,6 +76,10 @@ git diff --check
 1. The `blake3` tree hash of the source fixture is identical before and after (AC-2, S3).
 2. The foreign fixture file in the destination is byte-identical after (AC-23, S4).
 
+## Gate Helper Pattern
+
+Milestone gates are run through two shell functions defined inside each Bash call (each call is a fresh shell): `gate`, which fails when a test filter matches zero tests, and `gate6`, which runs the release perf test five times and takes the median. Exact definitions: the M1 plan Exit Gate (`process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-02-m1-core-read-path_PLAN_04-10-26.md`). Do not put path-like `target/`, `.git`, `node_modules`, `build`, `dist`, `vendor`, or `coverage` segments in Bash command text (the scout-block hook rejects them).
+
 ## Debugging Quick Reference
 
 - Tests must never touch the real `~/.config/unam`, `~/.claude/skills`, `~/.agents/skills`, the skill library, or this repository. Point `UNAM_CONFIG_DIR`, `UNAM_BUNDLES_DIR`, `UNAM_CACHE_DIR`, and any user-scope scan directory at `tempfile` directories.
@@ -84,4 +89,7 @@ git diff --check
 
 - AC-2 closes in milestone M3 (spec 10, decided 2026-10-04). The first test, in M1, is the read-side source-tree-unchanged test (register, scan, search leave the source tree hash unchanged); the invariant is asserted in every mutating test from M3 on.
 - Interruption tests (AC-31, AC-32) prove consistency in M3 by comparing destination and receipt to the expected state; M4 adds the `reconcile` zero-divergence assertion (spec 8).
-- No CI exists until milestone M1.
+- CI is written, not run. First push will show Linux behavior; the `show_found` (tree hash) and `add_bad_path` (OS error text) snapshots may differ on Linux.
+- `perf_cold_scan` is machine dependent: EVL median 183.9 ms but two of five runs were near or over 300 ms (297.9, 365.2). The gate is the median; watch it under CI load.
+- Chmod-based Hybrid tests self-skip when run as root.
+- `dist` and `cargo-insta` are not installed; `dist-workspace.toml` is parse-checked only (milestone M7 verifies with `dist plan`).

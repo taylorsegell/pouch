@@ -8,6 +8,7 @@ Append-only. One section per toolkit phase (one milestone each). Phases run sequ
 
 ## Phase 2: milestone M1
 - `Cargo.toml`, `Cargo.lock`, `crates/unam-core/**`, `crates/unam-cli/**` (created), CI workflow, `cargo-dist` config, clippy config
+- status: DONE
 
 ## Phase 3: milestone M2
 - `docs/adapters.md` (created if absent; Hermes slugify outcome; extended by M4 and M7); `crates/unam-core/src/{bundle,project,resolve}.rs`; `crates/unam-cli/src/cli/` bundle commands; `crates/unam-cli/tests/`
