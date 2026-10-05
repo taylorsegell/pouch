@@ -1,0 +1,64 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "search",
+  "data": {
+    "query": "review",
+    "category": null,
+    "source": null,
+    "total": 4,
+    "results": [
+      {
+        "id": "fx:colon/value-with-colon",
+        "name": "value-with-colon",
+        "category": "colon",
+        "source": "fx",
+        "description": "Use when: reviewing code",
+        "score": 166,
+        "diagnostics": [
+          {
+            "source": "fx",
+            "skill": "fx:colon/value-with-colon",
+            "code": "colon-retry-applied",
+            "severity": "info",
+            "message": "unquoted values containing `: ` were quoted to parse the frontmatter",
+            "path": null,
+            "remedy": null
+          }
+        ]
+      },
+      {
+        "id": "fx:data/schema-migration",
+        "name": "schema-migration",
+        "category": "data",
+        "source": "fx",
+        "description": "Plan schema migrations and review rollback steps.",
+        "score": 166,
+        "diagnostics": []
+      },
+      {
+        "id": "fx:sdlc/code-review",
+        "name": "code-review",
+        "category": "sdlc",
+        "source": "fx",
+        "description": "Guidance for reviewing code changes before merge.",
+        "score": 166,
+        "diagnostics": []
+      },
+      {
+        "id": "fx:testing/pytest-fixtures",
+        "name": "pytest-fixtures",
+        "category": "testing",
+        "source": "fx",
+        "description": "Write pytest fixtures; review fixture scope.",
+        "score": 166,
+        "diagnostics": []
+      }
+    ]
+  },
+  "warnings": [],
+  "errors": []
+}

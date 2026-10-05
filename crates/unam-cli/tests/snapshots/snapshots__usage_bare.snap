@@ -1,0 +1,23 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: out
+---
+Activate the right agent skills per project, unambiguously.
+
+Usage: unam [OPTIONS] [COMMAND]
+
+Commands:
+  source  Manage skill sources
+  search  Search skills across sources
+  show    Show one skill: metadata, supporting files, absolute path
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+      --json        Print one JSON object on stdout
+      --no-cache    Neither read nor write the catalog cache
+  -v, --verbose...  More log output on stderr (repeatable)
+  -q, --quiet       Less output: errors only in logs, no notes
+  -h, --help        Print help
+  -V, --version     Print version
+
+status arrives in a later milestone

@@ -1,0 +1,3 @@
+# Checklist
+
+- Read the diff.
