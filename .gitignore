@@ -22,3 +22,6 @@
 node_modules/
 *.log
 .vibecode-backup*/
+
+# Personal walkthroughs and notes
+.brain/

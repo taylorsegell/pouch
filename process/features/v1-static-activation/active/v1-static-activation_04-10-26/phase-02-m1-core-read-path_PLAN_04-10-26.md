@@ -72,7 +72,7 @@ The invariant is then asserted in every mutating test from milestone M3 on. M1 d
 
 - [x] Milestone M0 gate met (2026-10-05, symlink default for both adapters; see `spike/symlink-discovery.md` Outcome): the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter. No application code and no Cargo files before this.
 - [x] Milestone M0 report written (`phase-01-m0-symlink-spike_REPORT_04-10-26.md`) and its Forward Preview read.
-- [ ] Taylor's confirmation that M0 is complete.
+- [x] Taylor's confirmation that M0 is complete (confirmed 2026-10-05).
 
 ---
 
