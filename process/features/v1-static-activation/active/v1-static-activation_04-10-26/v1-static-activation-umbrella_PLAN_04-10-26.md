@@ -160,7 +160,7 @@ TEST GATES (every milestone exit; cargo gates from M1):
 
 VALIDATE CONTRACT: per milestone, written by vc-validate-agent into each plan before EXECUTE.
 
-START: Milestone M2 (phase 3 of 8), loop step 1 RESEARCH.
+START: Milestone M3 (phase 4 of 8), loop step 1 RESEARCH.
 ```
 
 ---
@@ -238,8 +238,9 @@ Program-level summary. The authoritative per-step checkboxes are in each milesto
 |---|---|---|
 | M0 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-05. Report: `phase-01-m0-symlink-spike_REPORT_04-10-26.md`. Default strategy: symlink for both adapters |
 | M1 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-05. Report: `phase-02-m1-core-read-path_REPORT_04-10-26.md`. 164 tests, G1 to G13 green |
-| M2 | 1 RESEARCH (not started) | M1 entry dependency met |
-| M3 to M5 | not started | Blocked behind M2 in sequence |
+| M2 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-05. Report: `phase-03-m2-bundles-and-selection_REPORT_04-10-26.md`. G1 to G14, G12b, E1 green; 13 design departures awaiting Taylor: items 24 to 36 |
+| M3 | 1 RESEARCH (not started) | M2 entry dependency met |
+| M4 to M5 | not started | Blocked behind M3 in sequence |
 | M6, M7 | not started | Product Phase 2, held: no research, planning, or execution until Taylor clears the stop after M5 |
 
 ---
@@ -332,7 +333,7 @@ Check (2026-10-04): every AC-1 to AC-43 and AC-53 is mapped exactly once, except
 
 ## Contradictions and Open Items
 
-Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits are in commit ae120c5). Items still open are marked STILL OPEN. Items 15 to 21 were added 2026-10-05 at the milestone M1 PLAN-SUPPLEMENT (reports to Taylor, resolved provisionally by INNOVATE under autopilot). Items 22 and 23 were added 2026-10-05 at milestone M1 PVL cycle 1.
+Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits are in commit ae120c5). Items still open are marked STILL OPEN. Items 15 to 21 were added 2026-10-05 at the milestone M1 PLAN-SUPPLEMENT (reports to Taylor, resolved provisionally by INNOVATE under autopilot). Items 22 and 23 were added 2026-10-05 at milestone M1 PVL cycle 1. Items 24 to 36 were added 2026-10-05 at the milestone M2 PLAN-SUPPLEMENT (reports to Taylor, resolved provisionally by INNOVATE under autopilot).
 
 1. RESOLVED 2026-10-04 (decision 1). AC-2 closes in M3 (needs apply for the full cycle). M1 writes the source-tree hash helper and the read-side test (register, scan, search leave the source tree hash unchanged) as the FIRST test; the invariant is asserted in every mutating test from M3 on. The M1 "AC-2 open item" is replaced by these tasks.
 2. RESOLVED 2026-10-04 (decision 2). `source relocate` is built in M4 (needs receipts and the project index). M4 closes AC-37.
@@ -357,6 +358,19 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 21. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; needs Taylor's decision). PRD requirement SRC-4 lists "rename" among source operations, but the spec CLI (section 5) has no `source rename` command. M1 does not build it; sources are keyed by alias in the data model as the spec says. Suggested milestone: M4 (alongside `source relocate`, which already updates references). Taylor to confirm the milestone.
 22. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional; added at M1 PVL cycle 1). Spec 5 says bare `unam` prints status and usage. M1 prints usage only (plus a line that status arrives later) because the `status` command is built in milestone M4; bare `unam` does not load the config. Taylor to confirm; milestone M4 adds status to bare `unam`.
 23. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional; added at M1 PVL cycle 1). PRD DIS-1 says any directory containing `SKILL.md` is a skill. M1 ignores a `SKILL.md` placed directly at a source root (warning `root-skill-skipped`; the walk still scans the root's children) because a skill needs a non-empty relative path for its ID (`alias:rel/path`). Taylor to confirm, or decide how a root-level skill should be identified.
+24. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional; added at M2 PLAN-SUPPLEMENT). AC-12 ("`status` shows provenance") and AC-35 ("shows `selected`, not `active`") both name `status`, which is built in milestone M4. Milestone M2 closes the desired side of each through core-API integration tests (the resolved set carries provenance; a hand-edited selection resolves to desired entries with no receipt and no destination); the status side closes in milestone M4. The M2 plan records two tracked M4 test notes (status prints per-entry provenance; status prints `selected`, never `active`, for a hand-edited selection) and a backlog NOTE is written at M2 UPDATE PROCESS. No new command outside spec 5 is added.
+25. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). Spec 4.4 describes `slugify` as "any run of non-`[a-z0-9]` becomes `-`" (an ASCII rule) and says it approximates Hermes. Milestone M2 read the Hermes source (`agent/skill_commands.py` `slugify_skill_name`, used by `agent/skill_bundles.py`) and ports it exactly: lowercase, space and underscore to `-`, delete characters that are not Unicode `\w` or `-`, collapse hyphen runs, trim hyphens. The result differs from spec 4.4 for non-ASCII names (`Caf\u00e9` keeps the accent; CJK is kept) and for punctuation (`foo.bar` gives `foobar`, not `foo-bar`). Parity with Python `\w` is made exact with a generated exclusion table (Rust `is_alphanumeric` also accepts combining marks and some symbols Python excludes). Outcome recorded in `docs/adapters.md`. Spec 4.4 text is not edited (protected document); Taylor to confirm or amend the spec.
+26. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). `source rm` does not consult bundle membership: a bundle that lists `alias:...` entries does not block removing that source (spec 4.2 refuses only for project selections). The PRD BND-10 report "every project referencing a bundle" is deferred; `bundle rm` lists the projects whose selections reference the bundle but never blocks (BND-6: deleting never deactivates). The project index stays the M1 string list, now read by `project::index`.
+27. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). Provenance: spec 2.3 says "deduplicate by `SkillId` keeping all provenance records"; PRD 5.3 says "last-write-wins at the skill ID level, provenance recorded per entry". Milestone M2 keeps every provenance record (deduplicated, first-seen order) and documents the "effective winner" as the last record (`DesiredEntry::winner`). Nothing in M2 or M3 varies behavior by winner; Taylor to confirm the reading. Two selected skills that share a name are not flagged at resolution (EDG-2 conflict belongs to M3 `plan::diff`).
+28. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). Bundle command scope: BND-6 "rename" is deferred (duplicate plus delete is the workaround; `bundle edit` refuses a name change that alters the slug); BND-9 "validate" is folded into `bundle show` (per-entry resolution status) and `bundle edit` (problems reported after a commit) instead of a new command; the overwrite flag on `bundle save` and `bundle duplicate` is named `--force` (spec 5 names none); spec 5 lists `rm` both as manifest CRUD and as the in-place skill remover, so `bundle rm <name>` deletes the manifest and `bundle rm <name> <ref>...` removes entries (a user who meant to remove a skill but forgot the reference deletes the bundle file; the output names the path and there is no confirmation prompt, as in Hermes).
+29. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). Bundle load order: spec 2.2 says "files are loaded in alphabetical order". Hermes processes `*.yaml` sorted, then `*.yml` sorted (not one merged alphabetical order); the first duplicate slug wins, so the order is observable (`a.yml` loses to `b.yaml` when both name the same slug). Milestone M2 mirrors Hermes (D7). Spec 2.2 and 4.4 ("sorted by filename") are not edited.
+30. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). Blank bundle name: spec 2.2 and PRD 5.1 treat a blank name as an error; milestone M2 reports an error diagnostic (`bundle-name-blank`) and skips the bundle. Hermes' loader also skips such a bundle (with a log warning); the difference is that an explicitly empty `name: ""` falls back to the file stem in Hermes (falsy value) while M2 treats an explicitly empty or whitespace-only string as blank. An absent or null `name` falls back to the file stem in both.
+31. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). The M1 `lookup` ordered candidates by edit distance then by ID string. Spec 4.6 says source precedence "only orders the candidate list". Milestone M2 changes the order to (edit distance, source precedence, ID) for not-found candidates and (source precedence, ID) for ambiguous candidates. With one source nothing changes; with several, the error candidate order follows `source add` order (precedence).
+32. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). The global flags `--project` and `--target` (spec 5) are not built in M2 (no M2 command needs them beyond `bundle save`); milestone M3 declares them with its first command that uses them, as M1 did for its flags.
+33. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). Without `--project` and `--target`, `bundle save` takes the project root from the working directory (nearest `.git` file, directory, or symlink, else the working directory itself, spec 4.5) and the target from the selection file's single target. When the selection has several targets the command fails with exit 2 and a remedy that says the `--target` flag arrives in milestone M3, so in M2 a multi-target selection cannot be saved as a bundle. Taylor to confirm this interim behavior.
+34. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; research contradiction). PRD 5.1 and spec 2.2 describe a blank bundle name as raising (`ValueError("Bundle name is required")`). In the Hermes source that exception exists only in `save_bundle`; the loader (`_load_bundle_file`) skips a nameless bundle with a log warning ("has no name"). The PRD 5.1 table row mixes the two. Not edited (protected documents); M2 follows the loader's observable behavior (skip and report) with an error-severity diagnostic.
+35. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; process note). `docs/adapters.md` is created by milestone M2 with the slugify parity outcome and the loader differences, and extended by M4. Spec 10 M7 says `docs/adapters.md` is generated from `doctor --evidence`; the M7 plan must preserve the two M2 sections ("Bundle slugify parity with Hermes" and "Bundle loader: differences from Hermes") when it regenerates the adapter-evidence part.
+36. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). Further Hermes loader differences recorded in `docs/adapters.md`: null manifest entries are dropped here (Python `str(None)` would give the text `None`); mapping or list entries are dropped with a `bundle-entry-ignored` warning (Python gives their repr text); booleans become `true` and `false` (Python `True` and `False`); YAML 1.1 booleans such as `yes` are not mirrored (`serde_norway` follows the YAML 1.2 core schema); a non-UTF-8 manifest is skipped with an error diagnostic (the Hermes loader does not catch the decode error); no mtime cache (the directory is reloaded per command); hidden files are loaded as in Hermes; `bundle save` writes only `name` and `skills`. The `\w` table is tied to the Unicode versions of the generating Python and rustc (Python 3.14.5 with Unicode 16.0.0 and rustc 1.99.0 at plan time).
 
 ---
 
@@ -373,7 +387,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 | 0 (pre-program, plan creation) | PLANNED (this plan set written 04-10-26) |
 | 1 of 8: M0 Gating spike | VERIFIED (WITH_GAPS) 2026-10-05 (gates G1 to G6 PASS; Windsurf and Cursor editor not tested) |
 | 2 of 8: M1 Core read path | VERIFIED (WITH_GAPS) 2026-10-05 (G1 to G13 PASS, 164 tests; perf margin noisy, CI not run, 9 design departures awaiting Taylor: items 15 to 23) |
-| 3 of 8: M2 Bundles and selection | PLANNED |
+| 3 of 8: M2 Bundles and selection | VERIFIED (WITH_GAPS) 2026-10-05 (G1 to G14, G12b, E1 PASS; AC-10, 12, 35 desired side only; 13 design departures awaiting Taylor: items 24 to 36) |
 | 4 of 8: M3 Plan and apply for claude-code | PLANNED |
 | 5 of 8: M4 Verify, status, reconcile, rollback | PLANNED |
 | 6 of 8: M5 agents-neutral and generated briefs | PLANNED |
@@ -444,32 +458,32 @@ No criterion is carried by Known-Gap. If a milestone discovers an untestable beh
 ## Resume and Execution Handoff
 
 - Selected plan file path: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/v1-static-activation-umbrella_PLAN_04-10-26.md`
-- Last completed phase: phase 1 of 8 (milestone M0), VERIFIED (WITH_GAPS) 2026-10-05; phase report written
+- Last completed phase: phase 3 of 8 (milestone M2), VERIFIED (WITH_GAPS) 2026-10-05; phase report written
 - Validate-contract status: M0 written (Gate PASS 2026-10-04) and closed; M1 to M7 pending (vc-validate-agent writes per milestone)
 - Supporting context files loaded: `process/context/all-context.md`, `process/context/product/all-product.md`, `process/context/tests/all-tests.md`, `docs/PROJECT-BRIEF.md`, spec sections 8 to 12, PRD sections 0, 3, 12, 13, 15, `spike/symlink-discovery.md`, `process/development-protocols/phase-programs.md`
-- Next step for a fresh agent: read this plan, then the M1 plan. M0 is done and its Outcome (symlink default for both adapters) satisfies the M1 entry dependency. M1 loop step 1 RESEARCH is not started and waits for Taylor. Do not research, plan, or execute M6 or M7 (product Phase 2, held).
+- Next step for a fresh agent: read this plan, then the M3 plan and the M2 report (Forward Preview). M0, M1, and M2 are done. M3 loop step 1 RESEARCH is not started. Do not research, plan, or execute M6 or M7 (product Phase 2, held).
 - Execute-agent start instruction: never start EXECUTE for M1 or later until the M0 gate is met; never start research, planning, or EXECUTE for M6 or M7 until the Product Phase 1 Gate record shows Taylor's confirmation.
 
 ---
 
 ## Current Execution State
 
-Last updated: 2026-10-05 (M1 UPDATE PROCESS closeout)
-Current phase: 3 of 8 (milestone M2)
-Phase 3 name: M2 Bundles and selection
-Phase 3 status: PLANNED (loop step 1 RESEARCH not started)
-Phase 2 EVL: PASS (gates G1 to G13, 164 tests; CLEAN with gaps)
+Last updated: 2026-10-05 (M2 UPDATE PROCESS closeout)
+Current phase: 4 of 8 (milestone M3)
+Phase 4 name: M3 Plan and apply for claude-code
+Phase 4 status: PLANNED (loop step 1 RESEARCH not started)
+Phase 3 EVL: PASS (gates G1 to G14, G12b, E1; CLEAN with gaps)
+Phase 3 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-03-m2-bundles-and-selection_REPORT_04-10-26.md
 Phase 2 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-02-m1-core-read-path_REPORT_04-10-26.md
-Phase 1 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-01-m0-symlink-spike_REPORT_04-10-26.md
-Next phase: 3 of 8 (milestone M2), entry gate met (Hermes slugify parity decision pending at M2 RESEARCH)
-Completed phases: phase 0 (plan creation); phase 1 of 8 (milestone M0), VERIFIED (WITH_GAPS) 2026-10-05; phase 2 of 8 (milestone M1), VERIFIED (WITH_GAPS) 2026-10-05
-Current loop step: RESEARCH (step 1 of milestone M2; not started)
-Validate-contract status: M2 not written
-Open items awaiting Taylor: 15 to 23 (M1 design departures; see Contradictions and Open Items)
+Next phase: 4 of 8 (milestone M3), entry gate met (M2 VERIFIED)
+Completed phases: phase 0 (plan creation); phase 1 of 8 (milestone M0), VERIFIED (WITH_GAPS) 2026-10-05; phase 2 of 8 (milestone M1), VERIFIED (WITH_GAPS) 2026-10-05; phase 3 of 8 (milestone M2), VERIFIED (WITH_GAPS) 2026-10-05
+Current loop step: RESEARCH (step 1 of milestone M3; not started)
+Validate-contract status: M3 not written
+Open items awaiting Taylor: 15 to 23 (M1 design departures) and 24 to 36 (M2 design departures); see Contradictions and Open Items
 Program Net Gate: PENDING
 Product Phase 1 Gate: NOT CONFIRMED
 Milestones M6 and M7: product Phase 2, held (no research, planning, or execution until Taylor clears the stop)
-Latest validator run: 2026-10-05, M1 UPDATE PROCESS (see the M1 phase report)
+Latest validator run: 2026-10-05, M2 UPDATE PROCESS (see the M2 phase report)
 
 Loop step values: RESEARCH | INNOVATE | PLAN-SUPPLEMENT | PVL | EXECUTE | EVL | UPDATE-PROCESS
 Orchestrator rule: read "Current loop step" and "Validate-contract status" before spawning any subagent. Never spawn execute-agent when loop step is RESEARCH, INNOVATE, PLAN-SUPPLEMENT, or PVL.

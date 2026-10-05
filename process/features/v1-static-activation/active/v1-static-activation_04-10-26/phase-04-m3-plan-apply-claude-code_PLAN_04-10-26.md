@@ -86,9 +86,9 @@ Scope decision (resolved 2026-10-04, decision 3): journal-based `resume` and `ro
 
 ## Entry Gate
 
-- Milestone M0 gate met: the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter.
-- Milestone M2 VERIFIED with its report; M2 Forward Preview read.
-- Strategy default and supported strategies for `claude-code` known from the M0 Outcome.
+- [ ] Milestone M0 gate met: the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter.
+- [x] Milestone M2 VERIFIED with its report (2026-10-05, WITH_GAPS: `phase-03-m2-bundles-and-selection_REPORT_04-10-26.md`); M2 Forward Preview read at M3 RESEARCH (pending).
+- [ ] Strategy default and supported strategies for `claude-code` known from the M0 Outcome.
 
 ---
 

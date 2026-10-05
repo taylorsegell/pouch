@@ -19,7 +19,7 @@ Unambiguous is a Rust command-line tool, invoked as `unam`, that controls which 
 
 - **User:** Taylor, solo, on macOS and Linux, across Claude Code, Codex, Cursor, and Hermes.
 - **Standard:** personal tool built to open-source-ready standards: tests, docs, reproducible builds, no telemetry, no network.
-- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters) and M1 (core read path: `source add|list|rm`, `search`, `show`) are done and VERIFIED with gaps. Next is milestone M2 (bundles, project selection, resolve). Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
+- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), and M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles) are done and VERIFIED with gaps. Next is milestone M3 (adapter trait, claude-code plan and apply). Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
 - **Not a harness.** It sits in front of existing agent harnesses (PRD D7).
 
 Full product and design context: `process/context/product/all-product.md`.
@@ -96,7 +96,7 @@ For most substantial tasks:
 | `process/context/all-context.md` | any substantial planning, research, review, or implementation task |
 | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1; CI written, not yet run) |
+| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2; CI written, not yet run) |
 
 ## Current Context Groups
 
@@ -104,7 +104,7 @@ For most substantial tasks:
 |---|---|---|
 | `planning/` | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `product/` | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1; CI written, not yet run) |
+| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2; CI written, not yet run) |
 <!-- /GENERATED:routing -->
 
 ## Task Routing Table
@@ -154,28 +154,35 @@ unambiguous/
   README.md START-HERE.md .gitignore
 ```
 
-Source layout as of milestone M1 (created 2026-10-05; the rest of spec section 1.3 arrives in later milestones):
+Source layout as of milestone M2 (M1 created 2026-10-05, M2 added the desired-state side; the rest of spec section 1.3 arrives in later milestones):
 
 ```
 Cargo.toml Cargo.lock clippy.toml     virtual workspace, resolver = "3", unwrap denied
 dist-workspace.toml                   hand-written, unverified (dist not installed)
 .github/workflows/ci.yml              fmt, clippy, test on ubuntu and macos; written, not yet run
 crates/
-  unam-core/src/                      config, paths, error, fsops (minimal), hash, source,
-                                      catalog/{mod,cache,frontmatter,lookup,scan,search}
+  unam-core/src/                      config, paths, error, fsops (minimal), hash, source, resolve,
+                                      catalog/{mod,cache,frontmatter,lookup,scan,search},
+                                      bundle/{mod,crud,slug,word_table,edit},
+                                      project/{mod,selection,index}
+  unam-core/tools/                    gen-word-table.py + rust-word-ranges.txt (slugify \w table
+                                      generator and checker; not a cargo source)
   unam-core/tests/                    perf_cold_scan.rs (500-skill fixture, 300 ms limit)
-  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source}
-  unam-cli/tests/                     ac_read_path, read_side_invariant, search_cli, show_cli,
-                                      source_cli, cache_cli, usage, snapshots (+ common/, fixtures/)
+  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle}
+  unam-cli/tests/                     ac_read_path, ac_bundles, ac_selection, bundle_cli,
+                                      read_side_invariant, search_cli, show_cli, source_cli,
+                                      cache_cli, usage, snapshots (+ common/, fixtures/)
+docs/adapters.md                      spec-called doc (M2): Hermes slugify parity and bundle loader
+                                      differences; M4 and M7 extend it
 ```
 
-Still to come: `bundle`, `project`, `resolve` (M2); `adapter/`, `plan`, `apply`, `state` (M3); `verify`, `reconcile` (M4); `tui/` (M6); `docs/adapters.md` (M2 or M4, whichever is first) and `docs/json.md` (M7).
+Still to come: `adapter/`, `plan`, `apply`, `state` (M3); `verify`, `reconcile` (M4); `tui/` (M6); `docs/json.md` (M7). `docs/adapters.md` exists since M2 (M4 extends, M7 regenerates the adapter-evidence part and must keep the two M2 sections).
 
 ## Technology Stack
 
 - **Language:** Rust, stable toolchain, edition 2024. Local toolchain at setup: rustc 1.99.0, cargo 1.99.0 (stable-aarch64-apple-darwin).
 - **Platforms:** macOS and Linux. Windows is not a v1 build target.
-- **Workspace:** Cargo virtual workspace, crates `unam-core` (library) and `unam-cli` (binary `unam`). Created in milestone M1.
+- **Workspace:** Cargo virtual workspace, crates `unam-core` (library) and `unam-cli` (binary `unam`). Created in milestone M1; M2 added no crates (lockfile unchanged).
 - **Dependencies in use (M1; lockfile committed):** clap 4.6.7 (derive), serde 1.0.229, serde_json 1.0.151, serde_norway 0.9.42, toml 1.1.6, ignore 0.4.33, blake3 1.8.7, nucleo-matcher 0.3.1, jiff 0.2.37, thiserror 2.0.21 (core), anyhow 1.0.104 (binary), tracing 0.1.44 + tracing-subscriber 0.3.23. Test: assert_cmd 2.2.2, predicates 3.1.4, insta 1.49.0, tempfile 3.27.0, proptest 1.11.0. Departures from spec 1.4: `directories` dropped (paths resolved in `paths.rs`), `nucleo-matcher` instead of full `nucleo` (umbrella open items 15 and 20). Still planned: `ratatui` + `crossterm` (M6), `fs4` (M3).
 - **Deliberately absent in v1:** any Git library (shell out to `git` when present).
 - **Release:** `cargo-dist` (milestone M7). `dist` and `cargo-insta` are not installed locally; `dist-workspace.toml` is parse-checked only.
@@ -239,7 +246,7 @@ When durable project knowledge changes:
 
 ## Scan Metadata
 
-- Generated: 2026-10-04; delta update 2026-10-05 (milestone M1 closeout)
-- HEAD: commit 8eebda4 or later (milestone M1 execution commit pending at the time of this update)
-- Mode: delta (status, repository structure, technology stack refreshed)
+- Generated: 2026-10-04; delta update 2026-10-05 (milestone M2 closeout)
+- HEAD: commit def8299 or later (milestone M2 execution commit pending at the time of this update)
+- Mode: delta (status, repository structure refreshed; no dependency change in M2)
 - Package manager: cargo (workspace exists since milestone M1)

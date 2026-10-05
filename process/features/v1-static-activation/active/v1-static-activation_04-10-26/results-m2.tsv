@@ -1,0 +1,4 @@
+iteration	timestamp	gaps_found	fail_count	concern_count	applied	saturation_status	loop_status	notes
+0	2026-10-05T00:00:00Z	5	0	5	0	n/a	baseline	M2 PVL first pass: Gate CONDITIONAL, 5 concerns
+1	2026-10-05T00:00:00Z	5	0	5	5	n/a	CONTINUING	All 5 concerns plus E1 to E11 applied; re-validate from V1
+2	2026-10-05T00:00:00Z	0	0	0	1	saturated	HALTED_SUCCESS	Gate PASS; validator fixed proptest renderer in-body

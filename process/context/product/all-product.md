@@ -60,7 +60,7 @@ Decision log: Taylor's 2026-10-04 decisions edited spec sections 8, 10, 11, 12 a
 | `spike/symlink-discovery.md` | Milestone M0 procedure, results table, decision rule | Running or reading the spike |
 | `docs/KICKOFF-PROMPT.md` | The session prompt that set up this harness | History only |
 
-M0 results: milestone M0 ran on 2026-10-05; its Outcome is in `spike/symlink-discovery.md` (default strategy `symlink` for both adapters, per-agent refresh behavior, Windsurf and the Cursor editor not tested). That file is the source of truth until `docs/adapters.md` exists.
+M0 results: milestone M0 ran on 2026-10-05; its Outcome is in `spike/symlink-discovery.md` (default strategy `symlink` for both adapters, per-agent refresh behavior, Windsurf and the Cursor editor not tested). That file is the source of truth for the M0 spike procedure and raw results. `docs/adapters.md` (spec-called document, created in milestone M2, not one of the five protected documents) records the Hermes slugify parity outcome and the bundle loader differences from Hermes; milestone M4 extends it with adapter evidence and milestone M7 regenerates the adapter part from `doctor --evidence` while keeping the two M2 sections.
 
 ## Section Map
 
