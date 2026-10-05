@@ -60,6 +60,8 @@ Decision log: Taylor's 2026-10-04 decisions edited spec sections 8, 10, 11, 12 a
 | `spike/symlink-discovery.md` | Milestone M0 procedure, results table, decision rule | Running or reading the spike |
 | `docs/KICKOFF-PROMPT.md` | The session prompt that set up this harness | History only |
 
+M0 results: milestone M0 ran on 2026-10-05; its Outcome is in `spike/symlink-discovery.md` (default strategy `symlink` for both adapters, per-agent refresh behavior, Windsurf and the Cursor editor not tested). That file is the source of truth until `docs/adapters.md` exists.
+
 ## Section Map
 
 ### PRD (`docs/spec/PRD-unambiguous.md`)

@@ -203,7 +203,7 @@ From `docs/PROJECT-BRIEF.md`, "Open questions":
 
 | Question | Needed by |
 |---|---|
-| Default strategy per adapter (PRD Q1) | milestone M0 (answered by the spike) |
+| Default strategy per adapter (PRD Q1) | milestone M0. ANSWERED 2026-10-05: `symlink` for both `claude-code` and `agents-neutral` (`spike/symlink-discovery.md`) |
 | Hermes `slugify` parity | milestone M2 |
 | First real project to adopt `unam` | end of milestone M3 |
 | Crate name and license (PRD Q11) | before milestone M7 |

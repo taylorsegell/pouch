@@ -17,7 +17,7 @@ metadata:
 **Complexity**: SIMPLE (one manual runbook, no code)
 **Phase:** Phase 1 of 8: milestone M0
 **Status**: PLANNED
-**Phase status:** VALIDATED (Gate: PASS 2026-10-04 after 2 PVL fix cycles; EXECUTE is Taylor running the spike)
+**Phase status:** VERIFIED (WITH_GAPS) 2026-10-05 (spike run by Taylor 2026-10-05; EVL gates G1 to G6 PASS; Windsurf and Cursor editor not tested; report: phase-01-m0-symlink-spike_REPORT_04-10-26.md)
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-01-m0-symlink-spike_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 
@@ -357,22 +357,22 @@ Reminder: the only write outside `$SPIKE` was the sanctioned Hermes trust entry 
 ### Step A: Prepare (agent-assisted, read-only)
 
 - [x] A1. Re-read `spike/symlink-discovery.md`; installed agents and versions listed (see Research Findings).
-- [ ] A2. Taylor runs R0 preflight; both OK lines print (spike path outside this repo, outside `~/Developer/01-AI/skillzone`, no enclosing git repository above the spike) and "OK: path free" prints.
+- [x] A2. Taylor runs R0 preflight; both OK lines print (spike path outside this repo, outside `~/Developer/01-AI/skillzone`, no enclosing git repository above the spike) and "OK: path free" prints.
 
 ### Step B: Run the spike (Taylor, manual)
 
-- [ ] B1. R1 and R2 executed; `ls -l` confirms probe-a is a symlink and probe-b is a real directory in both destinations.
-- [ ] B2. Runs 1 to 6 from the run-order table executed, each with the reset block first; one report block per run.
-- [ ] B3. Windsurf row recorded as "not tested".
-- [ ] B4. Taylor pastes all report blocks to the orchestrator.
+- [x] B1. R1 and R2 executed; `ls -l` confirms probe-a is a symlink and probe-b is a real directory in both destinations.
+- [x] B2. Runs 1 to 6 from the run-order table executed, each with the reset block first; one report block per run.
+- [x] B3. Windsurf row recorded as "not tested".
+- [x] B4. Taylor pastes all report blocks to the orchestrator.
 
 ### Step C: Record the outcome (orchestrator transcribes; Taylor confirms)
 
-- [ ] C1. Fill all 9 rows of the results table by the transcription rules: version and date on every row (Windsurf: "not tested").
-- [ ] C2. Fill the Outcome section: default strategy per adapter (`claude-code`, `agents-neutral`) by the decision rule; state that the Cursor editor was not tested and that the `Cursor (cursor-agent CLI)` rows are not evidence for the editor; record the sequencing deviation (two-run isolation for Claude Code and Cursor).
-- [ ] C3. List any spec or PRD adapter claim the results contradict; report to Taylor (do not edit `docs/`). Note `docs/adapters.md` does not exist yet; the Outcome may be recorded there once it exists (milestones M4/M7).
-- [ ] C4. Update the spike Status line from "not run" to the actual state (for example "run 2026-10-04; Windsurf not tested"), keeping the `**Status:**` line format.
-- [ ] C5. Cleanup per the Cleanup section (Hermes untrust first, guarded delete, then checks); Taylor confirms.
+- [x] C1. Fill all 9 rows of the results table by the transcription rules: version and date on every row (Windsurf: "not tested").
+- [x] C2. Fill the Outcome section: default strategy per adapter (`claude-code`, `agents-neutral`) by the decision rule; state that the Cursor editor was not tested and that the `Cursor (cursor-agent CLI)` rows are not evidence for the editor; record the sequencing deviation (two-run isolation for Claude Code and Cursor).
+- [x] C3. List any spec or PRD adapter claim the results contradict; report to Taylor (do not edit `docs/`). Note `docs/adapters.md` does not exist yet; the Outcome may be recorded there once it exists (milestones M4/M7).
+- [x] C4. Update the spike Status line from "not run" to the actual state (for example "run 2026-10-04; Windsurf not tested"), keeping the `**Status:**` line format.
+- [x] C5. Cleanup per the Cleanup section (Hermes untrust first, guarded delete, then checks); Taylor confirms.
 
 ---
 
@@ -450,9 +450,9 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 - [x] 2. INNOVATE: n/a (mechanical procedure fixed by the spike file; the only design gap is resolved by sequencing, see Design Gap and Resolution)
 - [x] 3. PLAN-SUPPLEMENT: plan-agent: stub taken through planning; Inner Loop Refresh Note written below
 - [x] 4. PVL (Gate PASS 2026-10-04, 2 fix cycles; results.tsv): vc-validate-agent: full V1-V7; validate-contract written per `.claude/skills/vc-validate-findings/references/example-validate-output.md`
-- [ ] 5. EXECUTE: Taylor runs the spike; table and Outcome filled
-- [ ] 6. EVL: orchestrator reads the filled file against the exit gate; EVL HANDOFF SUMMARY written
-- [ ] 7. UPDATE PROCESS: phase report written, umbrella state updated, context updated, commit done
+- [x] 5. EXECUTE: Taylor ran the spike 2026-10-05; table and Outcome filled
+- [x] 6. EVL: all gates PASS (G1, G2, G3, G4a, G4b-claude-code, G4b-agents-neutral, G5, G6; vc-tester 2026-10-05); EVL HANDOFF SUMMARY written (WITH_GAPS)
+- [x] 7. UPDATE PROCESS: archived; context updated; committed (phase report written, umbrella state updated; the process commit is made by the orchestrator right after this step)
 
 **Validate-contract required before execute.** If step 4 (PVL) is unchecked or `## Validate Contract` reads "(placeholder - vc-validate-agent writes this section before EXECUTE)", the orchestrator must spawn vc-validate-agent first. A partial contract missing Plan updates applied / Execute-agent instructions / Test gates is treated as a placeholder.
 
@@ -508,11 +508,11 @@ No cargo or `ac_NN_*` gate exists for M0. Known-Gap is not used for developed be
 ## Resume and Execution Handoff
 
 - Selected plan file path: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-01-m0-symlink-spike_PLAN_04-10-26.md`
-- Last completed step: PLAN-SUPPLEMENT (loop step 3), PVL supplement cycle 1 applied to the plan body
-- Validate-contract status: pending (CONDITIONAL contract from cycle 0 awaits re-issue by the validator)
+- Last completed step: UPDATE PROCESS (loop step 7), 2026-10-05; M0 is VERIFIED (WITH_GAPS)
+- Validate-contract status: written (Gate PASS 2026-10-04 after 3 PVL cycles; results.tsv)
+- Phase report: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-01-m0-symlink-spike_REPORT_04-10-26.md`
 - Supporting context files: `process/context/all-context.md`, `process/context/product/all-product.md`, `spike/symlink-discovery.md`
-- Next step: re-run vc-validate-agent from V1 (PVL cycle 2). After PASS, hand Taylor the Runbook; Taylor runs runs 1 to 6 and pastes report blocks; the orchestrator transcribes into `spike/symlink-discovery.md` and runs gates G1 to G6 (G5 only after the harness-setup commit). No agent runs real agents for Taylor.
-
+- Next step: milestone M1 (phase 2 of 8), loop step 1 RESEARCH, not started; awaiting Taylor. Nothing further to do for M0.
 ---
 
 ## Validate Contract

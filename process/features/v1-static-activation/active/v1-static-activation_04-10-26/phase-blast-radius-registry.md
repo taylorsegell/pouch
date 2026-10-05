@@ -4,6 +4,7 @@ Append-only. One section per toolkit phase (one milestone each). Phases run sequ
 
 ## Phase 1: milestone M0
 - `spike/symlink-discovery.md` (results and Outcome; filled in by Taylor)
+- status: DONE
 
 ## Phase 2: milestone M1
 - `Cargo.toml`, `Cargo.lock`, `crates/unam-core/**`, `crates/unam-cli/**` (created), CI workflow, `cargo-dist` config, clippy config

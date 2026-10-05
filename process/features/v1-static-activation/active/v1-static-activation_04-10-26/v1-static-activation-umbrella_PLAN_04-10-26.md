@@ -160,7 +160,7 @@ TEST GATES (every milestone exit; cargo gates from M1):
 
 VALIDATE CONTRACT: per milestone, written by vc-validate-agent into each plan before EXECUTE.
 
-START: Milestone M0, loop step 5 EXECUTE (manual: Taylor runs the runbook; orchestrator transcribes report blocks into spike/symlink-discovery.md).
+START: Milestone M1 (phase 2 of 8), loop step 1 RESEARCH (not started; awaiting Taylor).
 ```
 
 ---
@@ -236,8 +236,9 @@ Program-level summary. The authoritative per-step checkboxes are in each milesto
 
 | Milestone | Next loop step | Note |
 |---|---|---|
-| M0 | 5 EXECUTE (manual) | Steps 1 to 4 done (PVL Gate PASS 2026-10-04 after 2 fix cycles; results.tsv). Next: Taylor runs the runbook by hand; the orchestrator transcribes his report blocks into `spike/symlink-discovery.md` |
-| M1 to M5 | not started | Blocked behind M0 |
+| M0 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-05. Report: `phase-01-m0-symlink-spike_REPORT_04-10-26.md`. Default strategy: symlink for both adapters |
+| M1 | 1 RESEARCH (not started) | M0 entry dependency met; awaiting Taylor |
+| M2 to M5 | not started | Blocked behind M1 in sequence |
 | M6, M7 | not started | Product Phase 2, held: no research, planning, or execution until Taylor clears the stop after M5 |
 
 ---
@@ -360,7 +361,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 | Phase | Status |
 |---|---|
 | 0 (pre-program, plan creation) | PLANNED (this plan set written 04-10-26) |
-| 1 of 8: M0 Gating spike | PLANNED (steps 1 to 4 done, PVL Gate PASS 2026-10-04; manual EXECUTE pending) |
+| 1 of 8: M0 Gating spike | VERIFIED (WITH_GAPS) 2026-10-05 (gates G1 to G6 PASS; Windsurf and Cursor editor not tested) |
 | 2 of 8: M1 Core read path | PLANNED |
 | 3 of 8: M2 Bundles and selection | PLANNED |
 | 4 of 8: M3 Plan and apply for claude-code | PLANNED |
@@ -433,33 +434,33 @@ No criterion is carried by Known-Gap. If a milestone discovers an untestable beh
 ## Resume and Execution Handoff
 
 - Selected plan file path: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/v1-static-activation-umbrella_PLAN_04-10-26.md`
-- Last completed phase: phase 0 (plan set written 04-10-26); milestone M0 loop steps 1 to 4 (PVL Gate PASS 2026-10-04 after 2 fix cycles); plans updated for Taylor's twelve decisions of 2026-10-04
-- Validate-contract status: M0 written (Gate PASS 2026-10-04); M1 to M7 pending (vc-validate-agent writes per milestone)
+- Last completed phase: phase 1 of 8 (milestone M0), VERIFIED (WITH_GAPS) 2026-10-05; phase report written
+- Validate-contract status: M0 written (Gate PASS 2026-10-04) and closed; M1 to M7 pending (vc-validate-agent writes per milestone)
 - Supporting context files loaded: `process/context/all-context.md`, `process/context/product/all-product.md`, `process/context/tests/all-tests.md`, `docs/PROJECT-BRIEF.md`, spec sections 8 to 12, PRD sections 0, 3, 12, 13, 15, `spike/symlink-discovery.md`, `process/development-protocols/phase-programs.md`
-- Next step for a fresh agent: read this plan, then the M0 plan. M0 step 5 EXECUTE is Taylor's manual spike (he runs the runbook); do not write code and do not spawn an execute agent for M0. The orchestrator transcribes his report blocks into `spike/symlink-discovery.md`, then EVL and UPDATE PROCESS. After the table is filled, spawn research for M1. Do not research, plan, or execute M6 or M7 (product Phase 2, held).
+- Next step for a fresh agent: read this plan, then the M1 plan. M0 is done and its Outcome (symlink default for both adapters) satisfies the M1 entry dependency. M1 loop step 1 RESEARCH is not started and waits for Taylor. Do not research, plan, or execute M6 or M7 (product Phase 2, held).
 - Execute-agent start instruction: never start EXECUTE for M1 or later until the M0 gate is met; never start research, planning, or EXECUTE for M6 or M7 until the Product Phase 1 Gate record shows Taylor's confirmation.
 
 ---
 
 ## Current Execution State
 
-Last updated: 2026-10-04 (Taylor's twelve decisions applied to the plans)
-Current phase: 1 of 8 (milestone M0)
-Phase 1 name: M0 Gating spike
-Phase 1 status: PLANNED (steps 1 to 4 done; PVL Gate PASS 2026-10-04 after 2 fix cycles; results.tsv)
-Phase 1 EVL: n/a
-Phase 1 report: not written
-Next phase: 2 of 8 (milestone M1), blocked until M0 gate met
-Completed phases: phase 0 (plan creation)
-Current loop step: EXECUTE (step 5; manual: Taylor runs the runbook; orchestrator transcribes report blocks into spike/symlink-discovery.md)
-Validate-contract status: M0 written (Gate PASS 2026-10-04)
+Last updated: 2026-10-05 (M0 UPDATE PROCESS closeout)
+Current phase: 2 of 8 (milestone M1)
+Phase 2 name: M1 Core read path
+Phase 2 status: PLANNED (loop step 1 RESEARCH not started; awaiting Taylor)
+Phase 1 EVL: PASS (gates G1, G2, G3, G4a, G4b-claude-code, G4b-agents-neutral, G5, G6; WITH_GAPS)
+Phase 1 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-01-m0-symlink-spike_REPORT_04-10-26.md
+Next phase: 2 of 8 (milestone M1), entry gate met
+Completed phases: phase 0 (plan creation); phase 1 of 8 (milestone M0), VERIFIED (WITH_GAPS) 2026-10-05
+Current loop step: RESEARCH (step 1 of milestone M1; not started)
+Validate-contract status: M1 not written
 Program Net Gate: PENDING
 Product Phase 1 Gate: NOT CONFIRMED
 Milestones M6 and M7: product Phase 2, held (no research, planning, or execution until Taylor clears the stop)
-Latest validator run: 2026-10-04, see the final report of the decisions-update session
+Latest validator run: 2026-10-05, M0 UPDATE PROCESS (see the M0 phase report)
 
 Loop step values: RESEARCH | INNOVATE | PLAN-SUPPLEMENT | PVL | EXECUTE | EVL | UPDATE-PROCESS
-Orchestrator rule: read "Current loop step" and "Validate-contract status" before spawning any subagent. Never spawn execute-agent when loop step is RESEARCH, INNOVATE, PLAN-SUPPLEMENT, or PVL. M0 EXECUTE is manual: spawn no execute agent for it.
+Orchestrator rule: read "Current loop step" and "Validate-contract status" before spawning any subagent. Never spawn execute-agent when loop step is RESEARCH, INNOVATE, PLAN-SUPPLEMENT, or PVL.
 
 Note: The Stable Program Goal above is fixed. This section is the only part that changes; update-process-agent rewrites it after every milestone closeout (overwrite, not append).
 
@@ -473,4 +474,4 @@ Note: The Stable Program Goal above is fixed. This section is the only part that
 
 ## Next Step
 
-Taylor runs the M0 runbook by hand (step 5 EXECUTE) and pastes the report blocks; the orchestrator transcribes them into `spike/symlink-discovery.md`, then EVL and UPDATE PROCESS for M0 (RIPER-5).
+M0 is VERIFIED (WITH_GAPS). Next is milestone M1 (phase 2 of 8), loop step 1 RESEARCH, not started; awaiting Taylor. M6 and M7 stay held behind the Product Phase 1 Gate.
