@@ -39,7 +39,7 @@ The spike is a MANUAL procedure that Taylor runs by hand against real agents. Th
 - Fill the results table: adapter by strategy, with agent version and date on every row; Windsurf is "not tested".
 - Fill the Outcome section: default strategy per adapter (`claude-code`, `agents-neutral`), and any adapter claim in the spec that the results contradict.
 - Apply the decision rule in the spike file (symlink not discovered means that adapter drops `symlink`, defaults to `copy`, and the reason is recorded).
-- Record any claim change for later propagation to `docs/adapters.md` (does not exist yet; the M0 Outcome may be recorded there once it exists, created by milestones M4/M7; it is a new spec-called document, not one of the five protected design documents) and `process/context/product/all-product.md` (update trigger).
+- Record any claim change for later propagation to `docs/adapters.md` (does not exist yet; the M0 Outcome may be recorded there once it exists, created by whichever milestone first has something to record (M2 for the slugify outcome, otherwise M4); it is a new spec-called document, not one of the five protected design documents) and `process/context/product/all-product.md` (update trigger).
 
 ---
 
@@ -252,8 +252,8 @@ If a probe is not visible after P1 or P2, try in this order and record which was
 | 1 | Claude Code run 1 | reset block, then `mv .agents .agents.off` | `.claude/skills` | `claude` | row 1 (Claude Code, `.claude/skills`, symlink: probe-a start, probe-c mid-session) and row 2 (Claude Code, `.claude/skills`, copy: probe-b start) |
 | 2 | Claude Code run 2 | reset block, then `mv .claude .claude.off` | `.agents/skills` | `claude` | row 3 (Claude Code, `.agents/skills`, symlink). probe-b copy result goes in Notes (no table row) |
 | 3 | Codex | reset block (both dirs in place) | `.agents/skills` | `codex` | row 4 (Codex symlink: probe-a start, probe-c mid-session) and row 5 (Codex copy: probe-b start) |
-| 4 | Cursor run 1 via `cursor-agent` | reset block, then `mv .agents .agents.off` | `.claude/skills` | `cursor-agent` (no arguments; do not use `-p` or `--print`) | row 7 (Cursor, `.claude/skills`, symlink) |
-| 5 | Cursor run 2 via `cursor-agent` | reset block, then `mv .claude .claude.off` | `.agents/skills` | `cursor-agent` (no arguments; do not use `-p` or `--print`) | row 6 (Cursor, `.agents/skills`, symlink) |
+| 4 | Cursor (cursor-agent CLI) run 1 | reset block, then `mv .agents .agents.off` | `.claude/skills` | `cursor-agent` (no arguments; do not use `-p` or `--print`) | row 7 (Cursor (cursor-agent CLI), `.claude/skills`, symlink) |
+| 5 | Cursor (cursor-agent CLI) run 2 | reset block, then `mv .claude .claude.off` | `.agents/skills` | `cursor-agent` (no arguments; do not use `-p` or `--print`) | row 6 (Cursor (cursor-agent CLI), `.agents/skills`, symlink) |
 | 6 | Hermes | reset block (both in place) | `.agents/skills` | `hermes chat` | row 9 (Hermes, `.agents/skills`, symlink). Record before-trust and after-trust results |
 | - | Windsurf | n/a | n/a | not installed | row 8: "not tested" (version `n/a`, date = the run date Taylor reports in the other report blocks) |
 
@@ -284,7 +284,7 @@ Hermes extra: `hermes skills trust` writes `skills.trusted_project_dirs` into `~
 ## Report Format (Taylor pastes one block per run)
 
 ```
-AGENT: <Claude Code | Codex | Cursor (cursor-agent) | Hermes | Windsurf>
+AGENT: <Claude Code | Codex | Cursor (cursor-agent CLI) | Hermes | Windsurf>
 VERSION: <first line of its --version output>
 RUN: <1 | 2 | single>
 DESTINATION: <.claude/skills | .agents/skills>
@@ -307,7 +307,7 @@ Field RUN is the per-agent run number (`1` or `2` for Claude Code and Cursor, `s
 | Hermes row 9: start cell | the AFTER-trust result; before-trust result goes in Notes; Refresh = `trust step` when trust was needed |
 | M step in runs 2 and 5 | mandatory; if skipped the mid-session cell = `not run` |
 | Refresh needed cell (every row) | `start: <REFRESH-AT-START>; mid: <REFRESH-MID-SESSION>`. Copy rows use the start value with `mid: n/a`. Hermes uses `trust step` as the start value when trust was needed |
-| Cursor rows (6 and 7) | Notes carry "tested via cursor-agent CLI" |
+| Cursor rows (6 and 7) | The Agent cell is `Cursor (cursor-agent CLI)`. The Outcome section states that the Cursor editor was not tested and that these rows are not evidence for the editor |
 | Version cell | first line of the agent's `--version` output |
 | Agent ran a tool despite the prompt | cell = `unverified`, reason in Notes |
 | Any cell | no cell may be empty; use `n/a`, `not run`, `unverified`, or `not tested` |
@@ -369,7 +369,7 @@ Reminder: the only write outside `$SPIKE` was the sanctioned Hermes trust entry 
 ### Step C: Record the outcome (orchestrator transcribes; Taylor confirms)
 
 - [ ] C1. Fill all 9 rows of the results table by the transcription rules: version and date on every row (Windsurf: "not tested").
-- [ ] C2. Fill the Outcome section: default strategy per adapter (`claude-code`, `agents-neutral`) by the decision rule; record the sequencing deviation (two-run isolation for Claude Code and Cursor).
+- [ ] C2. Fill the Outcome section: default strategy per adapter (`claude-code`, `agents-neutral`) by the decision rule; state that the Cursor editor was not tested and that the `Cursor (cursor-agent CLI)` rows are not evidence for the editor; record the sequencing deviation (two-run isolation for Claude Code and Cursor).
 - [ ] C3. List any spec or PRD adapter claim the results contradict; report to Taylor (do not edit `docs/`). Note `docs/adapters.md` does not exist yet; the Outcome may be recorded there once it exists (milestones M4/M7).
 - [ ] C4. Update the spike Status line from "not run" to the actual state (for example "run 2026-10-04; Windsurf not tested"), keeping the `**Status:**` line format.
 - [ ] C5. Cleanup per the Cleanup section (Hermes untrust first, guarded delete, then checks); Taylor confirms.
@@ -378,7 +378,7 @@ Reminder: the only write outside `$SPIKE` was the sanctioned Hermes trust entry 
 
 ## Exit Gate
 
-M0 has no cargo gate. Its gate is the filled table. Run from the project root (`/Users/databased/Developer/01-AI/arkitect/unambiguous`). Each gate prints an explicit PASS or FAIL line. The Status line format in `spike/symlink-discovery.md` is `**Status:** not run` (line 3).
+M0 has no cargo gate. Its gate is the filled table, and the Outcome must name the Cursor editor as not tested (the Cursor rows are labeled `Cursor (cursor-agent CLI)` and are not evidence for the editor; this is a prose requirement, not one of the gate commands). Run from the project root (`/Users/databased/Developer/01-AI/arkitect/unambiguous`). Each gate prints an explicit PASS or FAIL line. The Status line format in `spike/symlink-discovery.md` is `**Status:** not run` (line 3).
 
 ```bash
 n=$(grep -cE '^\| (Claude Code|Codex|Cursor|Windsurf|Hermes) ' spike/symlink-discovery.md); [ "$n" -eq 9 ] && echo "G1 PASS" || echo "G1 FAIL: rows=$n expected 9"
@@ -436,7 +436,7 @@ Notes on the gates:
 1. RESOLVED 2026-10-04 (decisions 6 and 7). Procedure deviation (sequencing only; procedure unchanged): Claude Code and Cursor are run twice with the other destination moved aside (one folder hidden per run), because the procedure places the same probe names in both destinations and the table could not otherwise attribute discovery to a destination. Taylor accepted this run order. Spec 10 M0 now points to `spike/symlink-discovery.md`, which is authoritative for the procedure, so the spec/spike procedure contradiction is closed.
 2. STILL OPEN (named residual). Windsurf is not installed; its row is "not tested", which leaves its behavior "not documented" per the decision rule.
 3. RESOLVED 2026-10-04 (decision 4). `docs/adapters.md` does not exist yet; the decision rule says to record reasons there. Only the five kickoff design documents are protected; `docs/adapters.md` is a new spec-called document that agents may create and maintain (milestones M4/M7). The M0 Outcome may be recorded there once it exists. No Taylor permission is needed for it.
-4. STILL OPEN (noted in the results). Cursor is tested through `cursor-agent` (CLI), not the Cursor app UI; record that in Notes. If the app UI behaves differently, that is outside this spike.
+4. STILL OPEN (noted in the results). Cursor is tested through `cursor-agent` (CLI) only; the Agent cell reads `Cursor (cursor-agent CLI)` and the Outcome states the Cursor editor was not tested. These rows are not evidence for the editor; if the editor behaves differently, that is outside this spike.
 5. RESOLVED 2026-10-04 (decision 12): Taylor accepted the Hermes trust write as planned (backup, single write, remove in cleanup, show the diff before deleting); no runbook change. Hermes project-local skills need `hermes skills trust`; the before/after result is recorded because it affects the `agents-neutral` default. The trust write to `~/.hermes/config.yaml` is the one sanctioned exception to "nothing outside `$SPIKE`" and is reversed by untrust at cleanup.
 6. STILL OPEN (named residual). Known residue (not provable offline): each agent writes its own trust and session records outside skill dirs on first run in a new directory (for example Claude Code project trust and session records, Codex and Cursor trust or session records). The spike cannot prevent or prove removal of these; they are named here, not cleaned.
 
@@ -463,6 +463,10 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 Date: 04-10-26. Sections changed in PLAN-SUPPLEMENT: Overview, Scope, Research Findings (new), Design Gap and Resolution (new), Acceptance Criteria (AC-M0-1 to AC-M0-5), Blast Radius, Runbook (new), Report Format (new), Cleanup (new), Implementation Checklist, Exit Gate (runnable gates G1 to G6), Hard Stops (new), Contradictions and Open Items (new), Verification Evidence, Resume and Execution Handoff. Cause: orchestrator scout found Windsurf not installed and a probe-placement ambiguity in the spike procedure.
 
 ---
+
+### Amendment 2026-10-04 (label-only, approved by Taylor)
+
+Cursor labeling: the Agent cell for rows 6 and 7 is `Cursor (cursor-agent CLI)`; the Outcome states that the Cursor editor was not tested. Changed text: Transcription rules (Cursor rows), run-order table and Report Format AGENT values, Step C2, Exit Gate prose, Out-of-scope note, Contradictions item 4. These were label-only changes approved by Taylor: no command, prompt, Reset, Cleanup, or gate command changed (G1 and G2 verified against a scratch copy with relabeled cells: both PASS, 9 rows), so no re-validation is required and the Validate Contract text is untouched.
 
 ## Touchpoints
 
@@ -583,7 +587,7 @@ Open gaps:
 - Agent-owned state written outside skill directories on first run in the spike repo (Claude Code project trust and session records, Codex and Cursor trust or session records): cannot be undone or proven offline; named in Contradictions and Open Items item 6.
 - Whether each agent discovers symlinked skills, whether mid-session additions appear, and whether Claude Code `/reload-skills` exists cannot be verified offline; that is exactly what the spike measures (no VC-FEASIBILITY-PROBE-NEEDED emitted by instruction).
 - Hermes trust behavior is taken from a read-only source read of the installed v0.21.5 checkout; actual runtime behavior is confirmed only by Taylor's run 6.
-- Cursor is tested through `cursor-agent` (CLI), not the app UI (Contradictions item 4).
+- Cursor is tested through `cursor-agent` (CLI) only; rows are labeled `Cursor (cursor-agent CLI)` and the Cursor editor is not tested (Contradictions item 4).
 - Non-blocking nits (cosmetic, not counted as concerns): checklist item C5 summarizes cleanup as "Hermes untrust first, guarded delete, then checks" without naming the diff review (the Cleanup section it points to governs); the one-line `cp` copy-out command uses `$SPIKE` and so assumes it is pasted in the same terminal as cleanup block 1 (a fresh terminal gives a harmless `cp` error, not data loss); the Resume and Execution Handoff block and `**Phase status:**` line still describe the pre-cycle-3 state and are for the orchestrator to refresh on this PASS.
 
 What This Coverage Does NOT Prove:

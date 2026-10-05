@@ -85,7 +85,7 @@ Closes (spec section 10 M4): AC-14, AC-26, AC-27, AC-28, AC-33, AC-34, AC-36, AC
 - `crates/unam-core/src/verify.rs`, `reconcile.rs`; additions to `apply.rs` (rollback from history), `source.rs` (relocate), `adapter/claude_code.rs` (doctor probes, `refresh`), `state.rs`
 - `crates/unam-cli/src/cli/` (status, reconcile, rollback from history, doctor, source relocate), `output.rs` (six-state table, SES caveats)
 - `crates/unam-cli/tests/` new `ac_NN_*` files and fixtures (broken symlinks, shadowing user-scope directory via env override, renamed source skill)
-- `docs/adapters.md`: created here as a new spec-called document (not one of the five protected design documents; decision 4, 2026-10-04) holding the M0 Outcome and the `doctor --evidence` listing; milestone M7 regenerates and maintains it
+- `docs/adapters.md`: created here if absent (milestone M2 may already have created it for the Hermes slugify outcome), otherwise extended; a new spec-called document (not one of the five protected design documents; decision 4, 2026-10-04) holding the M0 Outcome and the `doctor --evidence` listing; milestone M7 regenerates and maintains it
 - Not touched: the five kickoff design documents (`docs/PROJECT-BRIEF.md`, `docs/KICKOFF-PROMPT.md`, `docs/spec/PRD-unambiguous.md`, `docs/spec/unam-technical-spec.md`, `docs/adr/ADR-0001-dynamic-skill-routing.md`), the skill library, this repository as a target
 
 Risk class: repair paths mutate destinations; they reuse the M3 journaled executor and must keep both invariants.
@@ -117,7 +117,7 @@ Refined at PLAN-SUPPLEMENT; spec sections cited, not copied.
 ### Step D: Doctor
 
 - [ ] D1. Implement `doctor` checks and `--evidence` listing (spec 5; exit 9; spec 4.7 evidence rule).
-- [ ] D2. Create `docs/adapters.md` from the M0 Outcome and `unam doctor --evidence` run against temporary directories only (never against this repository); do not edit any of the five protected design documents.
+- [ ] D2. Create `docs/adapters.md` if absent, otherwise extend it (keep the M2 slugify record), with the M0 Outcome and `unam doctor --evidence` run against temporary directories only (never against this repository); state that M0 Cursor results are evidence for the `cursor-agent` CLI only and the Cursor editor is not tested; do not edit any of the five protected design documents.
 
 ### Step E: Tests
 
@@ -192,7 +192,7 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 
 - Commands `status`, `reconcile`, `rollback` (from history, in addition to the M3 journal-based rollback), `doctor`, `source relocate` and exit codes 8, 9, 10 (spec 5).
 - The six-state vocabulary and `status --json` record shape.
-- `doctor --evidence` output is the source for `docs/adapters.md` (created here, maintained in M7).
+- `doctor --evidence` output is the source for `docs/adapters.md` (created here if absent, otherwise extended; maintained in M7).
 
 ---
 

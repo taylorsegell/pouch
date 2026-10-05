@@ -36,7 +36,7 @@ Milestone M7 makes the tool releasable and understandable by a stranger (spec se
 Carried from spec section 10 M7:
 
 - README with the primary scenario as the first example (PRD Journey A).
-- `docs/adapters.md` (created in milestone M4, regenerated here from `doctor --evidence`) and `docs/json.md` documenting the `--json` schemas (spec 5). Both are new spec-called documents that agents may create and maintain; only the five kickoff design documents are protected (decision 4, 2026-10-04).
+- `docs/adapters.md` (created by the first milestone with content for it, M2 or M4; regenerated here from `doctor --evidence`) and `docs/json.md` documenting the `--json` schemas (spec 5). Both are new spec-called documents that agents may create and maintain; only the five kickoff design documents are protected (decision 4, 2026-10-04).
 - CHANGELOG.
 - License file (PRD Q11 decision required; never added without asking).
 - Release workflow via `cargo-dist`; `cargo install` and Homebrew tap (spec 9 binary targets: macOS universal, Linux x86_64 and aarch64).
@@ -91,7 +91,7 @@ Refined at PLAN-SUPPLEMENT after RESEARCH; spec sections cited, not copied.
 ### Step B: Documentation
 
 - [ ] B1. Write README with the primary scenario (PRD Journey A) as the first example and the honesty caveats (PRD G12, SES-2).
-- [ ] B2. Regenerate `docs/adapters.md` (created in milestone M4) from `unam doctor --evidence` run against temporary directories only; never run `unam` against this repository.
+- [ ] B2. Regenerate `docs/adapters.md` (created by milestone M2 or M4) from `unam doctor --evidence` run against temporary directories only; never run `unam` against this repository. Cursor entries state that the evidence is for the `cursor-agent` CLI only and the Cursor editor is not tested.
 - [ ] B3. Write `docs/json.md` from the `insta` snapshots (spec 5 envelope).
 - [ ] B4. Write CHANGELOG for v1.
 

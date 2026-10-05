@@ -314,7 +314,7 @@ Source: spec section 10 ("Closes" lines, as edited in commit ae120c5); criteria 
 
 | Milestone | Closes (per spec 10) |
 |---|---|
-| M0 | none (evidence for adapter claims; PRD S9 support) |
+| M0 | none (evidence for adapter claims; PRD S9 support; Cursor rows are labeled `Cursor (cursor-agent CLI)`, evidence for that CLI only, the Cursor editor is not tested) |
 | M1 | AC-1, AC-3, AC-4, AC-5, AC-6, AC-38 (read-side) |
 | M2 | AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-35 (desired side) |
 | M3 | AC-2, AC-13, AC-15, AC-16, AC-17, AC-18, AC-19, AC-21, AC-22, AC-23, AC-24, AC-25, AC-29, AC-30, AC-31, AC-32, AC-40, AC-53 |
@@ -379,7 +379,7 @@ Status values: PLANNED | CODE DONE | TESTING | VERIFIED | BLOCKED | COMPLETE
 - M0: `spike/symlink-discovery.md` (filled in by Taylor); no code.
 - M1: `Cargo.toml`, `Cargo.lock`, `crates/unam-core/**`, `crates/unam-cli/**`, CI workflow, `cargo-dist` config.
 - M2 to M5: additions under `crates/unam-core/src/` and `crates/unam-cli/src/cli/`, plus `crates/unam-cli/tests/`.
-- M4: also creates `docs/adapters.md` (new spec-called document). M6: `crates/unam-cli/src/tui/`. M7: `README.md`, `CHANGELOG.md`, license, release workflow, `docs/adapters.md`, `docs/json.md` (new spec-called documents; agents may create and maintain them).
+- M2 and M4: `docs/adapters.md` (new spec-called document) is created by whichever of M2 (Hermes slugify outcome) or M4 first has content for it; the other extends it. M6: `crates/unam-cli/src/tui/`. M7: `README.md`, `CHANGELOG.md`, license, release workflow, `docs/adapters.md`, `docs/json.md` (new spec-called documents; agents may create and maintain them).
 - Process: this task folder, `process/context/**` updates at each UPDATE-PROCESS.
 
 ---
@@ -399,7 +399,7 @@ Files directly modified or created across the program:
 - `spike/symlink-discovery.md` (M0, by Taylor)
 - Rust workspace: `Cargo.toml`, `Cargo.lock`, `crates/unam-core/`, `crates/unam-cli/` (M1 to M6)
 - CI and release config (M1 CI and `cargo-dist` config; M7 release workflow)
-- `README.md`, `CHANGELOG.md`, license file (M7); `docs/adapters.md` (created M4, regenerated M7), `docs/json.md` (M7); new spec-called docs, no permission gate
+- `README.md`, `CHANGELOG.md`, license file (M7); `docs/adapters.md` (created by M2 or M4, whichever first; regenerated M7), `docs/json.md` (M7); new spec-called docs, no permission gate
 - `process/context/**` and this task folder (every milestone)
 
 Risk class: destructive filesystem writes in user-owned destinations (M3 to M5; hybrid test gates required), and outward-facing release mechanics (M7).

@@ -37,7 +37,7 @@ Carried from spec section 10 M5:
 
 - Second adapter `agents_neutral` with shared-destination reporting (consumers codex, cursor, windsurf-devin, hermes named on every plan), ancestor warnings for nested projects, Hermes followup, and a cross-adapter duplicate check (spec 4.7; PRD D3, ACT-13, EDG-11).
 - `WriteGenerated` bundle brief (generated brief skill, opt-out) per spec 4.8, 4.10 and PRD Q5 current answer.
-- Default strategy and `strategies()` for `agents-neutral` taken from the M0 Outcome.
+- Default strategy and `strategies()` for `agents-neutral` taken from the M0 Outcome. M0 Cursor rows are labeled `Cursor (cursor-agent CLI)`: evidence for the `cursor-agent` CLI only; the Cursor editor is not tested, so an evidence string for the `cursor` consumer must name the CLI.
 - Two targets in one project holding different selections (spec 4.5, PRD ACT-3).
 - Performance and success-target checks (decision 11, 2026-10-04), listed under "Performance and success-target checks" below.
 

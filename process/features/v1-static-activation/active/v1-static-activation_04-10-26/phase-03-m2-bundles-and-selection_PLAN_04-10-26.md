@@ -72,7 +72,8 @@ Closes (spec section 10 M2): AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-35 (desir
 - `crates/unam-core/src/bundle.rs`, `project.rs`, `resolve.rs`; extensions to `catalog/mod.rs` (lookup for resolution) only as needed
 - `crates/unam-cli/src/cli/` (bundle commands, selection-related plumbing)
 - `crates/unam-cli/tests/` new `ac_07` to `ac_12`, `ac_35` tests; fixtures: Hermes-only bundle with bare names, duplicate names across categories and sources
-- Not touched: destinations, adapters, `docs/`, `spike/`, the skill library
+- `docs/adapters.md`: created here if absent (new spec-called document, not one of the five protected design documents; decision 4, 2026-10-04) to record the Hermes slugify parity outcome; later milestones extend it
+- Not touched: destinations, adapters, other `docs/` files, `spike/`, the skill library
 
 ---
 
@@ -86,6 +87,7 @@ Refined at PLAN-SUPPLEMENT; spec sections cited, not copied.
 - [ ] A2. Implement line-oriented in-place edits of the `skills:` block so other entries keep text and order (spec 11 YAML trade-off; AC-11).
 - [ ] A3. Implement `slugify` with table-driven tests; keep the Hermes-parity case `#[ignore]` until confirmed against the Hermes source named in PRD section 16.
 - [ ] A4. Add bundle CLI commands per spec 5.
+- [ ] A5. Record the Hermes slugify parity outcome (aligned, or the documented difference, or deferred with the `#[ignore]` case) in `docs/adapters.md` per spec 4.4, creating the file if it does not exist; if it exists, extend it without removing other content. Do not edit any of the five protected design documents.
 
 ### Step B: Project and selection
 
@@ -119,7 +121,7 @@ cargo test -p unam --test <file> ac_07   # repeat for ac_08 to ac_12 and ac_35
 
 - All checklist items checked; AC-7 to AC-12 and AC-35 (desired side) tests green.
 - Regression: M1 criteria tests (AC-1, 3, 4, 5, 6, 38) still green.
-- Hermes slugify parity: confirmed and aligned, or the documented difference recorded in the phase report.
+- Hermes slugify parity: confirmed and aligned, or the documented difference recorded in the phase report and in `docs/adapters.md` (file created by M2 if absent).
 - Phase report written to the report destination above.
 
 ---
