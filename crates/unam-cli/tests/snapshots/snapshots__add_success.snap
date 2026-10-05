@@ -1,0 +1,111 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "source add",
+  "data": {
+    "alias": "fx",
+    "path": "[TMP]/work/lib",
+    "expanded_path": "[TMP]/work/lib",
+    "kind": "directory",
+    "precedence": 10,
+    "skill_count": 9,
+    "diagnostics": [
+      {
+        "source": "fx",
+        "skill": "fx:colon/value-with-colon",
+        "code": "colon-retry-applied",
+        "severity": "info",
+        "message": "unquoted values containing `: ` were quoted to parse the frontmatter",
+        "path": null,
+        "remedy": null
+      },
+      {
+        "source": "fx",
+        "skill": "fx:mismatch/dir-name-differs",
+        "code": "name-dir-mismatch",
+        "severity": "warning",
+        "message": "name `other-name` differs from directory name `dir-name-differs`",
+        "path": null,
+        "remedy": null
+      },
+      {
+        "source": "fx",
+        "skill": null,
+        "code": "symlinked-skill-skipped",
+        "severity": "warning",
+        "message": "skill directory is a symlink; symlinks are not followed",
+        "path": "linked/code-review-link",
+        "remedy": null
+      },
+      {
+        "source": "fx",
+        "skill": null,
+        "code": "unparseable-yaml",
+        "severity": "error",
+        "message": "frontmatter is not valid YAML: did not find expected ',' or ']' at line 3 column 1, while parsing a flow sequence at line 2 column 14",
+        "path": "broken/bad-yaml",
+        "remedy": null
+      },
+      {
+        "source": "fx",
+        "skill": null,
+        "code": "missing-description",
+        "severity": "error",
+        "message": "`description` is missing, empty, or not a string",
+        "path": "broken/no-description",
+        "remedy": null
+      },
+      {
+        "source": "fx",
+        "skill": null,
+        "code": "duplicate-name",
+        "severity": "info",
+        "message": "name `error-handling` is used by 2 skills: fx:engineering/backend/api/error-handling, fx:engineering/frontend/error-handling",
+        "path": null,
+        "remedy": null
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "source": "fx",
+      "skill": "fx:mismatch/dir-name-differs",
+      "code": "name-dir-mismatch",
+      "severity": "warning",
+      "message": "name `other-name` differs from directory name `dir-name-differs`",
+      "path": null,
+      "remedy": null
+    },
+    {
+      "source": "fx",
+      "skill": null,
+      "code": "symlinked-skill-skipped",
+      "severity": "warning",
+      "message": "skill directory is a symlink; symlinks are not followed",
+      "path": "linked/code-review-link",
+      "remedy": null
+    },
+    {
+      "source": "fx",
+      "skill": null,
+      "code": "unparseable-yaml",
+      "severity": "error",
+      "message": "frontmatter is not valid YAML: did not find expected ',' or ']' at line 3 column 1, while parsing a flow sequence at line 2 column 14",
+      "path": "broken/bad-yaml",
+      "remedy": null
+    },
+    {
+      "source": "fx",
+      "skill": null,
+      "code": "missing-description",
+      "severity": "error",
+      "message": "`description` is missing, empty, or not a string",
+      "path": "broken/no-description",
+      "remedy": null
+    }
+  ],
+  "errors": []
+}

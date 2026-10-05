@@ -1,0 +1,17 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": false,
+  "command": "source add",
+  "data": {},
+  "warnings": [],
+  "errors": [
+    {
+      "code": "source-path-invalid",
+      "message": "invalid source path [TMP]/work/missing: No such file or directory (os error 2)",
+      "remedy": "Pass an existing, readable directory."
+    }
+  ]
+}

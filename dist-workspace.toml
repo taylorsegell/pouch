@@ -1,0 +1,10 @@
+# Hand-written, unverified: dist is not installed; milestone M7 verifies with `dist plan`.
+# No universal macOS target is claimed (spec 9 says universal; evidence missing).
+
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.32.0"
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+installers = []
