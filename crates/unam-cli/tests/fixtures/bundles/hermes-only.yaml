@@ -1,0 +1,8 @@
+name: hermes-only
+skills:
+  - code-review
+  - pytest-fixtures
+  - alpha-root-skill
+instruction: |
+  Review the change, then check the test fixtures.
+  Keep the root skill in mind.

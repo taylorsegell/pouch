@@ -118,6 +118,44 @@ pub enum Error {
         candidates: Vec<String>,
     },
 
+    // ---- bundle ----
+    #[error("no bundle named {slug:?}")]
+    BundleNotFound { slug: String },
+    #[error("bundle {slug:?} already exists at {}", path.display())]
+    BundleExists { slug: String, path: PathBuf },
+    #[error("invalid bundle name {name:?}: {reason}")]
+    InvalidBundleName { name: String, reason: String },
+    #[error("invalid bundle {}: {message}", path.display())]
+    BundleInvalid { path: PathBuf, message: String },
+    #[error("cannot edit bundle {} in place: {reason}", path.display())]
+    BundleEditUnsupported { path: PathBuf, reason: String },
+    #[error("bundle edit of {} failed: {reason}", path.display())]
+    BundleEditFailed { path: PathBuf, reason: String },
+    #[error("bundle {bundle:?} has no entry matching {reference:?}")]
+    SkillNotInBundle { bundle: String, reference: String },
+    #[error("removing these entries would leave bundle {bundle:?} empty")]
+    BundleWouldBeEmpty { bundle: String },
+    #[error("the EDITOR environment variable is not set")]
+    EditorNotSet,
+    #[error("editor {command:?} failed: {detail}")]
+    EditorFailed { command: String, detail: String },
+
+    // ---- project ----
+    #[error("cannot read selection {}: {source}", path.display())]
+    SelectionRead {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("invalid selection {}: {message}", path.display())]
+    SelectionInvalid { path: PathBuf, message: String },
+    #[error("selection {} has version {version}; this unam supports version 1", path.display())]
+    SelectionUnsupportedVersion { path: PathBuf, version: u32 },
+    #[error("no selection in project {}: {reason}", root.display())]
+    NoSelection { root: PathBuf, reason: String },
+    #[error("the selection has several targets: {}", targets.join(", "))]
+    TargetAmbiguous { targets: Vec<String> },
+
     // ---- io ----
     #[error("{context}: {source}")]
     Io {
@@ -155,6 +193,21 @@ impl Error {
             Error::InvalidRef { .. } => "invalid-ref",
             Error::NotFound { .. } => "not-found",
             Error::Ambiguous { .. } => "ambiguous",
+            Error::BundleNotFound { .. } => "bundle-not-found",
+            Error::BundleExists { .. } => "bundle-exists",
+            Error::InvalidBundleName { .. } => "invalid-bundle-name",
+            Error::BundleInvalid { .. } => "bundle-invalid",
+            Error::BundleEditUnsupported { .. } => "bundle-edit-unsupported",
+            Error::BundleEditFailed { .. } => "bundle-edit-failed",
+            Error::SkillNotInBundle { .. } => "skill-not-in-bundle",
+            Error::BundleWouldBeEmpty { .. } => "bundle-would-be-empty",
+            Error::EditorNotSet => "editor-not-set",
+            Error::EditorFailed { .. } => "editor-failed",
+            Error::SelectionRead { .. } => "selection-read-failed",
+            Error::SelectionInvalid { .. } => "selection-invalid",
+            Error::SelectionUnsupportedVersion { .. } => "selection-version-unsupported",
+            Error::NoSelection { .. } => "no-selection",
+            Error::TargetAmbiguous { .. } => "target-ambiguous",
             Error::Io { .. } => "io-error",
         }
     }
@@ -167,6 +220,12 @@ impl Error {
             | Error::ConfigUnsupportedVersion { .. }
             | Error::ConfigUnsetVariable { .. }
             | Error::NoHomeDir
+            | Error::BundleInvalid { .. }
+            | Error::BundleEditFailed { .. }
+            | Error::EditorFailed { .. }
+            | Error::SelectionRead { .. }
+            | Error::SelectionInvalid { .. }
+            | Error::SelectionUnsupportedVersion { .. }
             | Error::Io { .. } => 1,
             Error::InvalidAlias { .. }
             | Error::InvalidEnvPath { .. }
@@ -174,9 +233,19 @@ impl Error {
             | Error::SourcePathInvalid { .. }
             | Error::SourcePathAlreadyRegistered { .. }
             | Error::UnknownSourceFilter { .. }
-            | Error::InvalidRef { .. } => 2,
+            | Error::InvalidRef { .. }
+            | Error::BundleExists { .. }
+            | Error::InvalidBundleName { .. }
+            | Error::BundleEditUnsupported { .. }
+            | Error::BundleWouldBeEmpty { .. }
+            | Error::EditorNotSet
+            | Error::TargetAmbiguous { .. } => 2,
             Error::SourceReferenced { .. } => 3,
-            Error::SourceNotFound { .. } | Error::NotFound { .. } => 4,
+            Error::SourceNotFound { .. }
+            | Error::NotFound { .. }
+            | Error::BundleNotFound { .. }
+            | Error::SkillNotInBundle { .. }
+            | Error::NoSelection { .. } => 4,
             Error::Ambiguous { .. } => 5,
         }
     }
@@ -184,7 +253,10 @@ impl Error {
     /// Remedy text for user-fixable variants.
     pub fn remedy(&self) -> Option<&'static str> {
         match self {
-            Error::ConfigRead { .. } | Error::Io { .. } => None,
+            Error::ConfigRead { .. }
+            | Error::Io { .. }
+            | Error::EditorFailed { .. }
+            | Error::SelectionRead { .. } => None,
             Error::ConfigParse { .. } => {
                 Some("Fix the TOML syntax, or move the file aside to start fresh.")
             }
@@ -223,6 +295,45 @@ impl Error {
             Error::Ambiguous { .. } => {
                 Some("Qualify the reference, for example `skillzone:sdlc/code-review`.")
             }
+            Error::BundleNotFound { .. } => {
+                Some("Run `unam bundle ls` to see the available bundles.")
+            }
+            Error::BundleExists { .. } => {
+                Some("Pick another name, or re-run with `--force` to overwrite.")
+            }
+            Error::InvalidBundleName { .. } => Some(
+                "Use a name with at least one letter or digit, no control characters, and at most 128 bytes once normalized.",
+            ),
+            Error::BundleInvalid { .. } => {
+                Some("Fix the manifest: a non-blank name and a non-empty `skills` list.")
+            }
+            Error::BundleEditUnsupported { .. } => Some(
+                "Edit the file by hand (for a symbolic link, edit its target), or re-run with `--rewrite` when the shape is the problem (rewrites the whole file and drops comments).",
+            ),
+            Error::BundleEditFailed { .. } => {
+                Some("The file was not changed. Edit it by hand, or re-run with `--rewrite`.")
+            }
+            Error::SkillNotInBundle { .. } => {
+                Some("Run `unam bundle show <bundle>` to see its entries.")
+            }
+            Error::BundleWouldBeEmpty { .. } => Some(
+                "Add another skill first, or delete the bundle with `unam bundle rm <bundle>`.",
+            ),
+            Error::EditorNotSet => {
+                Some("Set the EDITOR environment variable, for example `EDITOR=vi`.")
+            }
+            Error::SelectionInvalid { .. } => {
+                Some("Fix the YAML in the selection file, or move it aside to start fresh.")
+            }
+            Error::SelectionUnsupportedVersion { .. } => {
+                Some("This selection was written by a newer unam; upgrade unam.")
+            }
+            Error::NoSelection { .. } => Some(
+                "Run this from a project whose `.unam/selection.yaml` exists (write it by hand per the spec until `unam use` and `unam add` arrive in milestone M3).",
+            ),
+            Error::TargetAmbiguous { .. } => Some(
+                "This selection has several targets; the `--target` flag arrives in milestone M3. Until then keep one target in the selection.",
+            ),
         }
     }
 
@@ -378,8 +489,128 @@ mod tests {
                 true,
             ),
             (Error::io("ctx", io()), "io-error", 1, false),
+            (
+                Error::BundleNotFound { slug: s("b") },
+                "bundle-not-found",
+                4,
+                true,
+            ),
+            (
+                Error::BundleExists {
+                    slug: s("b"),
+                    path: p.clone(),
+                },
+                "bundle-exists",
+                2,
+                true,
+            ),
+            (
+                Error::InvalidBundleName {
+                    name: s("!"),
+                    reason: s("r"),
+                },
+                "invalid-bundle-name",
+                2,
+                true,
+            ),
+            (
+                Error::BundleInvalid {
+                    path: p.clone(),
+                    message: s("m"),
+                },
+                "bundle-invalid",
+                1,
+                true,
+            ),
+            (
+                Error::BundleEditUnsupported {
+                    path: p.clone(),
+                    reason: s("r"),
+                },
+                "bundle-edit-unsupported",
+                2,
+                true,
+            ),
+            (
+                Error::BundleEditFailed {
+                    path: p.clone(),
+                    reason: s("r"),
+                },
+                "bundle-edit-failed",
+                1,
+                true,
+            ),
+            (
+                Error::SkillNotInBundle {
+                    bundle: s("b"),
+                    reference: s("r"),
+                },
+                "skill-not-in-bundle",
+                4,
+                true,
+            ),
+            (
+                Error::BundleWouldBeEmpty { bundle: s("b") },
+                "bundle-would-be-empty",
+                2,
+                true,
+            ),
+            (Error::EditorNotSet, "editor-not-set", 2, true),
+            (
+                Error::EditorFailed {
+                    command: s("vi"),
+                    detail: s("d"),
+                },
+                "editor-failed",
+                1,
+                false,
+            ),
+            (
+                Error::SelectionRead {
+                    path: p.clone(),
+                    source: io(),
+                },
+                "selection-read-failed",
+                1,
+                false,
+            ),
+            (
+                Error::SelectionInvalid {
+                    path: p.clone(),
+                    message: s("m"),
+                },
+                "selection-invalid",
+                1,
+                true,
+            ),
+            (
+                Error::SelectionUnsupportedVersion {
+                    path: p.clone(),
+                    version: 2,
+                },
+                "selection-version-unsupported",
+                1,
+                true,
+            ),
+            (
+                Error::NoSelection {
+                    root: p.clone(),
+                    reason: s("r"),
+                },
+                "no-selection",
+                4,
+                true,
+            ),
+            (
+                Error::TargetAmbiguous {
+                    targets: vec![s("a"), s("b")],
+                },
+                "target-ambiguous",
+                2,
+                true,
+            ),
         ];
-        assert_eq!(table.len(), 17);
+        assert_eq!(table.len(), 32);
         for (err, code, exit, has_remedy) in table {
             assert_eq!(err.code(), code);
             assert_eq!(err.exit_code(), exit, "{code}");

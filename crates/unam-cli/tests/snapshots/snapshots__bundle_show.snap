@@ -1,0 +1,44 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "bundle show",
+  "data": {
+    "slug": "commented",
+    "name": "commented",
+    "description": "Backend feature work.",
+    "instruction": "Start with the review flow.",
+    "path": "[TMP]/bundles/commented.yaml",
+    "skills": [
+      {
+        "entry": "fx:sdlc/code-review",
+        "status": "resolved",
+        "id": "fx:sdlc/code-review",
+        "candidates": []
+      },
+      {
+        "entry": "fx:testing/pytest-fixtures",
+        "status": "resolved",
+        "id": "fx:testing/pytest-fixtures",
+        "candidates": []
+      },
+      {
+        "entry": "fx:data/schema-migration",
+        "status": "resolved",
+        "id": "fx:data/schema-migration",
+        "candidates": []
+      },
+      {
+        "entry": "alpha-root-skill",
+        "status": "resolved",
+        "id": "fx:alpha-root-skill",
+        "candidates": []
+      }
+    ],
+    "problems": 0
+  },
+  "warnings": [],
+  "errors": []
+}

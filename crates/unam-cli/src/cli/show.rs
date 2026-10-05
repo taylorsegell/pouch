@@ -1,5 +1,5 @@
-//! `unam show <ref>`. M1 fields only: "bundles referencing it" and "projects
-//! where active" are omitted until they exist (plan P12).
+//! `unam show <ref>`. "Bundles referencing it" arrives in milestone M2 (M2
+//! plan P16); "projects where active" stays omitted until milestone M4.
 
 use super::{CmdResult, Ctx, Done, Failed};
 use crate::output::{diag_line, neutralize, warnings_only};
@@ -40,6 +40,13 @@ pub fn run(ctx: &Ctx, reference: &str) -> CmdResult {
     human.push_str(&format!("Category: {category}\n"));
     human.push_str(&format!("Path: {}\n", neutralize(&path)));
     human.push_str(&format!("Tree hash: {}\n", skill.tree_hash));
+    let bundles = unam_core::resolve::bundles_referencing(&ctx.bundles(), &catalog, &skill.id);
+    let bundles_human = if bundles.is_empty() {
+        "(none)".to_string()
+    } else {
+        neutralize(&bundles.join(", ")).into_owned()
+    };
+    human.push_str(&format!("Bundles: {bundles_human}\n"));
     human.push_str(&format!("Supporting files ({}):\n", skill.supporting.len()));
     for f in &skill.supporting {
         human.push_str(&format!("  {}\n", neutralize(f)));
@@ -68,6 +75,7 @@ pub fn run(ctx: &Ctx, reference: &str) -> CmdResult {
             "frontmatter": skill.frontmatter,
             "supporting": skill.supporting,
             "tree_hash": skill.tree_hash,
+            "bundles": bundles,
             "diagnostics": skill_diags,
         }),
         human_diags: warnings.clone(),

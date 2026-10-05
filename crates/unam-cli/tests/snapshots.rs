@@ -125,3 +125,139 @@ fn usage_bare() {
     assert_eq!(code, 0);
     insta::assert_snapshot!("usage_bare", out);
 }
+
+// ---- milestone M2: bundle commands ----
+
+fn json_in(env: &TestEnv, dir: &std::path::Path, args: &[&str]) -> (i32, Value) {
+    let mut full = vec!["--json"];
+    full.extend_from_slice(args);
+    let (code, out, err) = run_in(env, dir, &full);
+    let v: Value = serde_json::from_str(&out)
+        .unwrap_or_else(|e| panic!("stdout is not JSON ({e}): {out:?}\nstderr: {err}"));
+    let text = env.normalize(&serde_json::to_string(&v).unwrap());
+    (code, serde_json::from_str(&text).unwrap())
+}
+
+/// `fx` registered plus the `commented` fixture bundle.
+fn bundle_setup() -> TestEnv {
+    let (env, lib) = setup();
+    json(&env, &["source", "add", "fx", &lib]);
+    copy_fixture_bundle(&env, "commented.yaml");
+    env
+}
+
+#[test]
+fn bundle_save() {
+    let env = bundle_setup();
+    let proj = env.path("work").join("project");
+    git_marker(&proj);
+    write_file(
+        &proj,
+        ".unam/selection.yaml",
+        b"version: 1\ntargets:\n  claude-code:\n    add: [code-review, fx:pytest-fixtures]\n",
+    );
+    let (code, v) = json_in(&env, &proj, &["bundle", "save", "Team Set"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("bundle_save", v);
+}
+
+#[test]
+fn bundle_ls() {
+    let env = bundle_setup();
+    copy_fixture_bundle(&env, "hermes-only.yaml");
+    let (code, v) = json(&env, &["bundle", "ls"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("bundle_ls", v);
+}
+
+#[test]
+fn bundle_show() {
+    let env = bundle_setup();
+    let (code, v) = json(&env, &["bundle", "show", "commented"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("bundle_show", v);
+}
+
+#[test]
+fn bundle_show_not_found() {
+    let env = bundle_setup();
+    let (code, v) = json(&env, &["bundle", "show", "Back End"]);
+    assert_eq!(code, 4);
+    insta::assert_json_snapshot!("bundle_show_not_found", v);
+}
+
+#[test]
+fn bundle_add() {
+    let env = bundle_setup();
+    let (code, v) = json(
+        &env,
+        &[
+            "bundle",
+            "add",
+            "commented",
+            "fx:engineering/frontend/error-handling",
+            "alpha-root-skill",
+        ],
+    );
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("bundle_add", v);
+}
+
+#[test]
+fn bundle_rm_skill() {
+    let env = bundle_setup();
+    let (code, v) = json(
+        &env,
+        &["bundle", "rm", "commented", "fx:data/schema-migration"],
+    );
+    assert_eq!(code, 0);
+    assert!(v["data"].get("deleted").is_none());
+    insta::assert_json_snapshot!("bundle_rm_skill", v);
+}
+
+#[test]
+fn bundle_rm_bundle() {
+    let env = bundle_setup();
+    let proj = env.path("work").join("project");
+    write_file(
+        &proj,
+        ".unam/selection.yaml",
+        b"version: 1\ntargets:\n  claude-code:\n    bundles: [commented]\n",
+    );
+    write_project_index(&env, &[&proj]);
+    let (code, v) = json(&env, &["bundle", "rm", "commented"]);
+    assert_eq!(code, 0);
+    assert!(v["data"].get("removed").is_none());
+    insta::assert_json_snapshot!("bundle_rm_bundle", v);
+}
+
+#[test]
+fn bundle_duplicate() {
+    let env = bundle_setup();
+    let (code, v) = json(
+        &env,
+        &["bundle", "duplicate", "commented", "Commented Copy"],
+    );
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("bundle_duplicate", v);
+}
+
+#[cfg(unix)]
+#[test]
+fn bundle_edit() {
+    let env = bundle_setup();
+    let editor = write_scripted_editor(
+        &env,
+        "printf 'name: commented\\ndescription: Edited.\\nskills:\\n  - alpha-root-skill\\n' > \"$1\"",
+    );
+    let out = env
+        .cmd()
+        .env("EDITOR", &editor)
+        .args(["--json", "bundle", "edit", "commented"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(0));
+    let text = env.normalize(&String::from_utf8(out.stdout).unwrap());
+    let v: Value = serde_json::from_str(&text).unwrap();
+    insta::assert_json_snapshot!("bundle_edit", v);
+}

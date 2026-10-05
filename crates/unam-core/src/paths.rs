@@ -105,14 +105,58 @@ impl Dirs {
         self.cache.join("catalog").join(format!("{alias}.json"))
     }
 
-    /// `<data dir>/projects.json` (provisional index, superseded in M2).
+    /// `<data dir>/projects.json`: the project index owned by
+    /// `project::index` (`{"version": 1, "projects": [...]}`).
     pub fn project_index_file(&self) -> PathBuf {
         self.data.join("projects.json")
+    }
+
+    /// `<bundles dir>/<slug>.yaml`, after validating that `slug` is a single
+    /// normal path component (plan P14): non-empty, at most 128 bytes, no
+    /// `/`, `\`, NUL, or control character, no leading `.`.
+    pub fn bundle_file(&self, slug: &str) -> Result<PathBuf> {
+        validate_slug(slug)?;
+        Ok(self.bundles.join(format!("{slug}.yaml")))
+    }
+
+    /// `<cache dir>/edit`: where `bundle edit` keeps its temp copies.
+    pub fn edit_dir(&self) -> PathBuf {
+        self.cache.join("edit")
     }
 
     /// Expand `~`, `$NAME`, and `${NAME}` through the carried environment.
     pub fn expand(&self, raw: &str) -> Result<PathBuf> {
         expand_path(raw, &self.env)
+    }
+}
+
+/// Maximum slug length in UTF-8 bytes (plan P14).
+pub const MAX_SLUG_BYTES: usize = 128;
+
+fn validate_slug(slug: &str) -> Result<()> {
+    let invalid = |reason: &str| Error::InvalidBundleName {
+        name: slug.to_string(),
+        reason: reason.to_string(),
+    };
+    if slug.is_empty() {
+        return Err(invalid("empty name"));
+    }
+    if slug.len() > MAX_SLUG_BYTES {
+        return Err(invalid("longer than 128 bytes"));
+    }
+    if slug.chars().any(|c| c.is_control()) {
+        return Err(invalid("control character"));
+    }
+    if slug.contains('/') || slug.contains('\\') {
+        return Err(invalid("path separator"));
+    }
+    if slug.starts_with('.') {
+        return Err(invalid("leading `.`"));
+    }
+    let mut parts = std::path::Path::new(slug).components();
+    match (parts.next(), parts.next()) {
+        (Some(std::path::Component::Normal(_)), None) => Ok(()),
+        _ => Err(invalid("not a single path component")),
     }
 }
 
@@ -329,6 +373,34 @@ mod tests {
         assert_eq!(d.expand("/a~b").unwrap(), PathBuf::from("/a~b"));
         assert_eq!(d.expand("/cost$").unwrap(), PathBuf::from("/cost$"));
         assert_eq!(d.expand("/x/$1").unwrap(), PathBuf::from("/x/$1"));
+    }
+
+    #[test]
+    fn bundle_file_validates_slug() {
+        let d = dirs(&[("HOME", "/h"), ("UNAM_BUNDLES_DIR", "/b")]).unwrap();
+        assert_eq!(
+            d.bundle_file("backend-dev").unwrap(),
+            PathBuf::from("/b/backend-dev.yaml")
+        );
+        assert_eq!(
+            d.bundle_file("caf\u{e9}").unwrap(),
+            PathBuf::from("/b/caf\u{e9}.yaml")
+        );
+        let long = "a".repeat(129);
+        for bad in [
+            "a/b", "..", ".", ".hidden", "", "a\u{7}b", "a\0b", "a\\b", &long,
+        ] {
+            let e = d.bundle_file(bad).unwrap_err();
+            assert_eq!(e.code(), "invalid-bundle-name", "{bad:?}");
+            assert_eq!(e.exit_code(), 2);
+        }
+        assert!(d.bundle_file(&"a".repeat(128)).is_ok());
+    }
+
+    #[test]
+    fn edit_dir_under_cache() {
+        let d = dirs(&[("HOME", "/h"), ("UNAM_CACHE_DIR", "/k")]).unwrap();
+        assert_eq!(d.edit_dir(), PathBuf::from("/k/edit"));
     }
 
     #[test]
