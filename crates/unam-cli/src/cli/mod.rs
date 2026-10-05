@@ -1,6 +1,7 @@
 //! Argument parsing and dispatch. Command modules are thin: they call
 //! `unam-core` and build the JSON data plus the human text.
 
+mod bundle;
 mod search;
 mod show;
 mod source;
@@ -58,6 +59,55 @@ pub enum Command {
         /// `alias:path/to/skill`, `alias:name`, or a bare name.
         reference: String,
     },
+    /// Manage skill bundles.
+    Bundle {
+        #[command(subcommand)]
+        cmd: BundleCmd,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum BundleCmd {
+    /// Save the current project's selection as a bundle.
+    Save {
+        name: String,
+        /// Overwrite an existing bundle with the same slug.
+        #[arg(long)]
+        force: bool,
+    },
+    /// List bundles.
+    Ls,
+    /// Show a bundle and how each entry resolves.
+    Show { name: String },
+    /// Edit a bundle in $EDITOR (committed only when valid).
+    Edit { name: String },
+    /// Copy a bundle under a new name.
+    Duplicate {
+        name: String,
+        new_name: String,
+        /// Overwrite an existing bundle with the same slug.
+        #[arg(long)]
+        force: bool,
+    },
+    /// Delete a bundle, or remove entries when references are given.
+    Rm {
+        name: String,
+        /// Skill references to remove (none deletes the bundle).
+        references: Vec<String>,
+        /// Rewrite the whole file instead of editing lines (drops comments).
+        #[arg(long, requires = "references")]
+        rewrite: bool,
+    },
+    /// Add skills to a bundle.
+    Add {
+        name: String,
+        /// Skill references to add.
+        #[arg(required = true)]
+        references: Vec<String>,
+        /// Rewrite the whole file instead of editing lines (drops comments).
+        #[arg(long)]
+        rewrite: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -95,6 +145,11 @@ impl Ctx {
             config_diags: diags.into_iter().map(FlatDiagnostic::global).collect(),
             options: LoadOptions::product(!no_cache),
         })
+    }
+
+    /// Every bundle manifest in the bundles directory.
+    pub fn bundles(&self) -> unam_core::bundle::BundleSet {
+        unam_core::bundle::load_dir(&self.dirs)
     }
 
     pub fn catalog(&self) -> anyhow::Result<Catalog> {
@@ -168,6 +223,27 @@ pub fn run(cli: Cli) -> i32 {
                     source,
                 } => search::run(&ctx, &query, category.as_deref(), source.as_deref()),
                 Command::Show { reference } => show::run(&ctx, &reference),
+                Command::Bundle { cmd } => match cmd {
+                    BundleCmd::Save { name, force } => bundle::save(&ctx, &name, force),
+                    BundleCmd::Ls => bundle::ls(&ctx),
+                    BundleCmd::Show { name } => bundle::show(&ctx, &name),
+                    BundleCmd::Edit { name } => bundle::edit(&ctx, &name),
+                    BundleCmd::Duplicate {
+                        name,
+                        new_name,
+                        force,
+                    } => bundle::duplicate(&ctx, &name, &new_name, force),
+                    BundleCmd::Rm {
+                        name,
+                        references,
+                        rewrite,
+                    } => bundle::rm(&ctx, &name, &references, rewrite),
+                    BundleCmd::Add {
+                        name,
+                        references,
+                        rewrite,
+                    } => bundle::add(&ctx, &name, &references, rewrite),
+                },
             };
             (name, r)
         }
@@ -184,6 +260,15 @@ fn command_name(c: &Command) -> &'static str {
         },
         Command::Search { .. } => "search",
         Command::Show { .. } => "show",
+        Command::Bundle { cmd } => match cmd {
+            BundleCmd::Save { .. } => "bundle save",
+            BundleCmd::Ls => "bundle ls",
+            BundleCmd::Show { .. } => "bundle show",
+            BundleCmd::Edit { .. } => "bundle edit",
+            BundleCmd::Duplicate { .. } => "bundle duplicate",
+            BundleCmd::Rm { .. } => "bundle rm",
+            BundleCmd::Add { .. } => "bundle add",
+        },
     }
 }
 

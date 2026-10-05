@@ -1,0 +1,17 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": false,
+  "command": "bundle show",
+  "data": {},
+  "warnings": [],
+  "errors": [
+    {
+      "code": "bundle-not-found",
+      "message": "no bundle named \"back-end\"",
+      "remedy": "Run `unam bundle ls` to see the available bundles."
+    }
+  ]
+}

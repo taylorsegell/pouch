@@ -118,78 +118,6 @@ pub fn next_precedence(entries: &[SourceEntry]) -> u32 {
         .map_or(10, |m| m.saturating_add(10))
 }
 
-#[derive(Deserialize)]
-struct ProjectIndex {
-    #[allow(dead_code)]
-    version: u32,
-    projects: Vec<String>,
-}
-
-fn selection_references(text: &str, alias: &str) -> Option<bool> {
-    let value: serde_norway::Value = serde_norway::from_str(text).ok()?;
-    let prefix = format!("{alias}:");
-    let targets = value.get("targets")?.as_mapping()?;
-    for (_, target) in targets {
-        for key in ["add", "remove"] {
-            if let Some(seq) = target.get(key).and_then(|v| v.as_sequence())
-                && seq
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .any(|s| s.starts_with(&prefix))
-            {
-                return Some(true);
-            }
-        }
-    }
-    Some(false)
-}
-
-/// Project roots whose selection references `alias` (PROVISIONAL, plan P11).
-///
-/// Reads `<data dir>/projects.json` (`{"version": 1, "projects": [...]}`).
-/// Superseded by milestone M2's `project.rs`, which owns the real index.
-pub fn referencing_projects(dirs: &Dirs, alias: &str) -> (Vec<String>, Vec<Diagnostic>) {
-    let index_path = dirs.project_index_file();
-    let text = match std::fs::read_to_string(&index_path) {
-        Ok(t) => t,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (Vec::new(), Vec::new()),
-        Err(e) => {
-            return (
-                Vec::new(),
-                vec![Diagnostic::warning(
-                    "project-index-unreadable",
-                    format!("cannot read project index {}: {e}", index_path.display()),
-                )],
-            );
-        }
-    };
-    let index: ProjectIndex = match serde_json::from_str(&text) {
-        Ok(i) => i,
-        Err(e) => {
-            return (
-                Vec::new(),
-                vec![Diagnostic::warning(
-                    "project-index-unreadable",
-                    format!("cannot parse project index {}: {e}", index_path.display()),
-                )],
-            );
-        }
-    };
-    let mut out = Vec::new();
-    for root in index.projects {
-        let sel = Path::new(&root).join(".unam").join("selection.yaml");
-        let Ok(text) = std::fs::read_to_string(&sel) else {
-            continue;
-        };
-        if selection_references(&text, alias) == Some(true) {
-            out.push(root);
-        }
-    }
-    out.sort();
-    out.dedup();
-    (out, Vec::new())
-}
-
 /// Result of `remove`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoveOutcome {
@@ -206,7 +134,7 @@ pub fn remove(config: &mut Config, dirs: &Dirs, alias: &str, force: bool) -> Res
             alias: alias.to_string(),
         });
     };
-    let (projects, diagnostics) = referencing_projects(dirs, alias);
+    let (projects, diagnostics) = crate::project::index::projects_referencing_source(dirs, alias);
     if !projects.is_empty() && !force {
         return Err(Error::SourceReferenced {
             alias: alias.to_string(),
@@ -417,39 +345,6 @@ mod tests {
     fn write_selection(root: &Path, text: &str) {
         std::fs::create_dir_all(root.join(".unam")).unwrap();
         std::fs::write(root.join(".unam/selection.yaml"), text).unwrap();
-    }
-
-    #[test]
-    fn referencing_projects_cases() {
-        let t = tempfile::tempdir().unwrap();
-        let d = dirs_in(t.path());
-        // Absent index.
-        assert_eq!(referencing_projects(&d, "fx"), (vec![], vec![]));
-        // Corrupt index.
-        write_index(&d, "{not json");
-        let (p, diags) = referencing_projects(&d, "fx");
-        assert!(p.is_empty());
-        assert_eq!(diags[0].code, "project-index-unreadable");
-        // Referenced, unreferenced, and missing selection.
-        let p1 = t.path().join("p1");
-        let p2 = t.path().join("p2");
-        let p3 = t.path().join("p3");
-        write_selection(
-            &p1,
-            "version: 1\ntargets:\n  claude-code:\n    add: [\"fx:sdlc/code-review\"]\n",
-        );
-        write_selection(
-            &p2,
-            "version: 1\ntargets:\n  claude-code:\n    add: [\"other:x\"]\n    remove: [\"fxx:y\"]\n",
-        );
-        let idx = serde_json::json!({"version": 1, "projects": [p1, p2, p3]}).to_string();
-        write_index(&d, &idx);
-        let (p, diags) = referencing_projects(&d, "fx");
-        assert_eq!(p, vec![p1.to_string_lossy().into_owned()]);
-        assert!(diags.is_empty());
-        write_selection(&p2, "targets:\n  t:\n    remove:\n      - fx:a\n");
-        let (p, _) = referencing_projects(&d, "fx");
-        assert_eq!(p.len(), 2);
     }
 
     fn config_with(d: &Dirs, aliases: &[&str]) -> Config {

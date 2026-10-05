@@ -14,6 +14,7 @@ fn bare_unam_prints_usage_without_config() {
     assert_eq!(code, 0);
     assert!(out.contains("Usage:"), "{out}");
     assert!(out.contains("status arrives in a later milestone"), "{out}");
+    assert!(out.contains("  bundle "), "{out}");
     assert!(!env.config_file().exists());
 }
 
@@ -23,6 +24,12 @@ fn help_and_version_exit_0() {
     let (code, out, _) = env.run(&["--help"]);
     assert_eq!(code, 0);
     assert!(out.contains("source"));
+    assert!(out.contains("bundle"), "{out}");
+    let (code, out, _) = env.run(&["bundle", "--help"]);
+    assert_eq!(code, 0);
+    for sub in ["save", "ls", "show", "edit", "duplicate", "rm", "add"] {
+        assert!(out.contains(sub), "{sub}: {out}");
+    }
     let (code, out, _) = env.run(&["--version"]);
     assert_eq!(code, 0);
     assert!(out.starts_with("unam "), "{out}");

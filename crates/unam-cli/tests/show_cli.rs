@@ -126,7 +126,8 @@ fn frontmatter_order_supporting_and_diagnostics() {
             .unwrap()
             .starts_with("blake3:")
     );
-    assert!(v["data"].get("bundles").is_none());
+    // M2 plan P16: `bundles` is always present (empty without bundles).
+    assert_eq!(v["data"]["bundles"], serde_json::json!([]));
     let (_, v) = run_json(&env, &["show", "fx:colon/value-with-colon"]);
     assert_eq!(
         diags_with_code(&v["data"]["diagnostics"], "colon-retry-applied").len(),
@@ -181,4 +182,48 @@ fn human_output_neutralizes_control_characters() {
         .unwrap();
     let text = String::from_utf8(out.stdout).unwrap();
     assert!(text.contains("\\u001b[31mALERT"), "{text}");
+}
+
+#[test]
+fn show_lists_bundles_referencing_it() {
+    let (env, lib, before) = setup();
+    // Empty case.
+    let (code, v) = run_json(&env, &["show", "fx:sdlc/code-review"]);
+    assert_eq!(code, 0, "{v}");
+    assert_eq!(v["data"]["bundles"], serde_json::json!([]));
+    let (_, out, _) = env.run(&["show", "fx:sdlc/code-review"]);
+    assert!(out.contains("Bundles: (none)\n"), "{out}");
+    // Two bundles reference it (bare and qualified), one does not, one only
+    // ambiguously.
+    write_file(
+        &env.path("bundles"),
+        "zeta.yaml",
+        b"skills: [fx:sdlc/code-review]\n",
+    );
+    write_file(
+        &env.path("bundles"),
+        "alpha.yaml",
+        b"skills: [code-review, alpha-root-skill]\n",
+    );
+    write_file(
+        &env.path("bundles"),
+        "other.yaml",
+        b"skills: [alpha-root-skill]\n",
+    );
+    write_file(
+        &env.path("bundles"),
+        "amb.yaml",
+        b"skills: [error-handling]\n",
+    );
+    let (code, v) = run_json(&env, &["show", "code-review"]);
+    assert_eq!(code, 0, "{v}");
+    assert_eq!(v["data"]["bundles"], serde_json::json!(["alpha", "zeta"]));
+    let keys: Vec<&String> = v["data"].as_object().unwrap().keys().collect();
+    let at = keys.iter().position(|k| *k == "tree_hash").unwrap();
+    assert_eq!(keys[at + 1], "bundles");
+    let (_, out, _) = env.run(&["show", "code-review"]);
+    assert!(out.contains("Bundles: alpha, zeta\n"), "{out}");
+    let (_, v) = run_json(&env, &["show", "fx:engineering/frontend/error-handling"]);
+    assert_eq!(v["data"]["bundles"], serde_json::json!([]));
+    assert_source_unchanged(&before, &lib);
 }

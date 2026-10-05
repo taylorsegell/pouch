@@ -6,7 +6,7 @@ pub mod lookup;
 pub mod scan;
 pub mod search;
 
-pub use lookup::{Lookup, edit_distance};
+pub use lookup::{Lookup, canonical_ref_text, edit_distance};
 pub use scan::{FingerprintEntry, ScanLimits, ScannedSkill, SourceScan};
 
 use crate::config::SourceEntry;
@@ -286,6 +286,12 @@ impl Catalog {
         self.sources.iter().find(|s| s.alias == *alias)
     }
 
+    /// Source precedence of `alias` (orders candidate lists, plan P15);
+    /// `u32::MAX` when the alias is unknown.
+    pub fn source_rank(&self, alias: &SourceAlias) -> u32 {
+        self.source(alias).map_or(u32::MAX, |s| s.precedence)
+    }
+
     /// Absolute path of a skill: its source root joined with `rel_path`.
     pub fn abs_path(&self, id: &SkillId) -> Option<PathBuf> {
         self.source(&id.source)
@@ -312,7 +318,21 @@ pub fn diag_class(code: &str) -> DiagClass {
         "name-dir-mismatch" | "name-too-long" | "colon-retry-applied" => DiagClass::Skill,
         "source-unreachable" | "walk-capped" | "walk-error" | "root-skill-skipped"
         | "zero-skills" | "duplicate-name" | "cache-write-failed" => DiagClass::Source,
-        "precedence-tie" | "project-index-unreadable" => DiagClass::Config,
+        "precedence-tie"
+        | "project-index-unreadable"
+        | "bundle-unreadable"
+        | "bundle-not-utf8"
+        | "bundle-invalid-yaml"
+        | "bundle-not-mapping"
+        | "bundle-name-blank"
+        | "bundle-no-skills"
+        | "bundle-empty-slug"
+        | "bundle-duplicate-slug"
+        | "bundle-entry-ignored"
+        | "ref-invalid"
+        | "ref-not-found"
+        | "ref-ambiguous"
+        | "bundle-missing" => DiagClass::Config,
         _ => DiagClass::Skipped,
     }
 }
@@ -460,6 +480,28 @@ mod tests {
         assert_eq!(r.parent_str(), "engineering/backend/api");
         assert_eq!(r.file_name(), "error-handling");
         assert_eq!(RelPath::parse("top").unwrap().parent_str(), "");
+    }
+
+    #[test]
+    fn m2_codes_are_config_class() {
+        for code in [
+            "bundle-unreadable",
+            "bundle-not-utf8",
+            "bundle-invalid-yaml",
+            "bundle-not-mapping",
+            "bundle-name-blank",
+            "bundle-no-skills",
+            "bundle-empty-slug",
+            "bundle-duplicate-slug",
+            "bundle-entry-ignored",
+            "ref-invalid",
+            "ref-not-found",
+            "ref-ambiguous",
+            "bundle-missing",
+        ] {
+            assert_eq!(diag_class(code), DiagClass::Config, "{code}");
+        }
+        assert_eq!(diag_class("bad-yaml"), DiagClass::Skipped);
     }
 
     #[test]

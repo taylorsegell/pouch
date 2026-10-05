@@ -1,0 +1,23 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "bundle save",
+  "data": {
+    "slug": "team-set",
+    "name": "Team Set",
+    "path": "[TMP]/bundles/team-set.yaml",
+    "project_root": "[TMP]/work/project",
+    "target": "claude-code",
+    "skill_count": 2,
+    "skills": [
+      "fx:sdlc/code-review",
+      "fx:testing/pytest-fixtures"
+    ],
+    "overwritten": false
+  },
+  "warnings": [],
+  "errors": []
+}

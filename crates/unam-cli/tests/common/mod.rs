@@ -312,3 +312,98 @@ pub fn assert_source_unchanged(before: &SourceSnapshot, root: &Path) {
         panic!("source tree changed:\n{diff}");
     }
 }
+
+// ---- milestone M2 helpers (plan P17) ----
+
+/// An in-process `Dirs` built from the `TestEnv` variables (never the
+/// process environment).
+pub fn dirs_for(env: &TestEnv) -> unam_core::paths::Dirs {
+    let map: std::collections::HashMap<String, std::ffi::OsString> = env
+        .vars()
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.into_os_string()))
+        .collect();
+    unam_core::paths::Dirs::resolve(unam_core::paths::Env::from_map(map)).unwrap()
+}
+
+fn fixtures_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+}
+
+/// Copy the static second library (alias `hs` in tests) into `work/lib2`.
+pub fn build_second_library(env: &TestEnv) -> PathBuf {
+    let lib = env.path("work").join("lib2");
+    copy_tree(&fixtures_dir().join("library2"), &lib);
+    lib
+}
+
+/// Copy `tests/fixtures/bundles/<name>` into the bundles dir; returns the copy.
+pub fn copy_fixture_bundle(env: &TestEnv, name: &str) -> PathBuf {
+    let dest = env.path("bundles").join(name);
+    fs::create_dir_all(env.path("bundles")).unwrap();
+    fs::copy(fixtures_dir().join("bundles").join(name), &dest).unwrap();
+    dest
+}
+
+/// Write the project index (string-list format) with the given roots.
+pub fn write_project_index(env: &TestEnv, roots: &[&Path]) {
+    let index = env.project_index();
+    fs::create_dir_all(index.parent().unwrap()).unwrap();
+    let projects: Vec<String> = roots
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect();
+    fs::write(
+        index,
+        serde_json::json!({"version": 1, "projects": projects}).to_string(),
+    )
+    .unwrap();
+}
+
+/// Plant an empty `.git` directory: a project-root marker.
+pub fn git_marker(dir: &Path) {
+    fs::create_dir_all(dir.join(".git")).unwrap();
+}
+
+/// Like `TestEnv::cmd` with another working directory.
+pub fn cmd_in(env: &TestEnv, dir: &Path) -> Command {
+    let mut c = env.cmd();
+    c.current_dir(dir);
+    c
+}
+
+/// Run `unam` in `dir`; returns (exit code, stdout, stderr).
+pub fn run_in(env: &TestEnv, dir: &Path, args: &[&str]) -> (i32, String, String) {
+    let out = cmd_in(env, dir).args(args).output().unwrap();
+    (
+        out.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    )
+}
+
+/// A `#!/bin/sh` editor script inside the `TestEnv` (mode 755). The script
+/// receives the file to edit as its last argument (`$1` when called alone).
+#[cfg(unix)]
+pub fn write_scripted_editor(env: &TestEnv, body: &str) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = env.path("work").join("editors");
+    fs::create_dir_all(&dir).unwrap();
+    let n = fs::read_dir(&dir).unwrap().count();
+    let path = dir.join(format!("editor-{n}.sh"));
+    fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    path
+}
+
+/// Lines of a file with their terminators preserved.
+pub fn read_lines(path: &Path) -> Vec<String> {
+    split_lines(&fs::read_to_string(path).unwrap())
+}
+
+/// Split text into lines keeping `\n` or `\r\n` on each line.
+pub fn split_lines(text: &str) -> Vec<String> {
+    text.split_inclusive('\n').map(str::to_string).collect()
+}

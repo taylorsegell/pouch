@@ -1,8 +1,9 @@
-//! Reference parsing and the TEMPORARY `lookup` (plan D6).
+//! Reference parsing and `lookup`, kept as the resolution primitive;
+//! `resolve.rs` wraps it (M2 plan D8).
 //!
-//! `lookup` handles the three spec 4.6 reference forms. It is superseded by
-//! `resolve.rs` in milestone M2. Ambiguity is always an error with every
-//! candidate listed; source precedence never picks.
+//! `lookup` handles the three spec 4.6 reference forms. Ambiguity is always
+//! an error with every candidate listed; source precedence never picks, it
+//! only orders the candidate lists (M2 plan P15).
 
 use super::{Catalog, RelPath, Skill, SkillRef};
 use crate::error::{Error, Result};
@@ -55,6 +56,15 @@ impl fmt::Display for SkillRef {
     }
 }
 
+/// Canonical text of a reference: `SkillRef::parse` then `Display`; when
+/// parsing fails, the trimmed text.
+pub fn canonical_ref_text(text: &str) -> String {
+    match SkillRef::parse(text) {
+        Ok(r) => r.to_string(),
+        Err(_) => text.trim().to_string(),
+    }
+}
+
 /// Outcome of `lookup`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Lookup<'a> {
@@ -64,7 +74,7 @@ pub enum Lookup<'a> {
         candidates: Vec<String>,
         unreachable: Vec<String>,
     },
-    /// Every matching ID, sorted.
+    /// Every matching ID, by (source precedence, ID).
     Ambiguous(Vec<String>),
 }
 
@@ -85,24 +95,41 @@ pub fn edit_distance(a: &str, b: &str) -> usize {
     prev[b.len()]
 }
 
-/// Skills within `max` of `target` (by `key`), closest first, ties by ID.
+/// Skills within `max` of `target` (by `key`), closest first, then by
+/// source rank, then by ID (plan P15).
 fn nearest<'a>(
+    catalog: &Catalog,
     skills: impl Iterator<Item = &'a Skill>,
     target: &str,
     max: usize,
     key: impl Fn(&Skill) -> &str,
 ) -> Vec<String> {
-    let mut scored: Vec<(usize, String)> = skills
-        .map(|s| (edit_distance(key(s), target), s.id.to_string()))
-        .filter(|(d, _)| *d <= max)
+    let mut scored: Vec<(usize, u32, String)> = skills
+        .map(|s| {
+            (
+                edit_distance(key(s), target),
+                catalog.source_rank(&s.id.source),
+                s.id.to_string(),
+            )
+        })
+        .filter(|(d, _, _)| *d <= max)
         .collect();
     scored.sort();
-    scored.dedup_by(|a, b| a.1 == b.1);
+    scored.dedup_by(|a, b| a.2 == b.2);
     scored
         .into_iter()
         .take(MAX_CANDIDATES)
-        .map(|(_, id)| id)
+        .map(|(_, _, id)| id)
         .collect()
+}
+
+/// Sort skills by (source rank, `SkillId`) and return their IDs (plan P15).
+fn by_rank(catalog: &Catalog, mut hits: Vec<&Skill>) -> Vec<String> {
+    hits.sort_by(|a, b| {
+        (catalog.source_rank(&a.id.source), &a.id).cmp(&(catalog.source_rank(&b.id.source), &b.id))
+    });
+    hits.dedup_by(|a, b| a.id == b.id);
+    hits.iter().map(|s| s.id.to_string()).collect()
 }
 
 impl Catalog {
@@ -114,7 +141,8 @@ impl Catalog {
             .collect()
     }
 
-    /// TEMPORARY (plan D6): superseded by `resolve.rs` in milestone M2.
+    /// Look up a parsed reference. Kept as the resolution primitive;
+    /// `resolve.rs` wraps it.
     pub fn lookup(&self, r: &SkillRef) -> Lookup<'_> {
         match r {
             SkillRef::Qualified { source, rel_path } => {
@@ -126,6 +154,7 @@ impl Catalog {
                     Some(&i) => Lookup::Found(&self.skills[i]),
                     None => Lookup::NotFound {
                         candidates: nearest(
+                            self,
                             self.skills.iter().filter(|s| s.id.source == *source),
                             rel_path.as_str(),
                             3,
@@ -150,6 +179,7 @@ impl Catalog {
                     1 => Lookup::Found(hits[0]),
                     0 => Lookup::NotFound {
                         candidates: nearest(
+                            self,
                             self.skills.iter().filter(|s| s.id.source == *source),
                             name,
                             2,
@@ -157,7 +187,7 @@ impl Catalog {
                         ),
                         unreachable: self.unreachable_aliases(Some(source)),
                     },
-                    _ => Lookup::Ambiguous(hits.iter().map(|s| s.id.to_string()).collect()),
+                    _ => Lookup::Ambiguous(by_rank(self, hits)),
                 }
             }
             SkillRef::Bare(name) => {
@@ -165,20 +195,37 @@ impl Catalog {
                 match hits.len() {
                     1 => Lookup::Found(&self.skills[hits[0]]),
                     0 => Lookup::NotFound {
-                        candidates: nearest(self.skills.iter(), name, 2, |s| s.name.as_str()),
+                        candidates: nearest(self, self.skills.iter(), name, 2, |s| s.name.as_str()),
                         unreachable: self.unreachable_aliases(None),
                     },
-                    _ => {
-                        let mut ids: Vec<String> = hits
-                            .iter()
-                            .map(|&i| self.skills[i].id.to_string())
-                            .collect();
-                        ids.sort();
-                        Lookup::Ambiguous(ids)
-                    }
+                    _ => Lookup::Ambiguous(by_rank(
+                        self,
+                        hits.iter().map(|&i| &self.skills[i]).collect(),
+                    )),
                 }
             }
         }
+    }
+
+    /// The `not-found` message for `text`, with the unreachable-source note.
+    pub fn not_found_message(text: &str, unreachable: &[String]) -> String {
+        let mut message = format!("no skill matches `{}`", text.trim());
+        if !unreachable.is_empty() {
+            message.push_str(&format!(
+                "; source {} unreachable",
+                unreachable
+                    .iter()
+                    .map(|a| format!("`{a}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+                    + if unreachable.len() == 1 {
+                        " is"
+                    } else {
+                        " are"
+                    }
+            ));
+        }
+        message
     }
 
     /// Parse and look up `text`, mapping misses to `Error` (exit 2, 4, or 5).
@@ -189,29 +236,11 @@ impl Catalog {
             Lookup::NotFound {
                 candidates,
                 unreachable,
-            } => {
-                let mut message = format!("no skill matches `{}`", text.trim());
-                if !unreachable.is_empty() {
-                    message.push_str(&format!(
-                        "; source {} unreachable",
-                        unreachable
-                            .iter()
-                            .map(|a| format!("`{a}`"))
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                            + if unreachable.len() == 1 {
-                                " is"
-                            } else {
-                                " are"
-                            }
-                    ));
-                }
-                Err(Error::NotFound {
-                    reference: text.trim().to_string(),
-                    message,
-                    candidates,
-                })
-            }
+            } => Err(Error::NotFound {
+                reference: text.trim().to_string(),
+                message: Catalog::not_found_message(text, &unreachable),
+                candidates,
+            }),
             Lookup::Ambiguous(candidates) => Err(Error::Ambiguous {
                 reference: text.trim().to_string(),
                 candidates,
@@ -379,6 +408,82 @@ mod tests {
         let e = c.resolve_text("code-review").unwrap_err();
         assert_eq!(e.exit_code(), 5);
         assert_eq!(e.candidates().unwrap().len(), 2);
+    }
+
+    fn ranked() -> Catalog {
+        let mut c = catalog_of(
+            &[
+                ("aa", "x/dup", "dup"),
+                ("aa", "y/dup", "dup"),
+                ("zz", "a/dup", "dup"),
+                ("zz", "near/dupe", "dupe"),
+                ("aa", "far/dupx", "dupx"),
+            ],
+            &[],
+        );
+        // `zz` outranks `aa`.
+        for s in &mut c.sources {
+            s.precedence = if s.alias.as_str() == "zz" { 10 } else { 20 };
+        }
+        c
+    }
+
+    #[test]
+    fn candidates_ordered_by_source_precedence() {
+        let c = ranked();
+        match c.lookup(&r("dup")) {
+            Lookup::Ambiguous(ids) => {
+                assert_eq!(ids, vec!["zz:a/dup", "aa:x/dup", "aa:y/dup"]);
+            }
+            other => panic!("{other:?}"),
+        }
+        // NotFound: same distance 1 for `dupe` (zz) and `dupx` (aa): rank wins.
+        match c.lookup(&r("dupy")) {
+            Lookup::NotFound { candidates, .. } => {
+                assert_eq!(
+                    candidates,
+                    vec![
+                        "zz:a/dup",
+                        "zz:near/dupe",
+                        "aa:far/dupx",
+                        "aa:x/dup",
+                        "aa:y/dup"
+                    ]
+                );
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn equal_precedence_falls_back_to_id_and_unknown_rank_is_max() {
+        let c = cat();
+        match c.lookup(&r("code-review")) {
+            Lookup::Ambiguous(ids) => {
+                assert_eq!(ids, vec!["fx:sdlc/code-review", "two:lint/code-review"]);
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(c.source_rank(&SourceAlias::parse("fx").unwrap()), 10);
+        assert_eq!(c.source_rank(&SourceAlias::parse("gone").unwrap()), 20);
+        assert_eq!(
+            c.source_rank(&SourceAlias::parse("nosuch").unwrap()),
+            u32::MAX
+        );
+    }
+
+    #[test]
+    fn canonical_ref_text_table() {
+        for (input, expected) in [
+            ("fx:sdlc/code-review/", "fx:sdlc/code-review"),
+            ("  fx:code-review ", "fx:code-review"),
+            (" code-review", "code-review"),
+            ("fx:", "fx:"),
+            ("  Bad:x  ", "Bad:x"),
+            ("", ""),
+        ] {
+            assert_eq!(canonical_ref_text(input), expected, "{input:?}");
+        }
     }
 
     #[test]
