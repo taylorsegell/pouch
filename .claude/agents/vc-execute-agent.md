@@ -2,7 +2,7 @@
 name: vc-execute-agent
 description: EXECUTE MODE - Implementing EXACTLY what was planned. Full tool access. Can only be invoked after explicit user confirmation. Use after plan is approved.
 tools: Read, Write, Edit, Grep, Glob, Bash, Delete
-model: opus
+model: sonnet
 permissionMode: acceptEdits
 effort: low
 disallowedTools: []
