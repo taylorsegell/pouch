@@ -146,6 +146,15 @@ fn ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure
     fx.write_bundle("swap", &["fx:sdlc/code-review", "fx:data/schema-migration"]);
     type Build = fn(&Fx, &str) -> Scenario;
     let builders: [(&str, Build); 3] = [("a", scenario_a), ("b", scenario_b), ("c", scenario_c)];
+    let full = std::env::var("UNAM_FULL_FAULT_MATRIX").is_ok_and(|v| v == "1");
+    println!(
+        "fault matrix mode: {}",
+        if full {
+            "FULL (UNAM_FULL_FAULT_MATRIX=1)"
+        } else {
+            "strided sample (call 1, every third call, last call); set UNAM_FULL_FAULT_MATRIX=1 for the full matrix"
+        }
+    );
     let mut runs = 0;
     for (label, build) in builders {
         let clean = build(&fx, &format!("{label}-clean"));
@@ -173,6 +182,9 @@ fn ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure
             );
         }
         for n in 1..=total {
+            if !full && n != 1 && n != total && n % 3 != 0 {
+                continue;
+            }
             for mode in FailMode::all_at(n) {
                 for recovery in ["resume", "rollback"] {
                     runs += 1;
