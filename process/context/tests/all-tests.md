@@ -16,7 +16,9 @@ Attach this file first when the task involves testing, verification, or test deb
 
 ## Current State
 
-**M3 update (EVL 2026-10-09, 512 tests, all green):** new integration suites `ac_activation` (17 tests; AC-2, 10, 13 to 19, 21 to 25, 29, 30, 40, plus S2), `ac_recovery` (13; AC-31, 32, 53 and the recovery and trust-boundary rows) and `activation_cli` (36; command behavior and refusals); `snapshots` grew to 31. Run one with `cargo test -p unam --test ac_activation ac_NN`. The full AC-31 fault matrix takes about 62 s; the wave plan moves it to a strided sample by default with `UNAM_FULL_FAULT_MATRIX=1` for the full run (check the current default before relying on timing).
+**M3 update (EVL 2026-10-09, 512 tests, all green):** new integration suites `ac_activation` (17 tests; AC-2, 10, 13 to 19, 21 to 25, 29, 30, 40, plus S2), `ac_recovery` (13; AC-31, 32, 53 and the recovery and trust-boundary rows) and `activation_cli` (36; command behavior and refusals); `snapshots` grew to 31. Run one with `cargo test -p unam --test ac_activation ac_NN`. The AC-31 fault matrix (`ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure`) runs a deterministic strided sample by default (call 1, every third call, and the last call of each scenario, all four modes, both recoveries) and the full matrix (about 62 s) when `UNAM_FULL_FAULT_MATRIX=1` is set: `UNAM_FULL_FAULT_MATRIX=1 cargo test -p unam --test ac_recovery --locked ac_31`. The test prints which mode ran.
+
+**Simplification 2026-10-09:** the Hermes Unicode slugify parity machinery (generated word table, `gen-word-table.py`, `rust-word-ranges.txt`, gates G12 and G12b) was removed; slugify uses `c == '_' || c.is_alphanumeric()` and the differences are documented in `docs/adapters.md`.
 
 **FsOps fault injection pattern (M3):** core code does all writes through the public `FsOps` trait (`unam-core/src/fsops.rs`, `RealFs` in production). Tests use the fault-injecting implementation in `crates/unam-cli/tests/common/faults.rs` (`FailMode::FailBefore(n)` and similar) that fails the n-th operation, then call `resume` or `rollback` and compare destination and receipt to the expected state (AC-31, AC-32). Use a separate `StepClock` start per scenario so ids differ.
 
@@ -62,8 +64,6 @@ Runnable (from the repo root; first export `PATH="$HOME/.cargo/bin:$PATH"` and `
 | one criterion | `cargo test -p unam --test <file> ac_NN` | integration tests live in `unam-cli` (package `unam`) |
 | update snapshots | no `cargo-insta` installed | use the no-`cargo-insta` Insta procedure in the M1 plan (`INSTA_UPDATE=no` in gates) |
 | cold-scan perf | `cargo test --release -p unam-core --test perf_cold_scan` | Hybrid; gate is the median of five runs, limit 300 ms (M2 EVL median 140.8 ms) |
-| slugify table check (G12) | `python3 crates/unam-core/tools/gen-word-table.py --check` | needs Python only; exit 0 ok, 3 Unicode drift between running Python and the committed header, 1 mismatch |
-| slugify table vs compiler (G12b) | `python3 crates/unam-core/tools/gen-word-table.py --check-rust` | Hybrid; needs `rustc`; exit 4 without it |
 | no ignored tests (G13c) | `! grep -rEq '#\[ignore' crates` | no `#[ignore` text anywhere under `crates` |
 | bundle source invariant (G14) | `cargo test -p unam --test bundle_cli bundle_commands_leave_sources_untouched -- --exact` | no bundle command writes under a source tree |
 
@@ -105,5 +105,4 @@ Milestone gates are run through two shell functions defined inside each Bash cal
 - `perf_cold_scan` is machine dependent: EVL median 183.9 ms but two of five runs were near or over 300 ms (297.9, 365.2). The gate is the median; watch it under CI load.
 - Chmod-based Hybrid tests self-skip when run as root (M2 adds `register_does_not_write_an_unreadable_index`).
 - AC-12 and AC-35 are closed on the desired side only (M2); their `status` side is an M4 test note (backlog `process/features/v1-static-activation/backlog/m2-ac12-ac35-status-side-for-m4_NOTE_05-10-26.md`). AC-10 end to end needs apply (M3).
-- Slugify `\w` parity is tied to Python 3.14.5 (Unicode 16.0.0) and rustc 1.99.0 (Unicode 17.0.0); G12 exit 3 flags drift.
 - `dist` and `cargo-insta` are not installed; `dist-workspace.toml` is parse-checked only (milestone M7 verifies with `dist plan`).

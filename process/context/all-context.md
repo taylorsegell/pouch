@@ -169,10 +169,8 @@ crates/
                                       resolve, observe, state, plan, apply, change,
                                       adapter/{mod,claude_code},
                                       catalog/{mod,cache,frontmatter,lookup,scan,search},
-                                      bundle/{mod,crud,slug,word_table,edit},
+                                      bundle/{mod,crud,slug,edit},
                                       project/{mod,selection,index}
-  unam-core/tools/                    gen-word-table.py + rust-word-ranges.txt (slugify \w table
-                                      generator and checker; not a cargo source)
   unam-core/tests/                    perf_cold_scan.rs (500-skill fixture, 300 ms limit)
   unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle,change}
   unam-cli/tests/                     ac_read_path, ac_bundles, ac_selection, ac_activation,
