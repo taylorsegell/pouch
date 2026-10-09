@@ -15,6 +15,12 @@ fn bare_unam_prints_usage_without_config() {
     assert!(out.contains("Usage:"), "{out}");
     assert!(out.contains("status arrives in a later milestone"), "{out}");
     assert!(out.contains("  bundle "), "{out}");
+    for cmd in ["add", "rm", "use", "deactivate", "resume", "rollback"] {
+        assert!(out.contains(&format!("  {cmd} ")), "{cmd}: {out}");
+    }
+    for flag in ["--project <PATH>", "--target <ID>", "--yes"] {
+        assert!(out.contains(flag), "{flag}: {out}");
+    }
     assert!(!env.config_file().exists());
 }
 
@@ -30,6 +36,9 @@ fn help_and_version_exit_0() {
     for sub in ["save", "ls", "show", "edit", "duplicate", "rm", "add"] {
         assert!(out.contains(sub), "{sub}: {out}");
     }
+    let (code, out, _) = env.run(&["use", "--help"]);
+    assert_eq!(code, 0);
+    assert!(out.contains("--replace") && out.contains("--add"), "{out}");
     let (code, out, _) = env.run(&["--version"]);
     assert_eq!(code, 0);
     assert!(out.starts_with("unam "), "{out}");

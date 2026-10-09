@@ -7,7 +7,7 @@ pub mod scan;
 pub mod search;
 
 pub use lookup::{Lookup, canonical_ref_text, edit_distance};
-pub use scan::{FingerprintEntry, ScanLimits, ScannedSkill, SourceScan};
+pub use scan::{FingerprintEntry, SKILL_SKIP_NAMES, ScanLimits, ScannedSkill, SourceScan};
 
 use crate::config::SourceEntry;
 use crate::error::{Diagnostic, REMEDY_SOURCE_UNREACHABLE};
@@ -77,6 +77,25 @@ impl fmt::Display for RelPath {
 pub struct SkillId {
     pub source: SourceAlias,
     pub rel_path: RelPath,
+}
+
+impl SkillId {
+    /// Parse the stored text `alias:rel/path` of a skill ID (receipts and
+    /// selection texts). Anything that is not `<alias>:<relative path>` is
+    /// `InvalidRef`. A top-level skill has a one-component relative path, so
+    /// `fx:name` parses with `rel_path` `name`.
+    pub fn parse(text: &str) -> crate::error::Result<SkillId> {
+        let invalid = |reason: &str| crate::error::Error::InvalidRef {
+            reference: text.to_string(),
+            reason: reason.to_string(),
+        };
+        let (alias, rest) = text
+            .split_once(':')
+            .ok_or_else(|| invalid("not a qualified skill ID"))?;
+        let source = SourceAlias::parse(alias).map_err(|_| invalid("invalid source alias"))?;
+        let rel_path = RelPath::parse(rest).map_err(|r| invalid(&r))?;
+        Ok(SkillId { source, rel_path })
+    }
 }
 
 impl fmt::Display for SkillId {
@@ -297,6 +316,19 @@ impl Catalog {
         self.source(&id.source)
             .map(|s| s.root.join(id.rel_path.as_str()))
     }
+
+    /// The read-only source path of a loaded skill; `None` for an unknown ID.
+    pub fn source_path(&self, id: &SkillId) -> Option<crate::source::SourcePath> {
+        if !self.by_id.contains_key(id) {
+            return None;
+        }
+        self.abs_path(id).map(crate::source::SourcePath::new)
+    }
+
+    /// The loaded skill with this ID.
+    pub fn skill(&self, id: &SkillId) -> Option<&Skill> {
+        self.by_id.get(id).map(|&i| &self.skills[i])
+    }
 }
 
 /// Diagnostic classes (CLI Contract): which commands report which codes.
@@ -502,6 +534,36 @@ mod tests {
             assert_eq!(diag_class(code), DiagClass::Config, "{code}");
         }
         assert_eq!(diag_class("bad-yaml"), DiagClass::Skipped);
+    }
+
+    #[test]
+    fn source_path_known_and_unknown_id() {
+        let c = tests_support::catalog_of(&[("fx", "sdlc/code-review", "code-review")], &[]);
+        let id = SkillId::parse("fx:sdlc/code-review").unwrap();
+        assert_eq!(
+            c.source_path(&id).unwrap().as_path(),
+            Path::new("/fx/sdlc/code-review")
+        );
+        let unknown = SkillId::parse("fx:sdlc/other").unwrap();
+        assert!(c.source_path(&unknown).is_none());
+        assert_eq!(c.skill(&id).unwrap().name, "code-review");
+    }
+
+    #[test]
+    fn skill_id_parse_forms() {
+        let id = SkillId::parse("fx:a/b").unwrap();
+        assert_eq!(id.to_string(), "fx:a/b");
+        assert_eq!(id.rel_path.as_str(), "a/b");
+        // A top-level skill: one-component relative path.
+        let top = SkillId::parse("fx:name").unwrap();
+        assert_eq!(top.rel_path.as_str(), "name");
+        for bad in ["bare-name", "Fx:a/b", "fx:", "fx:/a", "fx:a/../b", ""] {
+            assert_eq!(
+                SkillId::parse(bad).unwrap_err().code(),
+                "invalid-ref",
+                "{bad:?}"
+            );
+        }
     }
 
     #[test]

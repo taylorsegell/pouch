@@ -8,7 +8,7 @@ use super::edit::{self, EditError, yaml_scalar};
 use super::{Bundle, BundleSet, parse_bundle_text, slugify};
 use crate::catalog::{Catalog, canonical_ref_text};
 use crate::error::{Error, Result};
-use crate::fsops::write_atomic;
+use crate::fsops::{ToolPath, write_atomic};
 use crate::paths::Dirs;
 use crate::resolve::{resolve_entries, resolve_text};
 use serde_norway::Value;
@@ -176,7 +176,7 @@ pub fn save(
             reason: "the rendered manifest does not reparse to the same bundle".to_string(),
         });
     }
-    write_atomic(&path, text.as_bytes())?;
+    write_atomic(&ToolPath::new(path.clone()), text.as_bytes())?;
     Ok(SaveOutcome {
         slug,
         name,
@@ -250,7 +250,7 @@ pub fn duplicate(
             });
         }
     }
-    write_atomic(&path, new_text.as_bytes())?;
+    write_atomic(&ToolPath::new(path.clone()), new_text.as_bytes())?;
     Ok(SaveOutcome {
         slug,
         name,
@@ -432,7 +432,7 @@ pub fn add_refs(
             .0
     };
     verify_edit(b, &text, &new_text, &expected)?;
-    write_atomic(&b.path, new_text.as_bytes())?;
+    write_atomic(&ToolPath::new(b.path.clone()), new_text.as_bytes())?;
     Ok(outcome(to_add, expected.len()))
 }
 
@@ -505,7 +505,7 @@ pub fn remove_refs(
         edit::remove_values(&text, &matched).map_err(unsupported(&b.path))?
     };
     verify_edit(b, &text, &new_text, &expected)?;
-    write_atomic(&b.path, new_text.as_bytes())?;
+    write_atomic(&ToolPath::new(b.path.clone()), new_text.as_bytes())?;
     Ok(EntriesOutcome {
         slug: b.slug.clone(),
         path: b.path.clone(),
@@ -590,7 +590,7 @@ pub fn edit_in_editor(
         )));
     }
     refuse_symlink(&b.path)?;
-    write_atomic(&b.path, text.as_bytes())?;
+    write_atomic(&ToolPath::new(b.path.clone()), text.as_bytes())?;
     Ok(EditOutcome {
         slug: b.slug.clone(),
         path: b.path.clone(),

@@ -219,7 +219,12 @@ fn ac_35_hand_edited_selection_is_desired_not_applied() {
             assert!(r.resolved.iter().all(|e| e.strategy == Strategy::Copy));
         }
         // Desired, not applied: no receipt and no destination directory.
-        for q in [".unam/applied.json", ".claude", ".agents"] {
+        for q in [
+            ".unam/claude-code/applied.json",
+            ".unam/lock",
+            ".claude",
+            ".agents",
+        ] {
             assert!(!p.join(q).exists(), "{name}: {q}");
         }
     }
@@ -245,7 +250,7 @@ fn save_selection_registers_and_detect_root_finds_the_marker() {
     )
     .unwrap();
     assert!(out.created_dir);
-    assert_eq!(out.gitignore_lines.len(), 3);
+    assert_eq!(out.gitignore_lines.len(), 5);
     assert_eq!(
         read_index(&dirs_for(&fx.env)).projects,
         vec![root.path.to_string_lossy().into_owned()]

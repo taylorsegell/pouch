@@ -47,6 +47,10 @@ pub struct Dirs {
     pub bundles: PathBuf,
     pub cache: PathBuf,
     pub data: PathBuf,
+    /// Enterprise skill locations of the claude-code adapter (plan P14):
+    /// `UNAM_ENTERPRISE_SKILLS_DIRS` (absolute paths separated like `PATH`)
+    /// or the platform default.
+    pub enterprise_skill_dirs: Vec<PathBuf>,
     pub env: Env,
 }
 
@@ -86,13 +90,24 @@ impl Dirs {
             Some(p) => p.join("unam"),
             None => home()?.join(".local").join("share").join("unam"),
         };
+        let enterprise_skill_dirs = enterprise_dirs(&env)?;
         Ok(Dirs {
             config,
             bundles,
             cache,
             data,
+            enterprise_skill_dirs,
             env,
         })
+    }
+
+    /// The absolute `HOME` through the carried environment.
+    pub fn home(&self) -> Result<PathBuf> {
+        self.env
+            .get("HOME")
+            .map(PathBuf::from)
+            .filter(|p| p.is_absolute())
+            .ok_or(Error::NoHomeDir)
     }
 
     /// `<config dir>/config.toml`.
@@ -158,6 +173,42 @@ fn validate_slug(slug: &str) -> Result<()> {
         (Some(std::path::Component::Normal(_)), None) => Ok(()),
         _ => Err(invalid("not a single path component")),
     }
+}
+
+/// The environment variable overriding the enterprise skill locations.
+pub const ENTERPRISE_SKILLS_VAR: &str = "UNAM_ENTERPRISE_SKILLS_DIRS";
+
+/// Platform default enterprise skill locations (an Assumption, plan P14).
+pub fn default_enterprise_skill_dirs() -> Vec<PathBuf> {
+    if cfg!(target_os = "macos") {
+        vec![PathBuf::from(
+            "/Library/Application Support/ClaudeCode/.claude/skills",
+        )]
+    } else if cfg!(target_os = "linux") {
+        vec![PathBuf::from("/etc/claude-code/.claude/skills")]
+    } else {
+        Vec::new()
+    }
+}
+
+fn enterprise_dirs(env: &Env) -> Result<Vec<PathBuf>> {
+    let Some(value) = env.get(ENTERPRISE_SKILLS_VAR) else {
+        return Ok(default_enterprise_skill_dirs());
+    };
+    let mut out = Vec::new();
+    for p in std::env::split_paths(&value) {
+        if p.as_os_str().is_empty() {
+            continue;
+        }
+        if !p.is_absolute() {
+            return Err(Error::InvalidEnvPath {
+                name: ENTERPRISE_SKILLS_VAR.to_string(),
+                value: p.to_string_lossy().into_owned(),
+            });
+        }
+        out.push(p);
+    }
+    Ok(out)
 }
 
 fn unam_var(env: &Env, name: &str) -> Result<Option<PathBuf>> {
@@ -395,6 +446,49 @@ mod tests {
             assert_eq!(e.exit_code(), 2);
         }
         assert!(d.bundle_file(&"a".repeat(128)).is_ok());
+    }
+
+    #[test]
+    fn enterprise_default_per_platform() {
+        let d = dirs(&[("HOME", "/h")]).unwrap();
+        assert_eq!(d.enterprise_skill_dirs, default_enterprise_skill_dirs());
+        if cfg!(target_os = "macos") {
+            assert_eq!(
+                d.enterprise_skill_dirs,
+                vec![PathBuf::from(
+                    "/Library/Application Support/ClaudeCode/.claude/skills"
+                )]
+            );
+        } else if cfg!(target_os = "linux") {
+            assert_eq!(
+                d.enterprise_skill_dirs,
+                vec![PathBuf::from("/etc/claude-code/.claude/skills")]
+            );
+        }
+    }
+
+    #[test]
+    fn enterprise_override_with_two_entries_and_relative_rejected() {
+        let d = dirs(&[("HOME", "/h"), (ENTERPRISE_SKILLS_VAR, "/e1:/e2")]).unwrap();
+        assert_eq!(
+            d.enterprise_skill_dirs,
+            vec![PathBuf::from("/e1"), PathBuf::from("/e2")]
+        );
+        let e = dirs(&[("HOME", "/h"), (ENTERPRISE_SKILLS_VAR, "/e1:rel")]).unwrap_err();
+        assert_eq!(e.code(), "invalid-env-path");
+    }
+
+    #[test]
+    fn home_set_and_unset() {
+        let d = dirs(&[("HOME", "/h")]).unwrap();
+        assert_eq!(d.home().unwrap(), PathBuf::from("/h"));
+        let d = dirs(&[
+            ("UNAM_CONFIG_DIR", "/uc"),
+            ("UNAM_CACHE_DIR", "/uk"),
+            ("XDG_DATA_HOME", "/xd"),
+        ])
+        .unwrap();
+        assert_eq!(d.home().unwrap_err().code(), "no-home-dir");
     }
 
     #[test]

@@ -2,16 +2,20 @@
 //! `unam-core` and build the JSON data plus the human text.
 
 mod bundle;
+mod change;
 mod search;
 mod show;
 mod source;
 
-use crate::output::{self, ErrorInfo};
-use clap::{CommandFactory, Parser, Subcommand};
+use crate::output::{self, ErrorInfo, warnings_only};
+use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::Value;
-use unam_core::catalog::{Catalog, FlatDiagnostic, LoadOptions};
+use std::io::IsTerminal;
+use std::path::PathBuf;
+use unam_core::catalog::{Catalog, FlatDiagnostic, LoadOptions, SOURCE_AND_CONFIG};
 use unam_core::config::Config;
 use unam_core::paths::Dirs;
+use unam_core::project::{ProjectRoot, TargetId};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -32,8 +36,29 @@ pub struct Cli {
     /// Less output: errors only in logs, no notes.
     #[arg(short, long, global = true)]
     pub quiet: bool,
+    /// Use this directory as the project root (no search for `.git`).
+    #[arg(long, global = true, value_name = "PATH")]
+    pub project: Option<PathBuf>,
+    /// The target to change: `claude-code` or `agents-neutral`.
+    #[arg(long, global = true, value_name = "ID")]
+    pub target: Option<String>,
+    /// Apply without a prompt (the plan is still printed).
+    #[arg(long, global = true)]
+    pub yes: bool,
     #[command(subcommand)]
     pub command: Option<Command>,
+}
+
+/// Exactly one of `--replace` and `--add`.
+#[derive(Debug, Args)]
+#[group(required = true, multiple = false)]
+pub struct UseMode {
+    /// Make this bundle the whole selection (clears add and remove).
+    #[arg(long)]
+    pub replace: bool,
+    /// Add this bundle to the selection.
+    #[arg(long)]
+    pub add: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -64,6 +89,35 @@ pub enum Command {
         #[command(subcommand)]
         cmd: BundleCmd,
     },
+    /// Add skills to this project's selection and apply them.
+    Add {
+        /// Skill references.
+        #[arg(required = true)]
+        references: Vec<String>,
+    },
+    /// Remove skills from this project's selection and apply the change.
+    Rm {
+        /// Skill references.
+        #[arg(required = true)]
+        references: Vec<String>,
+    },
+    /// Use a bundle in this project (with --replace or --add) and apply it.
+    Use {
+        /// Bundle name or slug.
+        bundle: String,
+        #[command(flatten)]
+        mode: UseMode,
+    },
+    /// Remove every skill unam placed for the target and clear its selection.
+    Deactivate {
+        /// Every target (the same as the default while one adapter exists).
+        #[arg(long)]
+        all: bool,
+    },
+    /// Finish an interrupted apply.
+    Resume,
+    /// Undo an interrupted apply.
+    Rollback,
 }
 
 #[derive(Debug, Subcommand)]
@@ -125,6 +179,16 @@ pub enum SourceCmd {
     },
 }
 
+/// The global flags a command may use.
+#[derive(Debug, Clone, Default)]
+pub struct Flags {
+    pub no_cache: bool,
+    pub project: Option<PathBuf>,
+    pub target: Option<String>,
+    pub yes: bool,
+    pub json: bool,
+}
+
 /// Shared state for a command run.
 pub struct Ctx {
     pub dirs: Dirs,
@@ -132,10 +196,16 @@ pub struct Ctx {
     /// Config-level diagnostics (precedence ties).
     pub config_diags: Vec<FlatDiagnostic>,
     pub options: LoadOptions,
+    pub project: Option<PathBuf>,
+    pub target: Option<String>,
+    pub yes: bool,
+    pub json: bool,
+    /// stdin is a terminal and `--json` is absent (plan P13).
+    pub interactive: bool,
 }
 
 impl Ctx {
-    fn load(no_cache: bool) -> anyhow::Result<Ctx> {
+    fn load(flags: &Flags) -> anyhow::Result<Ctx> {
         let dirs = Dirs::from_process_env()?;
         let (config, diags) = Config::load_or_create(&dirs)?;
         tracing::debug!(config = %dirs.config_file().display(), sources = config.sources.len(), "config loaded");
@@ -143,7 +213,12 @@ impl Ctx {
             dirs,
             config,
             config_diags: diags.into_iter().map(FlatDiagnostic::global).collect(),
-            options: LoadOptions::product(!no_cache),
+            options: LoadOptions::product(!flags.no_cache),
+            project: flags.project.clone(),
+            target: flags.target.clone(),
+            yes: flags.yes,
+            json: flags.json,
+            interactive: std::io::stdin().is_terminal() && !flags.json,
         })
     }
 
@@ -159,6 +234,31 @@ impl Ctx {
             self.options,
         )?)
     }
+
+    /// The project root: `--project`, else the nearest `.git` from the
+    /// working directory.
+    pub fn root(&self) -> unam_core::error::Result<ProjectRoot> {
+        let cwd = std::env::current_dir()
+            .map_err(|e| unam_core::error::Error::io("cannot read the working directory", e))?;
+        unam_core::change::resolve_root(self.project.as_deref(), &cwd)
+    }
+
+    /// The parsed `--target` flag (`invalid-target` for unknown text).
+    pub fn target_flag(&self) -> unam_core::error::Result<Option<TargetId>> {
+        match &self.target {
+            None => Ok(None),
+            Some(t) => TargetId::parse(t)
+                .map(Some)
+                .ok_or_else(|| unam_core::error::Error::InvalidTarget { value: t.clone() }),
+        }
+    }
+}
+
+/// Config-level plus source-level warnings of a catalog load.
+pub(super) fn catalog_warnings(ctx: &Ctx, catalog: &Catalog) -> Vec<FlatDiagnostic> {
+    let mut all = ctx.config_diags.clone();
+    all.extend(catalog.flat_diagnostics(None, SOURCE_AND_CONFIG));
+    warnings_only(&all)
 }
 
 /// A successful command.
@@ -172,10 +272,51 @@ pub struct Done {
     pub human: String,
 }
 
-/// A failed command, with any diagnostics gathered before the failure.
+/// A failed command, with any diagnostics gathered before the failure. A
+/// failure payload (plan P15, the `--json` `data` of exits 2, 6, 7, 10,
+/// 11) travels inside `error` as a `DataError`; the default is the empty
+/// object, so M1 and M2 failure output is unchanged.
 pub struct Failed {
     pub error: anyhow::Error,
     pub warnings: Vec<FlatDiagnostic>,
+}
+
+/// A core error plus the `--json` `data` of its failure envelope.
+#[derive(Debug)]
+pub struct DataError {
+    pub error: unam_core::error::Error,
+    pub data: Value,
+}
+
+impl std::fmt::Display for DataError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.error.fmt(f)
+    }
+}
+
+impl std::error::Error for DataError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
+    }
+}
+
+impl Failed {
+    /// A core error with a failure payload.
+    pub fn with_data(
+        error: unam_core::error::Error,
+        data: Value,
+        warnings: Vec<FlatDiagnostic>,
+    ) -> Failed {
+        Failed {
+            error: anyhow::Error::new(DataError { error, data }),
+            warnings,
+        }
+    }
+
+    /// The failure payload, when one was attached.
+    pub fn data(&self) -> Option<&Value> {
+        self.error.downcast_ref::<DataError>().map(|d| &d.data)
+    }
 }
 
 impl From<anyhow::Error> for Failed {
@@ -207,7 +348,14 @@ pub fn run(cli: Cli) -> i32 {
         print!("{}", usage_text());
         return 0;
     };
-    let (name, result) = match Ctx::load(cli.no_cache) {
+    let flags = Flags {
+        no_cache: cli.no_cache,
+        project: cli.project.clone(),
+        target: cli.target.clone(),
+        yes: cli.yes,
+        json: cli.json,
+    };
+    let (name, result) = match Ctx::load(&flags) {
         Err(e) => (command_name(&command), Err(Failed::from(e))),
         Ok(ctx) => {
             let name = command_name(&command);
@@ -244,6 +392,12 @@ pub fn run(cli: Cli) -> i32 {
                         rewrite,
                     } => bundle::add(&ctx, &name, &references, rewrite),
                 },
+                Command::Add { references } => change::add(&ctx, references),
+                Command::Rm { references } => change::rm(&ctx, references),
+                Command::Use { bundle, mode } => change::use_bundle(&ctx, bundle, mode.replace),
+                Command::Deactivate { all } => change::deactivate(&ctx, all),
+                Command::Resume => change::resume(&ctx),
+                Command::Rollback => change::rollback(&ctx),
             };
             (name, r)
         }
@@ -269,6 +423,12 @@ fn command_name(c: &Command) -> &'static str {
             BundleCmd::Rm { .. } => "bundle rm",
             BundleCmd::Add { .. } => "bundle add",
         },
+        Command::Add { .. } => "add",
+        Command::Rm { .. } => "rm",
+        Command::Use { .. } => "use",
+        Command::Deactivate { .. } => "deactivate",
+        Command::Resume => "resume",
+        Command::Rollback => "rollback",
     }
 }
 
@@ -304,10 +464,14 @@ fn render(command: &str, result: CmdResult, json: bool, quiet: bool) -> i32 {
         Err(failed) => {
             let info = ErrorInfo::from_anyhow(&failed.error);
             if json {
+                let data = failed
+                    .data()
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({}));
                 print_json(&output::envelope(
                     false,
                     command,
-                    serde_json::json!({}),
+                    data,
                     &failed.warnings,
                     std::slice::from_ref(&info),
                 ));

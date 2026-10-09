@@ -6,7 +6,7 @@
 use super::scan::{FingerprintEntry, ScannedSkill};
 use super::{RelPath, Skill, SkillId};
 use crate::error::{Diagnostic, Result};
-use crate::fsops::write_atomic;
+use crate::fsops::{ToolPath, write_atomic};
 use crate::hash::Hash;
 use crate::paths::Dirs;
 use crate::source::SourceAlias;
@@ -115,5 +115,8 @@ pub fn write(
     let bytes = serde_json::to_vec_pretty(&file).map_err(|e| {
         crate::error::Error::io("cannot serialize catalog cache", std::io::Error::other(e))
     })?;
-    write_atomic(&dirs.catalog_cache_file(alias.as_str()), &bytes)
+    write_atomic(
+        &ToolPath::new(dirs.catalog_cache_file(alias.as_str())),
+        &bytes,
+    )
 }
