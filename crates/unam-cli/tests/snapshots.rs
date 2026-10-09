@@ -7,8 +7,12 @@
 
 mod common;
 
+use common::faults::*;
 use common::*;
 use serde_json::Value;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::path::Path;
+use unam_core::change::{self, Decision, Edit};
 
 fn json(env: &TestEnv, args: &[&str]) -> (i32, Value) {
     let (code, v) = run_json(env, args);
@@ -260,4 +264,203 @@ fn bundle_edit() {
     let text = env.normalize(&String::from_utf8(out.stdout).unwrap());
     let v: Value = serde_json::from_str(&text).unwrap();
     insta::assert_json_snapshot!("bundle_edit", v);
+}
+
+// ---- milestone M3: activation commands (`[TMP]`, `[OP_ID]`, `[TIME]`) ----
+
+fn crash_add(fx: &Fx, p: &Path, refs: &[&str], mode: FailMode) {
+    quiet_crashes();
+    let c = core_ctx(&fx.env, p);
+    let clock = StepClock::new();
+    let req = c.request(
+        Edit::Add(refs.iter().map(|s| s.to_string()).collect()),
+        "add",
+        &clock,
+    );
+    let ff = FailingFs::new(mode);
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        change::run(&req, &ff, &mut |_| Decision::Proceed)
+    }));
+}
+
+#[test]
+fn add_apply() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    let (code, v) = fx.json(
+        &p,
+        &[
+            "add",
+            "fx:sdlc/code-review",
+            "fx:testing/pytest-fixtures",
+            "--yes",
+        ],
+    );
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("add_apply", v);
+    fx.done();
+}
+
+#[test]
+fn add_no_changes() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.json(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    let (code, v) = fx.json(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("add_no_changes", v);
+    fx.done();
+}
+
+#[test]
+fn add_conflict() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.plant_foreign(&p, "code-review");
+    let (code, v) = fx.json(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    assert_eq!(code, 6);
+    insta::assert_json_snapshot!("add_conflict", v);
+    fx.done();
+}
+
+#[test]
+fn rm_apply() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.json(
+        &p,
+        &[
+            "add",
+            "fx:sdlc/code-review",
+            "fx:testing/pytest-fixtures",
+            "--yes",
+        ],
+    );
+    let (code, v) = fx.json(&p, &["rm", "fx:testing/pytest-fixtures", "--yes"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("rm_apply", v);
+    fx.done();
+}
+
+#[test]
+fn use_replace() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.json(&p, &["add", "fx:data/schema-migration", "--yes"]);
+    let (code, v) = fx.json(&p, &["use", "hermes-only", "--replace", "--yes"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("use_replace", v);
+    fx.done();
+}
+
+#[test]
+fn deactivate_apply() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.json(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    let (code, v) = fx.json(&p, &["deactivate", "--yes"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("deactivate_apply", v);
+    fx.done();
+}
+
+#[test]
+fn apply_partial_failure() {
+    let fx = Fx::new_with(|lib| {
+        write_file(
+            lib,
+            "bad/escaper/SKILL.md",
+            skill_md("escaper", "Holds a link that leaves the skill.").as_bytes(),
+        );
+        #[cfg(unix)]
+        std::os::unix::fs::symlink("/etc", lib.join("bad/escaper/leak")).unwrap();
+    });
+    let p = fx.project("p");
+    fx.write_selection(&p, "targets:\n  claude-code:\n    strategy: copy\n");
+    let (code, v) = fx.json(
+        &p,
+        &["add", "fx:bad/escaper", "fx:sdlc/code-review", "--yes"],
+    );
+    assert_eq!(code, 7);
+    insta::assert_json_snapshot!("apply_partial_failure", v);
+    fx.done();
+}
+
+#[test]
+fn refused_without_yes() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    let (code, v) = fx.json(&p, &["add", "fx:sdlc/code-review"]);
+    assert_eq!(code, 2);
+    insta::assert_json_snapshot!("refused_without_yes", v);
+    fx.done();
+}
+
+#[test]
+fn interrupted_exit_10() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    crash_add(
+        &fx,
+        &p,
+        &["fx:sdlc/code-review", "fx:testing/pytest-fixtures"],
+        FailMode::CrashAfter(5),
+    );
+    let (code, v) = fx.json(&p, &["add", "fx:data/schema-migration", "--yes"]);
+    assert_eq!(code, 10);
+    insta::assert_json_snapshot!("interrupted_exit_10", v);
+    fx.done();
+}
+
+#[test]
+fn locked_exit_11() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    let clock = StepClock::new();
+    let _guard = unam_core::state::ProjectLock::acquire(&fx.canon(&p), "test", &clock).unwrap();
+    let (code, v) = fx.json(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    assert_eq!(code, 11);
+    assert_eq!(v["data"]["locked"]["pid"], std::process::id());
+    // The holder pid is this test process: replace it in the data and in
+    // the message text.
+    let pid = std::process::id().to_string();
+    let text = v
+        .to_string()
+        .replace(&format!(r#""pid":{pid}"#), r#""pid":"[PID]""#)
+        .replace(&format!("process {pid}"), "process [PID]");
+    let v: Value = serde_json::from_str(&text).unwrap();
+    insta::assert_json_snapshot!("locked_exit_11", v);
+    fx.done();
+}
+
+#[test]
+fn resume_apply() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    crash_add(
+        &fx,
+        &p,
+        &["fx:sdlc/code-review", "fx:testing/pytest-fixtures"],
+        FailMode::CrashAfter(8),
+    );
+    let (code, v) = fx.json(&p, &["resume", "--yes"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("resume_apply", v);
+    fx.done();
+}
+
+#[test]
+fn rollback_apply() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    crash_add(
+        &fx,
+        &p,
+        &["fx:sdlc/code-review", "fx:testing/pytest-fixtures"],
+        FailMode::CrashAfter(8),
+    );
+    let (code, v) = fx.json(&p, &["rollback", "--yes"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("rollback_apply", v);
+    fx.done();
 }

@@ -61,6 +61,22 @@ impl Diagnostic {
 pub const REMEDY_SOURCE_UNREACHABLE: &str =
     "Mount the volume or run `unam source relocate <alias> <path>`.";
 
+/// Which destination-root problem `Error::DestRootInvalid` reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DestRootProblem {
+    /// The root resolves outside the canonical project root.
+    Outside,
+    /// The root exists and is not a directory.
+    NotDirectory,
+}
+
+fn pid_text(pid: &Option<u32>) -> String {
+    match pid {
+        Some(p) => format!("process {p}"),
+        None => "another process".to_string(),
+    }
+}
+
 /// The single error type of `unam-core`.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -156,6 +172,59 @@ pub enum Error {
     #[error("the selection has several targets: {}", targets.join(", "))]
     TargetAmbiguous { targets: Vec<String> },
 
+    // ---- activation (milestone M3) ----
+    #[error("{count} conflict(s) block this change")]
+    Conflicts { count: usize },
+    #[error("the apply did not finish cleanly: {failed} step(s) failed, {skipped} skipped")]
+    ApplyFailed { failed: usize, skipped: usize },
+    #[error("an apply of target {target} was interrupted (operation {op_id})")]
+    Interrupted { target: String, op_id: String },
+    #[error("the project is locked by {}", pid_text(pid))]
+    Locked { pid: Option<u32> },
+    #[error("this change needs confirmation and no terminal is available")]
+    ConfirmationRequired,
+    #[error("{reference:?} is not selected for this target")]
+    NotSelected { reference: String },
+    #[error("target {target} has no interrupted apply (no journal)")]
+    NoJournal { target: String },
+    #[error("target {target} is not supported yet")]
+    TargetUnsupported { target: String },
+    #[error("invalid target {value:?}")]
+    InvalidTarget { value: String },
+    #[error("invalid project path {path}: {reason}")]
+    ProjectPathInvalid { path: String, reason: String },
+    #[error("target {target} does not support strategy {strategy}")]
+    StrategyUnsupported { target: String, strategy: String },
+    #[error("cannot create a symbolic link at {}: {source}", dest.display())]
+    SymlinkUnsupported {
+        dest: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("copy refused at {}: {reason}", path.display())]
+    CopyRefused { path: PathBuf, reason: String },
+    #[error("source skill {id} changed: {reason}")]
+    SourceChanged { id: String, reason: String },
+    #[error("invalid journal {}: {reason}", path.display())]
+    JournalInvalid { path: PathBuf, reason: String },
+    #[error("invalid receipt {}: {message}", path.display())]
+    ReceiptInvalid { path: PathBuf, message: String },
+    #[error("receipt {} has version {version}; this unam supports version 1", path.display())]
+    ReceiptUnsupportedVersion { path: PathBuf, version: u64 },
+    #[error("invalid state entry {}: {reason}", path.display())]
+    StateDirInvalid { path: PathBuf, reason: String },
+    #[error("project {} overlaps the registered source {}", project.display(), source_root.display())]
+    ProjectOverlapsSource {
+        project: PathBuf,
+        source_root: PathBuf,
+    },
+    #[error("destination root {dest_root} is invalid: {detail}")]
+    DestRootInvalid {
+        problem: DestRootProblem,
+        dest_root: String,
+        detail: String,
+    },
+
     // ---- io ----
     #[error("{context}: {source}")]
     Io {
@@ -208,6 +277,29 @@ impl Error {
             Error::SelectionUnsupportedVersion { .. } => "selection-version-unsupported",
             Error::NoSelection { .. } => "no-selection",
             Error::TargetAmbiguous { .. } => "target-ambiguous",
+            Error::Conflicts { .. } => "blocked-by-conflicts",
+            Error::ApplyFailed { .. } => "apply-failed",
+            Error::Interrupted { .. } => "interrupted",
+            Error::Locked { .. } => "locked",
+            Error::ConfirmationRequired => "confirmation-required",
+            Error::NotSelected { .. } => "not-selected",
+            Error::NoJournal { .. } => "no-journal",
+            Error::TargetUnsupported { .. } => "target-unsupported",
+            Error::InvalidTarget { .. } => "invalid-target",
+            Error::ProjectPathInvalid { .. } => "project-path-invalid",
+            Error::StrategyUnsupported { .. } => "strategy-unsupported",
+            Error::SymlinkUnsupported { .. } => "symlink-unsupported",
+            Error::CopyRefused { .. } => "copy-refused",
+            Error::SourceChanged { .. } => "source-changed",
+            Error::JournalInvalid { .. } => "journal-invalid",
+            Error::ReceiptInvalid { .. } => "receipt-invalid",
+            Error::ReceiptUnsupportedVersion { .. } => "receipt-version-unsupported",
+            Error::StateDirInvalid { .. } => "state-dir-invalid",
+            Error::ProjectOverlapsSource { .. } => "project-overlaps-source",
+            Error::DestRootInvalid { problem, .. } => match problem {
+                DestRootProblem::Outside => "dest-outside-project",
+                DestRootProblem::NotDirectory => "dest-not-directory",
+            },
             Error::Io { .. } => "io-error",
         }
     }
@@ -226,6 +318,13 @@ impl Error {
             | Error::SelectionRead { .. }
             | Error::SelectionInvalid { .. }
             | Error::SelectionUnsupportedVersion { .. }
+            | Error::SymlinkUnsupported { .. }
+            | Error::CopyRefused { .. }
+            | Error::SourceChanged { .. }
+            | Error::JournalInvalid { .. }
+            | Error::ReceiptInvalid { .. }
+            | Error::ReceiptUnsupportedVersion { .. }
+            | Error::StateDirInvalid { .. }
             | Error::Io { .. } => 1,
             Error::InvalidAlias { .. }
             | Error::InvalidEnvPath { .. }
@@ -239,14 +338,26 @@ impl Error {
             | Error::BundleEditUnsupported { .. }
             | Error::BundleWouldBeEmpty { .. }
             | Error::EditorNotSet
-            | Error::TargetAmbiguous { .. } => 2,
+            | Error::TargetAmbiguous { .. }
+            | Error::ConfirmationRequired
+            | Error::TargetUnsupported { .. }
+            | Error::InvalidTarget { .. }
+            | Error::ProjectPathInvalid { .. }
+            | Error::StrategyUnsupported { .. }
+            | Error::ProjectOverlapsSource { .. } => 2,
             Error::SourceReferenced { .. } => 3,
             Error::SourceNotFound { .. }
             | Error::NotFound { .. }
             | Error::BundleNotFound { .. }
             | Error::SkillNotInBundle { .. }
-            | Error::NoSelection { .. } => 4,
+            | Error::NoSelection { .. }
+            | Error::NotSelected { .. }
+            | Error::NoJournal { .. } => 4,
             Error::Ambiguous { .. } => 5,
+            Error::Conflicts { .. } | Error::DestRootInvalid { .. } => 6,
+            Error::ApplyFailed { .. } => 7,
+            Error::Interrupted { .. } => 10,
+            Error::Locked { .. } => 11,
         }
     }
 
@@ -329,10 +440,66 @@ impl Error {
                 Some("This selection was written by a newer unam; upgrade unam.")
             }
             Error::NoSelection { .. } => Some(
-                "Run this from a project whose `.unam/selection.yaml` exists (write it by hand per the spec until `unam use` and `unam add` arrive in milestone M3).",
+                "Run `unam add <ref>` or `unam use <bundle> --replace` in this project, or write `.unam/selection.yaml` by hand.",
             ),
-            Error::TargetAmbiguous { .. } => Some(
-                "This selection has several targets; the `--target` flag arrives in milestone M3. Until then keep one target in the selection.",
+            Error::TargetAmbiguous { .. } => {
+                Some("This selection has several targets; pass `--target <id>`.")
+            }
+            Error::Conflicts { .. } => Some(
+                "Resolve each conflict (remove or rename the existing entry, or fix the name), then re-run. Nothing was changed.",
+            ),
+            Error::ApplyFailed { .. } => Some(
+                "See the per-entry results. Run `unam resume` to retry failed steps, or `unam rollback` to undo them.",
+            ),
+            Error::Interrupted { .. } => {
+                Some("Run `unam resume` to finish, or `unam rollback` to undo.")
+            }
+            Error::Locked { .. } => Some(
+                "Another `unam` process is changing this project. Wait for it to finish, or close the open picker.",
+            ),
+            Error::ConfirmationRequired => Some(
+                "Pass `--yes` to apply without a prompt; the plan is still printed. Nothing was changed.",
+            ),
+            Error::NotSelected { .. } => Some(
+                "The skill is not in this project's selection for the target; nothing was changed.",
+            ),
+            Error::NoJournal { .. } => Some(
+                "There is no interrupted apply to resume or roll back. Rolling back from history arrives in milestone M4.",
+            ),
+            Error::TargetUnsupported { .. } => {
+                Some("Only `claude-code` is available until milestone M5.")
+            }
+            Error::InvalidTarget { .. } => Some("Use `claude-code` or `agents-neutral`."),
+            Error::ProjectPathInvalid { .. } => Some("Pass an existing directory to `--project`."),
+            Error::StrategyUnsupported { .. } => {
+                Some("Use `symlink` or `copy` in the selection file or in `defaults.strategy`.")
+            }
+            Error::SymlinkUnsupported { .. } => Some(
+                "Set `strategy: copy` for the target in `.unam/selection.yaml`, or `defaults.strategy = \"copy\"` in config.toml.",
+            ),
+            Error::CopyRefused { .. } => Some(
+                "Fix the source skill: a copied skill may not contain a link that leaves the skill directory, or a special file.",
+            ),
+            Error::SourceChanged { .. } => {
+                Some("The source skill changed after the plan was made; re-run the command.")
+            }
+            Error::JournalInvalid { .. } => Some(
+                "The journal cannot be trusted. Inspect `.unam/<target>/journal.jsonl` and the destination by hand before removing it.",
+            ),
+            Error::ReceiptInvalid { .. } => Some(
+                "Fix or move aside the receipt `.unam/<target>/applied.json`; nothing was changed.",
+            ),
+            Error::ReceiptUnsupportedVersion { .. } => {
+                Some("This receipt was written by a newer unam; upgrade unam.")
+            }
+            Error::StateDirInvalid { .. } => Some(
+                "A symlink or an entry of the wrong kind sits where unam keeps its state. Inspect `.unam/` by hand and remove or fix that entry; nothing was changed.",
+            ),
+            Error::ProjectOverlapsSource { .. } => Some(
+                "The project directory is, lies inside, or contains a registered source. Run from another project or pass `--project <dir>`; nothing was written.",
+            ),
+            Error::DestRootInvalid { .. } => Some(
+                "The destination root is a symlink that leaves the project or is not a directory. Remove or fix it and re-run; nothing was changed.",
             ),
         }
     }
@@ -610,7 +777,173 @@ mod tests {
                 true,
             ),
         ];
-        assert_eq!(table.len(), 32);
+        let m3: Vec<(Error, &str, i32, bool)> = vec![
+            (
+                Error::Conflicts { count: 1 },
+                "blocked-by-conflicts",
+                6,
+                true,
+            ),
+            (
+                Error::ApplyFailed {
+                    failed: 1,
+                    skipped: 0,
+                },
+                "apply-failed",
+                7,
+                true,
+            ),
+            (
+                Error::Interrupted {
+                    target: s("claude-code"),
+                    op_id: s("0000000000001-0000abcd"),
+                },
+                "interrupted",
+                10,
+                true,
+            ),
+            (Error::Locked { pid: Some(7) }, "locked", 11, true),
+            (
+                Error::ConfirmationRequired,
+                "confirmation-required",
+                2,
+                true,
+            ),
+            (
+                Error::NotSelected { reference: s("r") },
+                "not-selected",
+                4,
+                true,
+            ),
+            (Error::NoJournal { target: s("t") }, "no-journal", 4, true),
+            (
+                Error::TargetUnsupported { target: s("t") },
+                "target-unsupported",
+                2,
+                true,
+            ),
+            (
+                Error::InvalidTarget { value: s("v") },
+                "invalid-target",
+                2,
+                true,
+            ),
+            (
+                Error::ProjectPathInvalid {
+                    path: s("p"),
+                    reason: s("r"),
+                },
+                "project-path-invalid",
+                2,
+                true,
+            ),
+            (
+                Error::StrategyUnsupported {
+                    target: s("t"),
+                    strategy: s("copy"),
+                },
+                "strategy-unsupported",
+                2,
+                true,
+            ),
+            (
+                Error::SymlinkUnsupported {
+                    dest: p.clone(),
+                    source: io(),
+                },
+                "symlink-unsupported",
+                1,
+                true,
+            ),
+            (
+                Error::CopyRefused {
+                    path: p.clone(),
+                    reason: s("r"),
+                },
+                "copy-refused",
+                1,
+                true,
+            ),
+            (
+                Error::SourceChanged {
+                    id: s("fx:a/b"),
+                    reason: s("r"),
+                },
+                "source-changed",
+                1,
+                true,
+            ),
+            (
+                Error::JournalInvalid {
+                    path: p.clone(),
+                    reason: s("r"),
+                },
+                "journal-invalid",
+                1,
+                true,
+            ),
+            (
+                Error::ReceiptInvalid {
+                    path: p.clone(),
+                    message: s("m"),
+                },
+                "receipt-invalid",
+                1,
+                true,
+            ),
+            (
+                Error::ReceiptUnsupportedVersion {
+                    path: p.clone(),
+                    version: 2,
+                },
+                "receipt-version-unsupported",
+                1,
+                true,
+            ),
+            (
+                Error::StateDirInvalid {
+                    path: p.clone(),
+                    reason: s("r"),
+                },
+                "state-dir-invalid",
+                1,
+                true,
+            ),
+            (
+                Error::ProjectOverlapsSource {
+                    project: p.clone(),
+                    source_root: p.clone(),
+                },
+                "project-overlaps-source",
+                2,
+                true,
+            ),
+            (
+                Error::DestRootInvalid {
+                    problem: DestRootProblem::Outside,
+                    dest_root: s(".claude/skills"),
+                    detail: s("d"),
+                },
+                "dest-outside-project",
+                6,
+                true,
+            ),
+            (
+                Error::DestRootInvalid {
+                    problem: DestRootProblem::NotDirectory,
+                    dest_root: s(".claude/skills"),
+                    detail: s("d"),
+                },
+                "dest-not-directory",
+                6,
+                true,
+            ),
+        ];
+        // Twenty new variants (DestRootInvalid twice, one per problem).
+        assert_eq!(m3.len(), 21);
+        let mut table = table;
+        table.extend(m3);
+        assert_eq!(table.len(), 53);
         for (err, code, exit, has_remedy) in table {
             assert_eq!(err.code(), code);
             assert_eq!(err.exit_code(), exit, "{code}");
@@ -620,6 +953,30 @@ mod tests {
             }
             assert!(!err.to_string().is_empty());
         }
+    }
+
+    #[test]
+    fn reworded_remedies_name_the_m3_commands() {
+        let e = Error::NoSelection {
+            root: PathBuf::from("/p"),
+            reason: "r".into(),
+        };
+        assert_eq!(
+            e.remedy(),
+            Some(
+                "Run `unam add <ref>` or `unam use <bundle> --replace` in this project, or write `.unam/selection.yaml` by hand."
+            )
+        );
+        let e = Error::TargetAmbiguous { targets: vec![] };
+        assert_eq!(
+            e.remedy(),
+            Some("This selection has several targets; pass `--target <id>`.")
+        );
+        assert!(
+            Error::Locked { pid: None }
+                .to_string()
+                .contains("another process")
+        );
     }
 
     #[test]

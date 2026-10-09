@@ -8,7 +8,7 @@
 
 use crate::config::Strategy;
 use crate::error::{Diagnostic, Error, Result};
-use crate::fsops::write_atomic;
+use crate::fsops::{StatePath, write_atomic};
 use crate::paths::Dirs;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -144,16 +144,28 @@ pub struct SelectionSave {
     /// True when this call created the `.unam/` directory.
     pub created_dir: bool,
     /// Lines offered for the project's `.gitignore` (OWN-7): non-empty only
-    /// when this call created `.unam/`. The file `.gitignore` is never read
-    /// or written here; the caller prints the offer.
+    /// when the selection file did not exist before this write (M3 plan
+    /// P24: the project lock creates `.unam/` before any selection write).
+    /// The file `.gitignore` is never read or written here; the caller
+    /// prints the offer.
     pub gitignore_lines: Vec<String>,
     /// Project-index diagnostics from registering the root.
     pub diagnostics: Vec<Diagnostic>,
 }
 
-/// The `.gitignore` lines offered on the first write (OWN-7).
-pub const GITIGNORE_LINES: &[&str] =
-    &[".unam/applied.json", ".unam/journal.json", ".unam/history/"];
+/// The `.gitignore` lines offered on the first write (OWN-7; M3 plan P24).
+pub const GITIGNORE_LINES: &[&str] = &[
+    ".unam/lock",
+    ".unam/*/applied.json",
+    ".unam/*/journal.jsonl",
+    ".unam/*/history/",
+    ".unam/*/trash/",
+];
+
+/// The offered lines as owned strings.
+pub fn gitignore_lines() -> Vec<String> {
+    GITIGNORE_LINES.iter().map(|s| s.to_string()).collect()
+}
 
 /// Render a selection as YAML text.
 pub fn render_selection(selection: &Selection) -> Result<String> {
@@ -162,22 +174,28 @@ pub fn render_selection(selection: &Selection) -> Result<String> {
 }
 
 /// Write the selection atomically (creating `.unam/` if needed) and register
-/// the project root in the project index.
+/// the project root in the project index. No production caller since M3:
+/// `change::run` writes the selection through `FsOps` and registers the
+/// project itself after every selection write.
 pub fn save_selection(dirs: &Dirs, root: &Path, selection: &Selection) -> Result<SelectionSave> {
     let dir = root.join(".unam");
     let created_dir = !dir.exists();
+    let first_write = std::fs::symlink_metadata(selection_path(root)).is_err();
     if created_dir {
         std::fs::create_dir_all(&dir)
             .map_err(|e| Error::io(format!("cannot create {}", dir.display()), e))?;
     }
     let path = selection_path(root);
-    write_atomic(&path, render_selection(selection)?.as_bytes())?;
+    write_atomic(
+        &StatePath::new(path.clone()),
+        render_selection(selection)?.as_bytes(),
+    )?;
     let diagnostics = super::index::register(dirs, root)?;
     Ok(SelectionSave {
         path,
         created_dir,
-        gitignore_lines: if created_dir {
-            GITIGNORE_LINES.iter().map(|s| s.to_string()).collect()
+        gitignore_lines: if first_write {
+            gitignore_lines()
         } else {
             Vec::new()
         },
@@ -293,7 +311,13 @@ targets:
         assert!(first.created_dir);
         assert_eq!(
             first.gitignore_lines,
-            vec![".unam/applied.json", ".unam/journal.json", ".unam/history/"]
+            vec![
+                ".unam/lock",
+                ".unam/*/applied.json",
+                ".unam/*/journal.jsonl",
+                ".unam/*/history/",
+                ".unam/*/trash/"
+            ]
         );
         assert!(!root.join(".gitignore").exists());
         assert_eq!(load_selection(&root).unwrap(), Some(s.clone()));
@@ -312,6 +336,14 @@ targets:
             .to_string_lossy()
             .into_owned();
         assert_eq!(read_index(&d).projects, vec![canon]);
+        // The offer follows the selection file, not `.unam/` (the lock
+        // creates `.unam/` first since M3).
+        let other = t.path().join("locked-first");
+        std::fs::create_dir_all(other.join(".unam")).unwrap();
+        std::fs::write(other.join(".unam/lock"), b"").unwrap();
+        let third = save_selection(&d, &other, &s).unwrap();
+        assert!(!third.created_dir);
+        assert_eq!(third.gitignore_lines.len(), 5);
     }
 
     #[test]

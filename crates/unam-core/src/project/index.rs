@@ -7,7 +7,7 @@
 
 use crate::bundle::slugify;
 use crate::error::{Diagnostic, Error, Result};
-use crate::fsops::write_atomic;
+use crate::fsops::{ToolPath, write_atomic};
 use crate::paths::Dirs;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -100,7 +100,7 @@ pub fn register(dirs: &Dirs, root: &Path) -> Result<Vec<Diagnostic>> {
         )
     })?;
     text.push('\n');
-    write_atomic(&dirs.project_index_file(), text.as_bytes())?;
+    write_atomic(&ToolPath::new(dirs.project_index_file()), text.as_bytes())?;
     Ok(read.diagnostics)
 }
 

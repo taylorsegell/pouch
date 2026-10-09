@@ -4,6 +4,8 @@
 // Each test binary uses a subset of these helpers.
 #![allow(dead_code)]
 
+pub mod faults;
+
 use assert_cmd::Command;
 use serde_json::Value;
 use std::fs;
@@ -29,6 +31,7 @@ const SUBDIRS: &[&str] = &[
     "data",
     "cwd",
     "work",
+    "enterprise",
 ];
 
 impl TestEnv {
@@ -80,6 +83,7 @@ impl TestEnv {
             ("UNAM_CONFIG_DIR", self.path("config")),
             ("UNAM_BUNDLES_DIR", self.path("bundles")),
             ("UNAM_CACHE_DIR", self.path("cache")),
+            ("UNAM_ENTERPRISE_SKILLS_DIRS", self.path("enterprise")),
         ]
     }
 
@@ -406,4 +410,379 @@ pub fn read_lines(path: &Path) -> Vec<String> {
 /// Split text into lines keeping `\n` or `\r\n` on each line.
 pub fn split_lines(text: &str) -> Vec<String> {
     text.split_inclusive('\n').map(str::to_string).collect()
+}
+
+// ---- milestone M3 helpers (plan Test Harness section) ----
+
+/// A planted foreign fixture: every file's bytes at planting time.
+#[derive(Debug, Clone)]
+pub struct ForeignFixture {
+    pub root: PathBuf,
+    pub files: Vec<(PathBuf, Vec<u8>)>,
+    pub links: Vec<(PathBuf, PathBuf)>,
+}
+
+/// The shared M3 fixture: libraries `fx` and `hs` registered, bundle
+/// `hermes-only` copied, source snapshots taken. Every mutating test ends
+/// with `fx.done()` (PRD S3 and S4).
+pub struct Fx {
+    pub env: TestEnv,
+    pub lib: PathBuf,
+    pub lib2: PathBuf,
+    pub before: SourceSnapshot,
+    pub before2: SourceSnapshot,
+    foreign: std::cell::RefCell<Vec<ForeignFixture>>,
+}
+
+impl Fx {
+    pub fn new() -> Fx {
+        Fx::new_with(|_| {})
+    }
+
+    /// Build the fixture; `mutate` edits the fresh `fx` library before the
+    /// snapshot and the registration.
+    pub fn new_with(mutate: impl FnOnce(&Path)) -> Fx {
+        let env = TestEnv::new();
+        let lib = build_library(&env);
+        mutate(&lib);
+        let lib2 = build_second_library(&env);
+        let before = snapshot_source(&lib);
+        let before2 = snapshot_source(&lib2);
+        for (alias, l) in [("fx", &lib), ("hs", &lib2)] {
+            let (code, v) = run_json(&env, &["source", "add", alias, l.to_str().unwrap()]);
+            assert_eq!(code, 0, "{v}");
+        }
+        copy_fixture_bundle(&env, "hermes-only.yaml");
+        Fx {
+            env,
+            lib,
+            lib2,
+            before,
+            before2,
+            foreign: std::cell::RefCell::new(Vec::new()),
+        }
+    }
+
+    /// A project directory under `work/` with a `.git` marker.
+    pub fn project(&self, name: &str) -> PathBuf {
+        let p = self.env.path("work").join(name);
+        fs::create_dir_all(&p).unwrap();
+        git_marker(&p);
+        p
+    }
+
+    /// The canonical path of a project.
+    pub fn canon(&self, p: &Path) -> PathBuf {
+        fs::canonicalize(p).unwrap()
+    }
+
+    /// Plant a foreign skill directory `.claude/skills/<name>/` (SKILL.md
+    /// plus a second file) and remember its bytes.
+    pub fn plant_foreign(&self, project: &Path, name: &str) -> ForeignFixture {
+        let root = project.join(".claude/skills").join(name);
+        write_file(
+            &root,
+            "SKILL.md",
+            skill_md(name, "Not managed by unam.").as_bytes(),
+        );
+        write_file(&root, "notes.md", b"house rules\n");
+        let f = ForeignFixture {
+            files: vec![
+                (
+                    root.join("SKILL.md"),
+                    fs::read(root.join("SKILL.md")).unwrap(),
+                ),
+                (
+                    root.join("notes.md"),
+                    fs::read(root.join("notes.md")).unwrap(),
+                ),
+            ],
+            links: vec![],
+            root,
+        };
+        self.foreign.borrow_mut().push(f.clone());
+        f
+    }
+
+    /// Remember an arbitrary foreign file (its current bytes).
+    pub fn plant_file(&self, path: &Path, bytes: &[u8]) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, bytes).unwrap();
+        self.foreign.borrow_mut().push(ForeignFixture {
+            root: path.to_path_buf(),
+            files: vec![(path.to_path_buf(), bytes.to_vec())],
+            links: vec![],
+        });
+    }
+
+    /// Remember a foreign symlink (its target text).
+    #[cfg(unix)]
+    pub fn plant_link(&self, link: &Path, target: &Path) {
+        fs::create_dir_all(link.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(target, link).unwrap();
+        self.foreign.borrow_mut().push(ForeignFixture {
+            root: link.to_path_buf(),
+            files: vec![],
+            links: vec![(link.to_path_buf(), target.to_path_buf())],
+        });
+    }
+
+    /// Run `unam` in `project`.
+    pub fn run(&self, project: &Path, args: &[&str]) -> (i32, String, String) {
+        run_in(&self.env, project, args)
+    }
+
+    /// Run `unam --json` in `project`; stdout parsed, temp roots, op ids,
+    /// and timestamps normalized.
+    pub fn json(&self, project: &Path, args: &[&str]) -> (i32, Value) {
+        let (code, v) = self.json_raw(project, args);
+        let text = normalize_volatile(&self.env.normalize(&v.to_string()));
+        (code, serde_json::from_str(&text).unwrap())
+    }
+
+    /// Run `unam --json` in `project` without normalization.
+    pub fn json_raw(&self, project: &Path, args: &[&str]) -> (i32, Value) {
+        let mut full = vec!["--json"];
+        full.extend_from_slice(args);
+        let (code, stdout, stderr) = run_in(&self.env, project, &full);
+        let v: Value = serde_json::from_str(&stdout).unwrap_or_else(|e| {
+            panic!("stdout is not one JSON object ({e}): {stdout:?}\nstderr: {stderr}")
+        });
+        (code, v)
+    }
+
+    /// Write bundle `<name>.yaml` with these skill references.
+    pub fn write_bundle(&self, name: &str, skills: &[&str]) {
+        let mut text = format!("name: {name}\nskills:\n");
+        for s in skills {
+            text.push_str(&format!("  - \"{s}\"\n"));
+        }
+        fs::write(self.env.path("bundles").join(format!("{name}.yaml")), text).unwrap();
+    }
+
+    /// Write the project's selection file.
+    pub fn write_selection(&self, project: &Path, text: &str) {
+        write_file(project, ".unam/selection.yaml", text.as_bytes());
+    }
+
+    /// The two invariants: every source snapshot equals the start and every
+    /// planted foreign fixture is byte-identical.
+    pub fn done(&self) {
+        assert_source_unchanged(&self.before, &self.lib);
+        assert_source_unchanged(&self.before2, &self.lib2);
+        for f in self.foreign.borrow().iter() {
+            for (p, bytes) in &f.files {
+                let meta = fs::symlink_metadata(p)
+                    .unwrap_or_else(|e| panic!("foreign file {} is gone: {e}", p.display()));
+                assert!(meta.is_file(), "foreign {} changed kind", p.display());
+                assert_eq!(
+                    &fs::read(p).unwrap(),
+                    bytes,
+                    "foreign {} changed",
+                    p.display()
+                );
+            }
+            for (l, t) in &f.links {
+                assert_eq!(
+                    &fs::read_link(l).unwrap(),
+                    t,
+                    "foreign link {}",
+                    l.display()
+                );
+            }
+        }
+    }
+}
+
+/// One project entry: (relative path, kind, mode, bytes or link text).
+pub type ProjectEntry = (String, String, u32, Vec<u8>);
+
+/// A kind, size, and bytes snapshot of a project tree (mtime and permission
+/// bits excluded: a restored file is rewritten atomically as a new file). `.unam/lock` is ignored, and `.unam` itself when it
+/// then holds nothing else.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ProjectSnapshot(pub Vec<ProjectEntry>);
+
+fn mode_of(meta: &fs::Metadata) -> u32 {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        meta.permissions().mode()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = meta;
+        0
+    }
+}
+
+pub fn snapshot_project(root: &Path) -> ProjectSnapshot {
+    let mut out: Vec<ProjectEntry> = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        for e in fs::read_dir(&d).unwrap() {
+            let p = e.unwrap().path();
+            let rel = p.strip_prefix(root).unwrap().to_string_lossy().into_owned();
+            if rel == ".unam/lock" {
+                continue;
+            }
+            let meta = fs::symlink_metadata(&p).unwrap();
+            let ft = meta.file_type();
+            if ft.is_symlink() {
+                let t = fs::read_link(&p).unwrap();
+                out.push((
+                    rel,
+                    "link".into(),
+                    0,
+                    t.to_string_lossy().as_bytes().to_vec(),
+                ));
+            } else if ft.is_dir() {
+                out.push((rel, "dir".into(), 0, Vec::new()));
+                stack.push(p);
+            } else {
+                out.push((rel, "file".into(), 0, fs::read(&p).unwrap()));
+            }
+        }
+    }
+    // `.unam` holding only the lock counts as absent.
+    let only_lock = out.iter().all(|(r, _, _, _)| !r.starts_with(".unam/"));
+    if only_lock {
+        out.retain(|(r, _, _, _)| r != ".unam");
+    }
+    out.sort();
+    ProjectSnapshot(out)
+}
+
+/// Assert the project tree equals `before`, with a readable diff.
+pub fn assert_project_unchanged(before: &ProjectSnapshot, root: &Path) {
+    let after = snapshot_project(root);
+    if *before != after {
+        let names = |s: &ProjectSnapshot| -> Vec<String> {
+            s.0.iter()
+                .map(|(r, k, m, b)| format!("{r} {k} {m:o} {}", String::from_utf8_lossy(b)))
+                .collect()
+        };
+        let (b, a) = (names(before), names(&after));
+        let mut diff = String::new();
+        for x in &b {
+            if !a.contains(x) {
+                diff.push_str(&format!("- {x}\n"));
+            }
+        }
+        for x in &a {
+            if !b.contains(x) {
+                diff.push_str(&format!("+ {x}\n"));
+            }
+        }
+        panic!("project tree changed:\n{diff}");
+    }
+}
+
+/// The receipt `.unam/<target>/applied.json` as JSON.
+pub fn read_receipt(project: &Path, target: &str) -> Value {
+    let p = project.join(".unam").join(target).join("applied.json");
+    serde_json::from_slice(&fs::read(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display())))
+        .unwrap()
+}
+
+/// Each skill entry of the receipt re-serialized compactly.
+pub fn receipt_entry_texts(project: &Path, target: &str) -> Vec<String> {
+    read_receipt(project, target)["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| e["kind"] == "skill")
+        .map(|e| e.to_string())
+        .collect()
+}
+
+/// The inode of the entry itself (never followed).
+#[cfg(unix)]
+pub fn ino(path: &Path) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+    fs::symlink_metadata(path).unwrap().ino()
+}
+
+fn is_hex_lower(b: u8) -> bool {
+    b.is_ascii_digit() || (b'a'..=b'f').contains(&b)
+}
+
+/// Replace operation ids (`\d{13}-[0-9a-f]{8}`) with `[OP_ID]` and RFC 3339
+/// timestamps with `[TIME]` (manual scanning; no regex crate).
+pub fn normalize_volatile(text: &str) -> String {
+    let b = text.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(b.len());
+    let mut i = 0;
+    let digits = |from: usize, n: usize| {
+        from + n <= b.len() && b[from..from + n].iter().all(u8::is_ascii_digit)
+    };
+    while i < b.len() {
+        let boundary = i == 0 || !b[i - 1].is_ascii_alphanumeric();
+        // Operation id.
+        if boundary
+            && digits(i, 13)
+            && i + 22 <= b.len()
+            && b[i + 13] == b'-'
+            && b[i + 14..i + 22].iter().all(|c| is_hex_lower(*c))
+            && (i + 22 == b.len() || !b[i + 22].is_ascii_alphanumeric())
+        {
+            out.extend_from_slice(b"[OP_ID]");
+            i += 22;
+            continue;
+        }
+        // RFC 3339: YYYY-MM-DDTHH:MM:SS(.fraction)?(Z|+HH:MM)
+        if boundary
+            && digits(i, 4)
+            && i + 19 <= b.len()
+            && b[i + 4] == b'-'
+            && digits(i + 5, 2)
+            && b[i + 7] == b'-'
+            && digits(i + 8, 2)
+            && b[i + 10] == b'T'
+            && digits(i + 11, 2)
+            && b[i + 13] == b':'
+            && digits(i + 14, 2)
+            && b[i + 16] == b':'
+            && digits(i + 17, 2)
+        {
+            let mut j = i + 19;
+            if j < b.len() && b[j] == b'.' {
+                j += 1;
+                while j < b.len() && b[j].is_ascii_digit() {
+                    j += 1;
+                }
+            }
+            if j < b.len() && b[j] == b'Z' {
+                j += 1;
+            } else if j + 6 <= b.len()
+                && (b[j] == b'+' || b[j] == b'-')
+                && digits(j + 1, 2)
+                && b[j + 3] == b':'
+                && digits(j + 4, 2)
+            {
+                j += 6;
+            }
+            out.extend_from_slice(b"[TIME]");
+            i = j;
+            continue;
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap()
+}
+
+/// Counts `unam` invocations (PRD S2).
+#[derive(Default)]
+pub struct Invocations(std::cell::Cell<u32>);
+
+impl Invocations {
+    pub fn run_json(&self, fx: &Fx, project: &Path, args: &[&str]) -> (i32, Value) {
+        self.0.set(self.0.get() + 1);
+        fx.json_raw(project, args)
+    }
+
+    pub fn count(&self) -> u32 {
+        self.0.get()
+    }
 }

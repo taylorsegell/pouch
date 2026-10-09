@@ -4,7 +4,7 @@
 //! plan P10).
 
 use crate::error::{Diagnostic, Error, Result};
-use crate::fsops::write_atomic;
+use crate::fsops::{ToolPath, write_atomic};
 use crate::paths::Dirs;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -183,7 +183,10 @@ impl Config {
 
     /// Write the config atomically (comments are not preserved).
     pub fn save(&self, dirs: &Dirs) -> Result<()> {
-        write_atomic(&dirs.config_file(), self.to_toml()?.as_bytes())
+        write_atomic(
+            &ToolPath::new(dirs.config_file()),
+            self.to_toml()?.as_bytes(),
+        )
     }
 }
 

@@ -2,21 +2,14 @@
 //! P10, P11, P13, CLI Contract). Thin: load what the subcommand needs, call
 //! `unam-core`, render.
 
-use super::{CmdResult, Ctx, Done, Failed};
+use super::{CmdResult, Ctx, Done, Failed, catalog_warnings};
 use crate::output::{neutralize, table, warnings_only};
 use serde_json::{Value, json};
 use unam_core::bundle::{self, Bundle};
-use unam_core::catalog::{Catalog, FlatDiagnostic, SOURCE_AND_CONFIG};
+use unam_core::catalog::FlatDiagnostic;
 use unam_core::error::Error;
 use unam_core::project::{self, index};
 use unam_core::resolve::{self, ProblemKind};
-
-/// Config-level plus source-level warnings of a catalog load.
-fn catalog_warnings(ctx: &Ctx, catalog: &Catalog) -> Vec<FlatDiagnostic> {
-    let mut all = ctx.config_diags.clone();
-    all.extend(catalog.flat_diagnostics(None, SOURCE_AND_CONFIG));
-    warnings_only(&all)
-}
 
 fn failed(error: Error, warnings: &[FlatDiagnostic]) -> Failed {
     Failed {
@@ -49,11 +42,11 @@ fn not_found(name: &str) -> Error {
     }
 }
 
-/// `bundle save <name> [--force]` (plan P10).
+/// `bundle save <name> [--force]` (plan P10). Honors `--project` and
+/// `--target` (M3 plan, umbrella items 32 and 33).
 pub fn save(ctx: &Ctx, name: &str, force: bool) -> CmdResult {
-    let cwd = std::env::current_dir()
-        .map_err(|e| Failed::from(Error::io("cannot read the working directory", e)))?;
-    let root = project::detect_root(&cwd, None).map_err(Failed::from)?;
+    let root = ctx.root().map_err(Failed::from)?;
+    let flag = ctx.target_flag().map_err(Failed::from)?;
     let no_selection = |reason: &str| Error::NoSelection {
         root: root.path.clone(),
         reason: reason.to_string(),
@@ -61,9 +54,17 @@ pub fn save(ctx: &Ctx, name: &str, force: bool) -> CmdResult {
     let selection = project::load_selection(&root.path)
         .map_err(Failed::from)?
         .ok_or_else(|| Failed::from(no_selection("`.unam/selection.yaml` does not exist")))?;
-    let (target, tsel) = match selection.targets.len() {
-        0 => return Err(no_selection("the selection has no targets").into()),
-        1 => selection
+    let (target, tsel) = match (flag, selection.targets.len()) {
+        (Some(t), _) => match selection.targets.get(&t) {
+            Some(s) => (t, s.clone()),
+            None => {
+                return Err(
+                    no_selection(&format!("the selection has no target {}", t.as_str())).into(),
+                );
+            }
+        },
+        (None, 0) => return Err(no_selection("the selection has no targets").into()),
+        (None, 1) => selection
             .targets
             .iter()
             .next()

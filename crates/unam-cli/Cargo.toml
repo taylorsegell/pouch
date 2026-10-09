@@ -4,6 +4,7 @@ description = "Activate the right agent skills per project, unambiguously."
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "unam"

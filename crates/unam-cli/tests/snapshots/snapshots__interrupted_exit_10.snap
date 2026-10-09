@@ -1,0 +1,43 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": false,
+  "command": "add",
+  "data": {
+    "interrupted": {
+      "op_id": "[OP_ID]",
+      "command": "add",
+      "target": "claude-code",
+      "started_at": "[TIME]",
+      "receipt_written": false,
+      "steps": [
+        {
+          "n": 1,
+          "op": "add",
+          "name": "code-review",
+          "state": "started"
+        },
+        {
+          "n": 2,
+          "op": "add",
+          "name": "pytest-fixtures",
+          "state": "pending"
+        }
+      ]
+    },
+    "next": [
+      "unam resume",
+      "unam rollback"
+    ]
+  },
+  "warnings": [],
+  "errors": [
+    {
+      "code": "interrupted",
+      "message": "an apply of target claude-code was interrupted (operation [OP_ID])",
+      "remedy": "Run `unam resume` to finish, or `unam rollback` to undo."
+    }
+  ]
+}

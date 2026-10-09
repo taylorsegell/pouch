@@ -58,7 +58,7 @@ impl SourcePath {
         SourcePath(path)
     }
 
-    pub fn as_path(&self) -> &Path {
+    pub(crate) fn as_path(&self) -> &Path {
         &self.0
     }
 }
@@ -361,8 +361,9 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let d = dirs_in(t.path());
         let mut c = config_with(&d, &["fx", "other"]);
-        crate::fsops::write_atomic(&d.catalog_cache_file("fx"), b"{}").unwrap();
-        crate::fsops::write_atomic(&d.catalog_cache_file("other"), b"{}").unwrap();
+        use crate::fsops::{ToolPath, write_atomic};
+        write_atomic(&ToolPath::new(d.catalog_cache_file("fx")), b"{}").unwrap();
+        write_atomic(&ToolPath::new(d.catalog_cache_file("other")), b"{}").unwrap();
         let out = remove(&mut c, &d, "fx", false).unwrap();
         assert!(out.dangling_projects.is_empty());
         assert!(!d.catalog_cache_file("fx").exists());

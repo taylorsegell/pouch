@@ -280,7 +280,7 @@ fn bundle_save_with_two_selection_entries_is_exit_2() {
         v["errors"][0]["remedy"]
             .as_str()
             .unwrap()
-            .contains("milestone M3")
+            .contains("pass `--target <id>`")
     );
     assert!(!bundle_path(&env, "x.yaml").exists());
     assert_source_unchanged(&before, &lib);

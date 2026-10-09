@@ -256,7 +256,12 @@ fn ac_08_ambiguous_bare_name_errors_naming_both_ids_and_nothing_activates() {
 
     // Nothing activates.
     let cwd = env.path("cwd");
-    for p in [".claude", ".agents", ".unam/applied.json"] {
+    for p in [
+        ".claude",
+        ".agents",
+        ".unam/claude-code/applied.json",
+        ".unam/lock",
+    ] {
         assert!(!cwd.join(p).exists(), "{p}");
     }
     assert_source_unchanged(&before, &lib);

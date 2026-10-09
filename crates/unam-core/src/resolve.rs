@@ -55,7 +55,7 @@ pub enum Pin {
 }
 
 /// Why an entry is desired. Serializes as `{"bundle": slug}` or
-/// `{"adhoc": true}` (provisional until milestone M3 defines receipts).
+/// `{"adhoc": true}`; serialized into receipts since M3.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Provenance {
     Bundle(String),
@@ -72,6 +72,45 @@ impl Serialize for Provenance {
         }
         m.end()
     }
+}
+
+impl<'de> serde::Deserialize<'de> for Provenance {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Self, D::Error> {
+        use serde::de::Error as _;
+        let map = serde_json::Map::<String, serde_json::Value>::deserialize(d)?;
+        if map.len() != 1 {
+            return Err(D::Error::custom("a provenance record has exactly one key"));
+        }
+        match (map.get("bundle"), map.get("adhoc")) {
+            (Some(serde_json::Value::String(slug)), None) => Ok(Provenance::Bundle(slug.clone())),
+            (None, Some(serde_json::Value::Bool(true))) => Ok(Provenance::Adhoc),
+            _ => Err(D::Error::custom(
+                "expected {\"bundle\": <slug>} or {\"adhoc\": true}",
+            )),
+        }
+    }
+}
+
+/// Canonical provenance (plan P6): bundle records sorted bytewise by slug
+/// and deduplicated, then `Adhoc` last when present.
+pub fn canonical_provenance(records: &[Provenance]) -> Vec<Provenance> {
+    let mut slugs: Vec<&str> = records
+        .iter()
+        .filter_map(|p| match p {
+            Provenance::Bundle(s) => Some(s.as_str()),
+            Provenance::Adhoc => None,
+        })
+        .collect();
+    slugs.sort_by(|a, b| a.as_bytes().cmp(b.as_bytes()));
+    slugs.dedup();
+    let mut out: Vec<Provenance> = slugs
+        .into_iter()
+        .map(|s| Provenance::Bundle(s.to_string()))
+        .collect();
+    if records.contains(&Provenance::Adhoc) {
+        out.push(Provenance::Adhoc);
+    }
+    out
 }
 
 /// One resolved, desired skill.
@@ -793,6 +832,39 @@ mod tests {
         assert_eq!(bundles_referencing(&s, &c, &id), vec!["alpha", "zeta"]);
         let other = resolve_text(&c, "hs:api/rest-design").unwrap();
         assert!(bundles_referencing(&s, &c, &other).is_empty());
+    }
+
+    #[test]
+    fn provenance_round_trip_and_unknown_shape_rejected() {
+        for p in [Provenance::Bundle("b".into()), Provenance::Adhoc] {
+            let text = serde_json::to_string(&p).unwrap();
+            let back: Provenance = serde_json::from_str(&text).unwrap();
+            assert_eq!(back, p);
+        }
+        for bad in [
+            r#"{"adhoc": false}"#,
+            r#"{"bundle": 1}"#,
+            r#"{"other": "x"}"#,
+            r#"{"bundle": "a", "adhoc": true}"#,
+            r#"{}"#,
+            r#""bundle""#,
+        ] {
+            assert!(serde_json::from_str::<Provenance>(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn canonical_provenance_orders_dedupes_and_puts_adhoc_last() {
+        let b = |s: &str| Provenance::Bundle(s.into());
+        assert_eq!(
+            canonical_provenance(&[Provenance::Adhoc, b("z"), b("a"), b("z")]),
+            vec![b("a"), b("z"), Provenance::Adhoc]
+        );
+        assert_eq!(canonical_provenance(&[]), Vec::<Provenance>::new());
+        assert_eq!(
+            canonical_provenance(&[Provenance::Adhoc, Provenance::Adhoc]),
+            vec![Provenance::Adhoc]
+        );
     }
 
     #[test]
