@@ -10,7 +10,6 @@
 pub mod crud;
 pub mod edit;
 pub mod slug;
-pub mod word_table;
 
 pub use crud::{
     DeleteOutcome, EditOutcome, EntriesOutcome, SaveOutcome, add_refs, delete, duplicate,

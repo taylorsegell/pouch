@@ -4,7 +4,7 @@ This document records how unam stays compatible with tools it reads from or writ
 
 ## Bundle slugify parity with Hermes
 
-TL;DR: unam slugifies bundle names exactly like Hermes `slugify_skill_name`, including Unicode, using a generated exclusion table. This intentionally differs from the ASCII-only rule in spec 4.4.
+TL;DR: unam slugifies bundle names like Hermes `slugify_skill_name`, including Unicode, using Rust's alphanumeric test as the word-character rule. This intentionally differs from the ASCII-only rule in spec 4.4.
 
 Source read (read-only, never executed): `agent/skill_commands.py` (`slugify_skill_name`) and `agent/skill_bundles.py` (`_load_bundle_file`, `bundle_path_for`, `save_bundle`) in a local Hermes checkout at commit `ea32af9331`, read on 2026-10-05.
 
@@ -18,24 +18,11 @@ Hermes algorithm (Python):
 
 An empty result is an error in unam (`invalid-bundle-name` when saving, `bundle-empty-slug` when loading). The slug is used for lookup (bundle names in a selection are slugified), for the saved file name (`<slug>.yaml`), and for duplicate detection. The slug is validated as a single path component before any path join.
 
-Outcome: aligned to Hermes. The Rust port (`crates/unam-core/src/bundle/slug.rs`) uses `str::to_lowercase` (the same full-string lowercasing, final sigma included) and a word predicate `c == '_' || (c.is_alphanumeric() && !NOT_WORD.contains(c))`. Rust's `char::is_alphanumeric` is a superset of Python `\w` minus `_`; the surplus (combining marks and Other_Alphabetic symbols such as circled letters) is listed in the generated table `crates/unam-core/src/bundle/word_table.rs`. Letters that are unassigned (`Cn`) in the running Python but assigned in Rust's newer Unicode data are kept as word characters, because a Hermes on a newer Python would treat them as `\w`.
+Outcome: aligned to Hermes. The Rust port (`crates/unam-core/src/bundle/slug.rs`) uses `str::to_lowercase` (the same full-string lowercasing, final sigma included) and the word predicate `c == '_' || c.is_alphanumeric()`.
 
-Sweep numbers: Python 3.14.5, Unicode 16.0.0, rustc 1.99.0; excluded 1495 code points in 250 ranges; Python-only 0; kept as word characters (newer Unicode) 4672.
+Documented differences: unam uses Rust `char::is_alphanumeric` plus `_` where Hermes uses Python `\w`. They differ only on some combining marks and symbol letters (for example circled letters), which bundle names do not use in practice. There is no generated table and no parity sweep (simplified on 2026-10-09).
 
-The excluded code points by category: Mn 927, Mc 438, So 130. Rust's `char::UNICODE_VERSION` at the time of the sweep was 17.0.0.
-
-Generator and checker: `crates/unam-core/tools/gen-word-table.py` (Python 3.10 or newer, standard library only, no network). The Rust side of the comparison is the committed data file `crates/unam-core/tools/rust-word-ranges.txt` (maximal ranges of `c == '_' || c.is_alphanumeric()`), because Python alone cannot compute Rust's ranges. Modes, exactly one per run:
-
-| Mode | Needs | Does | Exit codes |
-|---|---|---|---|
-| `--write-rust-ranges` | `rustc` | builds and runs a tiny Rust printer in a temp dir, writes `rust-word-ranges.txt` | 0 written; 4 `rustc` not on PATH |
-| `--write` | Python | writes `word_table.rs` from the data file and the running Python | 0 written; 1 malformed data or Python-only code points |
-| `--check` | Python | validates the data file, sweeps every scalar value, regenerates the table in memory, compares with the committed file | 0 OK; 1 FAIL; 3 DRIFT (Unicode data of this Python differs from the committed header) |
-| `--check-rust` | `rustc` | recomputes the Rust ranges and compares them with the data file | 0 OK; 1 FAIL; 3 DRIFT (Rust Unicode version differs); 4 `rustc` not on PATH |
-
-Usage errors (no mode or two modes) exit 2. Exit 3 is a toolchain drift signal and is recorded, never treated as a pass.
-
-Fixture table: the 31-row table in the unit test `fixture_table` in `crates/unam-core/src/bundle/slug.rs` (Hermes test vectors `Backend Dev` gives `backend-dev`, empty gives empty, `!!!` gives empty, plus the rows that differ from the spec 4.4 ASCII rule: `foo.bar` gives `foobar`, `a/b` gives `ab`, precomposed accents and CJK kept, combining marks removed, tabs removed). The test `rust_word_ranges_file_matches_char_is_alphanumeric` proves the data file matches the compiler running the tests (it prints `SKIP:` and passes only when the compiler's Unicode version differs from the file header; `--check-rust` then reports the drift).
+Fixture table: the table in the unit test `fixture_table` in `crates/unam-core/src/bundle/slug.rs` (Hermes test vectors `Backend Dev` gives `backend-dev`, empty gives empty, `!!!` gives empty, plus the rows that differ from the spec 4.4 ASCII rule: `foo.bar` gives `foobar`, `a/b` gives `ab`, precomposed accents and CJK kept, tabs removed).
 
 Difference from spec 4.4: spec 4.4 describes an ASCII approximation (lowercase, replace any run of characters outside `[a-z0-9]` with `-`, trim `-`) and asks for the Hermes parity check recorded here. unam follows Hermes instead (umbrella open item 25), so an accented or CJK letter is kept, and `foo.bar` becomes `foobar` rather than `foo-bar`.
 
@@ -64,5 +51,3 @@ TL;DR: unam reads every manifest Hermes reads, in the same order, with the same 
 ## Maintenance
 
 - Milestone M4 extends this document with adapter evidence; milestone M7 may regenerate the adapter-evidence part from `unam doctor --evidence` and must keep the two M2 sections above.
-- Table reproducibility command: `python3 crates/unam-core/tools/gen-word-table.py --check` (Python only).
-- Regeneration order after a toolchain change: `python3 crates/unam-core/tools/gen-word-table.py --write-rust-ranges`, then `python3 crates/unam-core/tools/gen-word-table.py --write`; record the new versions and the new sweep line above.
