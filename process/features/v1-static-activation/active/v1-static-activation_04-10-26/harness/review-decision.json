@@ -1,0 +1,14 @@
+{
+  "task": "M3 plan and apply for claude-code",
+  "decision": "approved",
+  "reviewer": "Taylor",
+  "approvedVia": "Explicit approval in chat on 2026-10-09 (\"Approved\"), recorded by the orchestrator",
+  "blockingFindings": [],
+  "nonBlockingFindings": [
+    "Residual windows R1 to R10 accepted as named known-gaps",
+    "Five production files exceed the 600-line size guide (D4)",
+    "D16: rm of a hand-edited owned entry releases ownership and deletes nothing (exit 0); the in-window edit path skips with exit 7",
+    "Hybrid D4 real activation pending: first adopting project not yet named"
+  ],
+  "notes": "Approved after the EVL confirmation run (all gates G1 to G19 green, 512 tests) and the 2026-10-09 over-engineering audit. Later simplifications (slugify cut, fault-matrix sampling, threat model) proceed separately."
+}

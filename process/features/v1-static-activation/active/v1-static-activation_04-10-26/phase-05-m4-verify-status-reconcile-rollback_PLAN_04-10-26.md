@@ -75,7 +75,7 @@ Closes (spec section 10 M4): AC-14, AC-26, AC-27, AC-28, AC-33, AC-34, AC-36, AC
 ## Entry Gate
 
 - Milestone M0 gate met: the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter.
-- Milestone M3 VERIFIED with its report; M3 Forward Preview read; first real adopting project named (brief: by end of M3).
+- [x] Milestone M3 VERIFIED (WITH_GAPS) 2026-10-09 with its report (phase-04-m3-plan-apply-claude-code_REPORT_04-10-26.md); M3 Forward Preview to be read at M4 RESEARCH. Naming the first adopting project is not required: D4 stays CONDITIONAL (decision sheet row 54).
 - Milestone M3 report records that journal-based `resume` and `rollback` and the interruption test (consistency compared directly to expected state) are done.
 
 ---

@@ -1,0 +1,125 @@
+{
+  "task": "M3 plan and apply for claude-code (v1-static-activation phase 4)",
+  "scenarios": [
+    {
+      "scenario": "Crafted journal step names (.., a/b, absolute, 300 bytes, .unam-tmp-x)",
+      "ruled_out": true,
+      "rationale": "Every name passes validate_dest_name before use; an invalid journal is rejected whole and nothing is created or deleted.",
+      "proving_test": "crafted_journal_cannot_escape_the_destination_root (ac_recovery); state journal_rejections"
+    },
+    {
+      "scenario": "Crafted journal op_id (../x), dest_rel (../..), project_root of another directory",
+      "ruled_out": true,
+      "rationale": "validate_begin checks the op id pattern, the adapter destination, and the canonical project root before any path is built.",
+      "proving_test": "crafted_journal_cannot_escape_the_destination_root; journal_with_a_different_project_root_is_journal_invalid"
+    },
+    {
+      "scenario": "Hostile receipt_before in a journal (another target, an entry whose dest leaves the destination)",
+      "ruled_out": true,
+      "rationale": "receipt_before must parse as a receipt of this target and every skill entry must satisfy the P6 consistency rule, else journal-invalid.",
+      "proving_test": "crafted_journal_cannot_escape_the_destination_root (receipt-target, receipt-dest rows)"
+    },
+    {
+      "scenario": "Crafted receipt entry with an escaping dest",
+      "ruled_out": true,
+      "rationale": "A receipt skill entry whose dest is not <destination>/<name> is carried untouched with receipt-entry-ignored; paths are always rebuilt from the destination root plus a validated name.",
+      "proving_test": "inconsistent_receipt_entries_are_ignored_and_carried (plan); receipt_rejections (state)"
+    },
+    {
+      "scenario": "Name escape through a skill frontmatter name",
+      "ruled_out": true,
+      "rationale": "An invalid name is a blocking conflict (exit 6) and nothing is written.",
+      "proving_test": "invalid_skill_name_is_a_blocking_conflict (activation_cli); invalid_and_duplicate_name_conflicts (plan)"
+    },
+    {
+      "scenario": "Symlinked destination root (.claude or .claude/skills pointing outside)",
+      "ruled_out": true,
+      "rationale": "classify_dest_root resolves the root against the canonical project root; Outside and NotDir are conflicts at plan time and DestRootInvalid at apply, resume, and rollback time.",
+      "proving_test": "dest_root_symlink_outside_project_is_a_blocking_conflict; resume_and_rollback_refuse_when_the_destination_root_points_outside_the_project"
+    },
+    {
+      "scenario": "Destination root swapped during the confirmation prompt",
+      "ruled_out": true,
+      "rationale": "ensure_dest_root runs after the prompt in change::run and again immediately before the first filesystem operation of execute.",
+      "proving_test": "execute_refuses_when_the_destination_root_was_swapped_during_the_prompt; execute_resume_rollback_call_ensure_dest_root_first"
+    },
+    {
+      "scenario": "Removal of a modified owned entry (edited copy, retargeted link, real directory where a link was expected)",
+      "ruled_out": true,
+      "rationale": "remove_owned proves ownership by link text or tree hash twice; any mismatch is a skip that releases ownership and deletes nothing.",
+      "proving_test": "modified_owned_copy_is_released_and_never_deleted; relinked_owned_symlink_is_released_and_never_deleted; fsops remove_owned_* rows"
+    },
+    {
+      "scenario": "Foreign collision (directory, file, symlink to the user directory, broken symlink, empty directory)",
+      "ruled_out": true,
+      "rationale": "An unreceipted present name is a blocking foreign-at-dest conflict; symlink_dir and copy_tree never overwrite an existing path.",
+      "proving_test": "ac_22_collision_with_a_foreign_skill_refuses_names_both_paths_and_changes_nothing; foreign_files_are_never_modified_by_any_command"
+    },
+    {
+      "scenario": "Symlink swapped between plan and apply (link replaced by a directory, or a path appearing before symlink or rename)",
+      "ruled_out": true,
+      "rationale": "Add observes Missing immediately before acting (dest-occupied otherwise); remove_owned re-checks after the first look and moves a changed copy back. Residual windows R1 and R3 are named.",
+      "proving_test": "dest_occupied_and_skipped_remove_makes_the_same_name_add_skip (apply); remove_owned_copy_changed_between_check_and_rename_moves_back (fsops)"
+    },
+    {
+      "scenario": "A source skill whose link leaves the skill (absolute, .. escape, chain)",
+      "ruled_out": true,
+      "rationale": "list_source refuses lexical and canonical escapes before anything is copied; the step fails with copy-refused and the others continue.",
+      "proving_test": "copy_tree_refuses_escaping_links (fsops); ac_32_one_of_three_entries_fails_the_other_two_remain_applied_and_the_failure_is_named"
+    },
+    {
+      "scenario": "A source changed between catalog load and copy",
+      "ruled_out": true,
+      "rationale": "The temp copy is re-hashed against the catalog hash; a mismatch is source-changed and the temp directory is removed.",
+      "proving_test": "copy_tree_source_changed_leaves_no_temp_and_uses_the_temp_name (fsops)"
+    },
+    {
+      "scenario": "A second process (lock contention)",
+      "ruled_out": true,
+      "rationale": "Every mutating command takes a non-blocking OS lock first (exit 11); the contender never writes the lock file.",
+      "proving_test": "ac_53_second_mutating_command_refuses_while_locked_and_changes_nothing; lock_acquire_contend_release (state)"
+    },
+    {
+      "scenario": "A torn journal",
+      "ruled_out": true,
+      "rationale": "An unparsable last line is ignored; resume rewrites the valid text atomically before appending, so no record merges with torn bytes.",
+      "proving_test": "recovery_tolerates_a_torn_final_journal_line; resume_after_a_crash_following_a_torn_tail_rewrites_the_journal"
+    },
+    {
+      "scenario": "Deletion outside the entry (recursive delete of a destination)",
+      "ruled_out": true,
+      "rationale": "The recursive removal appears once in production code, in remove_own_temp_dir, restricted to our own .unam-tmp- directory after lstat.",
+      "proving_test": "remove_dir_all_is_confined (fsops)"
+    },
+    {
+      "scenario": "A source path reaching a write function",
+      "ruled_out": true,
+      "rationale": "Writes are generic over the sealed Writable trait implemented only for DestPath, StatePath, ToolPath; the compile_fail doctest proves SourcePath is rejected.",
+      "proving_test": "source_path_never_reaches_a_write_function; compile_fail doctest in fsops"
+    },
+    {
+      "scenario": "A symlinked or dangling .unam/lock, a symlinked .unam, a symlinked .unam/<target>, a symlinked journal",
+      "ruled_out": true,
+      "rationale": "lstat refusal before open, device and inode identity check after try_lock and before truncation (state-dir-invalid, exit 1).",
+      "proving_test": "crafted_state_symlinks_are_refused_and_the_outside_file_is_untouched; open_lock_file_refuses_symlinks_and_wrong_kinds; check_state_layout_rows"
+    },
+    {
+      "scenario": "The project root equal to, inside, or containing a registered source",
+      "ruled_out": true,
+      "rationale": "ensure_project_outside_sources runs before the lock, so no .unam or .claude is ever created inside a source.",
+      "proving_test": "project_root_inside_a_source_is_refused_before_the_lock; project_flag_equal_to_a_source_is_refused; ensure_project_outside_sources_rows"
+    },
+    {
+      "scenario": "A directory named .DS_Store with content inside an owned copy",
+      "ruled_out": true,
+      "rationale": "The manifest walk uses the same skip list as the hash; a .DS_Store is unlinked only when it is a regular file, anything else stays as residue.",
+      "proving_test": "remove_owned_copy_ds_store_rules (fsops)"
+    },
+    {
+      "scenario": "Interruption at any mutating call (crash or failure) followed by resume or rollback",
+      "ruled_out": true,
+      "rationale": "Write-ahead journal plus observation-based recovery; the every-N matrix over scenarios A, B, C with four modes and both recoveries reaches the clean-run or the start state.",
+      "proving_test": "ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure; every_mode_at_every_step_then_resume_or_rollback_is_consistent (apply)"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "task": "M3 plan and apply for claude-code (v1-static-activation phase 4)",
+  "planPath": "process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-04-m3-plan-apply-claude-code_PLAN_04-10-26.md",
+  "riskLevel": "high",
+  "riskClasses": [
+    "schema/data migration or destructive data mutation",
+    "permission, secret, or trust-boundary logic"
+  ],
+  "mustStopBeforeFinalize": true,
+  "humanApprovalRequired": true,
+  "why": "M3 is the first milestone that writes and deletes inside user-owned project destinations (.claude/skills) and trusts on-disk state (journal, receipt, skill names) to decide deletions. A wrong delete is data loss; a crafted state file is an attack path.",
+  "riskClass": "schema/data migration or destructive data mutation",
+  "workDescription": "Typed filesystem layer (fsops), adapter claude-code, observe, state (receipt, journal, history, lock), pure plan diff, journaled apply with resume and rollback, change orchestration, and the CLI commands add, rm, use, deactivate, resume, rollback.",
+  "approver": "pending: Taylor"
+}

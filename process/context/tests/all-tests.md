@@ -1,6 +1,6 @@
 ---
 name: context:all-tests
-description: "Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2; CI written, not yet run)"
+description: "Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2 and M3; CI written, not yet run)"
 keywords: tests, testing, cargo test, clippy, fmt, verification, acceptance criteria, ac_nn, insta, proptest, assert_cmd, fixtures, ci, gates, bundle, editor, slugify, word table
 related: [context:all-product]
 date: 04-10-26
@@ -8,7 +8,7 @@ date: 04-10-26
 
 # Unambiguous - All Tests
 
-Last updated: 2026-10-05
+Last updated: 2026-10-09
 
 Attach this file first when the task involves testing, verification, or test debugging.
 
@@ -16,7 +16,11 @@ Attach this file first when the task involves testing, verification, or test deb
 
 ## Current State
 
-**A real suite exists (M1 baseline 164 tests; M2 added bundle, selection, and resolve coverage; all green at EVL on 2026-10-05):** after M2, unam-core unit 193, integration files `ac_read_path` (6), `ac_bundles` (4), `ac_selection` (4), `bundle_cli` (28), `cache_cli` (6), `read_side_invariant` (1), `search_cli` (6), `show_cli` (8), `snapshots` (19), `source_cli` (10), `usage` (5), and `perf_cold_scan` (1, in `unam-core`). The cargo commands below are runnable. Integration tests use the `TestEnv` harness in `crates/unam-cli/tests/common/mod.rs`; every mutating or reading test asserts the source-tree invariant.
+**M3 update (EVL 2026-10-09, 512 tests, all green):** new integration suites `ac_activation` (17 tests; AC-2, 10, 13 to 19, 21 to 25, 29, 30, 40, plus S2), `ac_recovery` (13; AC-31, 32, 53 and the recovery and trust-boundary rows) and `activation_cli` (36; command behavior and refusals); `snapshots` grew to 31. Run one with `cargo test -p unam --test ac_activation ac_NN`. The full AC-31 fault matrix takes about 62 s; the wave plan moves it to a strided sample by default with `UNAM_FULL_FAULT_MATRIX=1` for the full run (check the current default before relying on timing).
+
+**FsOps fault injection pattern (M3):** core code does all writes through the public `FsOps` trait (`unam-core/src/fsops.rs`, `RealFs` in production). Tests use the fault-injecting implementation in `crates/unam-cli/tests/common/faults.rs` (`FailMode::FailBefore(n)` and similar) that fails the n-th operation, then call `resume` or `rollback` and compare destination and receipt to the expected state (AC-31, AC-32). Use a separate `StepClock` start per scenario so ids differ.
+
+**Earlier baseline (M1 164 tests; M2 added bundle, selection, and resolve coverage; all green at EVL on 2026-10-05):** after M2, unam-core unit 193, integration files `ac_read_path` (6), `ac_bundles` (4), `ac_selection` (4), `bundle_cli` (28), `cache_cli` (6), `read_side_invariant` (1), `search_cli` (6), `show_cli` (8), `snapshots` (19), `source_cli` (10), `usage` (5), and `perf_cold_scan` (1, in `unam-core`). The cargo commands below are runnable. Integration tests use the `TestEnv` harness in `crates/unam-cli/tests/common/mod.rs`; every mutating or reading test asserts the source-tree invariant.
 
 ## Scope
 
@@ -96,7 +100,7 @@ Milestone gates are run through two shell functions defined inside each Bash cal
 ## Known Gaps
 
 - AC-2 closes in milestone M3 (spec 10, decided 2026-10-04). The first test, in M1, is the read-side source-tree-unchanged test (register, scan, search leave the source tree hash unchanged); the invariant is asserted in every mutating test from M3 on.
-- Interruption tests (AC-31, AC-32) prove consistency in M3 by comparing destination and receipt to the expected state; M4 adds the `reconcile` zero-divergence assertion (spec 8).
+- Interruption tests (AC-31, AC-32) closed in M3 by comparing destination and receipt to the expected state; M4 adds the `reconcile` zero-divergence assertion (spec 8). Gaps: no pty test for the interactive prompt, no kernel-level torn write, Linux never run, D4 real activation pending (backlog NOTE `m3-d4-first-real-activation_NOTE_05-10-26.md`), and the `status` halves of AC-13, 15, 21 (and 12, 35) belong to M4.
 - CI is written, not run. First push will show Linux behavior; the `show_found` (tree hash) and `add_bad_path` (OS error text) snapshots may differ on Linux.
 - `perf_cold_scan` is machine dependent: EVL median 183.9 ms but two of five runs were near or over 300 ms (297.9, 365.2). The gate is the median; watch it under CI load.
 - Chmod-based Hybrid tests self-skip when run as root (M2 adds `register_does_not_write_an_unreadable_index`).

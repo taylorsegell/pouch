@@ -19,7 +19,7 @@ Unambiguous is a Rust command-line tool, invoked as `unam`, that controls which 
 
 - **User:** Taylor, solo, on macOS and Linux, across Claude Code, Codex, Cursor, and Hermes.
 - **Standard:** personal tool built to open-source-ready standards: tests, docs, reproducible builds, no telemetry, no network.
-- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), and M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles) are done and VERIFIED with gaps. Next is milestone M3 (adapter trait, claude-code plan and apply). Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
+- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), and M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock) are done and VERIFIED with gaps. Next is milestone M4 (verify, status, reconcile, rollback from history, doctor). Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
 - **Not a harness.** It sits in front of existing agent harnesses (PRD D7).
 
 Full product and design context: `process/context/product/all-product.md`.
@@ -47,6 +47,10 @@ Additional rules set for the harness-setup session (04-10-26), kept as standing 
 - Do not run any skill-management tool against this repository.
 - Do not add a license file without asking (PRD Q11 is open).
 - Commit on `main` (see CLAUDE.md commit policy); never push without explicit approval.
+
+## Threat Model (set by Taylor, 2026-10-09)
+
+`unam` is a single-user local tool. Assume the same user owns the machine and the filesystem is trusted. Untrusted input is limited to skill file content (frontmatter and supporting files) and files that arrive in a cloned repository. Plans and validators must not add hardening against attackers beyond this (for example a concurrent hostile process swapping paths). Safety properties that protect the user from their own mistakes stay: the source library is never written, only receipted entries are removed, foreign files are never touched, and skill names are validated before they become paths.
 
 ## Vocabulary
 
@@ -96,7 +100,7 @@ For most substantial tasks:
 | `process/context/all-context.md` | any substantial planning, research, review, or implementation task |
 | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2; CI written, not yet run) |
+| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2 and M3; CI written, not yet run) |
 
 ## Current Context Groups
 
@@ -104,7 +108,7 @@ For most substantial tasks:
 |---|---|---|
 | `planning/` | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `product/` | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2; CI written, not yet run) |
+| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2 and M3; CI written, not yet run) |
 <!-- /GENERATED:routing -->
 
 ## Task Routing Table
@@ -154,29 +158,34 @@ unambiguous/
   README.md START-HERE.md .gitignore
 ```
 
-Source layout as of milestone M2 (M1 created 2026-10-05, M2 added the desired-state side; the rest of spec section 1.3 arrives in later milestones):
+Source layout as of milestone M3 (M1 created 2026-10-05, M2 added the desired-state side, M3 added plan and apply; the rest of spec section 1.3 arrives in later milestones):
 
 ```
 Cargo.toml Cargo.lock clippy.toml     virtual workspace, resolver = "3", unwrap denied
 dist-workspace.toml                   hand-written, unverified (dist not installed)
 .github/workflows/ci.yml              fmt, clippy, test on ubuntu and macos; written, not yet run
 crates/
-  unam-core/src/                      config, paths, error, fsops (minimal), hash, source, resolve,
+  unam-core/src/                      config, paths, error, fsops (FsOps seam, typed paths), hash, source,
+                                      resolve, observe, state, plan, apply, change,
+                                      adapter/{mod,claude_code},
                                       catalog/{mod,cache,frontmatter,lookup,scan,search},
                                       bundle/{mod,crud,slug,word_table,edit},
                                       project/{mod,selection,index}
   unam-core/tools/                    gen-word-table.py + rust-word-ranges.txt (slugify \w table
                                       generator and checker; not a cargo source)
   unam-core/tests/                    perf_cold_scan.rs (500-skill fixture, 300 ms limit)
-  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle}
-  unam-cli/tests/                     ac_read_path, ac_bundles, ac_selection, bundle_cli,
-                                      read_side_invariant, search_cli, show_cli, source_cli,
-                                      cache_cli, usage, snapshots (+ common/, fixtures/)
+  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle,change}
+  unam-cli/tests/                     ac_read_path, ac_bundles, ac_selection, ac_activation,
+                                      ac_recovery, activation_cli, bundle_cli, read_side_invariant,
+                                      search_cli, show_cli, source_cli, cache_cli, usage, snapshots
+                                      (+ common/{mod,faults}.rs, fixtures/)
+.unam/<target>/                       per-project state written by unam (not in this repo): receipt,
+                                      JSONL journal, history, lock; target is the adapter name
 docs/adapters.md                      spec-called doc (M2): Hermes slugify parity and bundle loader
                                       differences; M4 and M7 extend it
 ```
 
-Still to come: `adapter/`, `plan`, `apply`, `state` (M3); `verify`, `reconcile` (M4); `tui/` (M6); `docs/json.md` (M7). `docs/adapters.md` exists since M2 (M4 extends, M7 regenerates the adapter-evidence part and must keep the two M2 sections).
+Still to come: `verify`, `reconcile` (M4); `agents_neutral` adapter (M5); `tui/` (M6); `docs/json.md` (M7). `docs/adapters.md` exists since M2 (M4 extends, M7 regenerates the adapter-evidence part and must keep the two M2 sections).
 
 ## Technology Stack
 
@@ -246,7 +255,7 @@ When durable project knowledge changes:
 
 ## Scan Metadata
 
-- Generated: 2026-10-04; delta update 2026-10-05 (milestone M2 closeout)
-- HEAD: commit def8299 or later (milestone M2 execution commit pending at the time of this update)
-- Mode: delta (status, repository structure refreshed; no dependency change in M2)
+- Generated: 2026-10-04; delta update 2026-10-09 (milestone M3 closeout)
+- HEAD: commit f9da049 or later (milestone M3 commits pending at the time of this update)
+- Mode: delta (status, repository structure refreshed; no dependency change in M3; `rust-version = "1.89"` added to the manifests)
 - Package manager: cargo (workspace exists since milestone M1)

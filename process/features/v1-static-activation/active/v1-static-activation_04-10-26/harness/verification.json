@@ -1,0 +1,340 @@
+{
+  "task": "M3 plan and apply for claude-code (v1-static-activation phase 4)",
+  "commands": [
+    {
+      "gate": "G1",
+      "command": "cargo fmt --all --check",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G2",
+      "command": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G3",
+      "command": "cargo test --workspace --locked (INSTA_UPDATE=no)",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G4",
+      "command": "the twenty G4 commands (gate cargo test -p unam --test ac_activation|ac_recovery <AC test> -- --exact)",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G4b",
+      "command": "gate cargo test -p unam --test ac_activation s2_one_command_add -- --exact; gate cargo test -p unam-core adapter_claims_have_evidence; gate cargo test -p unam-core claude_code_strategies_match_m0_outcome",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G4c",
+      "command": "the seven G4c commands (activation_cli and ac_recovery supplement tests, -- --exact)",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G5",
+      "command": "the ten G5 regression commands (ac_read_path, read_side_invariant, show_cli, source_cli, search_cli, cache_cli, ac_bundles, ac_selection, bundle_cli, usage)",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G6",
+      "command": "gate6 cargo test --release -p unam-core --test perf_cold_scan -- --exact perf_cold_scan --nocapture",
+      "result": "PASS",
+      "notes": "perf_cold_scan median_ms=123.8 runs_ms=[128.8, 121.6, 123.8, 125.0, 122.8] skills=500 profile=release"
+    },
+    {
+      "gate": "G7",
+      "command": "G7 snapshot hygiene command",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G7b",
+      "command": "G7b changed-set command",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G7c",
+      "command": "G7c new-set command",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G7d",
+      "command": "G7d usage_bare diff command",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G8",
+      "command": "G8 text hygiene python command",
+      "result": "PASS",
+      "notes": "files scanned: 59 hits: []"
+    },
+    {
+      "gate": "G9",
+      "command": "the four G9 commands (with the Pre-Step REF file)",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G10",
+      "command": "six harness validators, the G10b pack check, git diff --check",
+      "result": "PASS",
+      "notes": "G10b: exactly one failure, review-decision.json missing (the accepted pending state)"
+    },
+    {
+      "gate": "G11",
+      "command": "the three G11 manifest commands",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G12",
+      "command": "python3 crates/unam-core/tools/gen-word-table.py --check",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G13",
+      "command": "git diff --quiet -- docs/PROJECT-BRIEF.md docs/KICKOFF-PROMPT.md docs/spec docs/adr spike docs/adapters.md",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G13c",
+      "command": "! grep -rEq '#\\[ignore' crates",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G14",
+      "command": "the three G14 source-invariant commands",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G15",
+      "command": "G15 fx.done() count check",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G16",
+      "command": "gate cargo test -p unam-core source_path_never_reaches_a_write_function; ... remove_dir_all_is_confined; gate cargo test -p unam-core --doc fsops",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G17",
+      "command": "gate cargo test -p unam-core fsops|observe|adapter|state|plan|apply|change; gate cargo test -p unam --bin unam",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G18",
+      "command": "PROPTEST_CASES=1024: gate cargo test -p unam-core plan; gate cargo test -p unam-core slug",
+      "result": "PASS",
+      "notes": ""
+    },
+    {
+      "gate": "G19",
+      "command": "G19 test-count command",
+      "result": "PASS",
+      "notes": "tests passed: 512"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test ac_activation ac_13_two_skills_from_two_categories_both_applied_with_no_category_step -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test activation_cli copy_strategy_applies_and_removes_a_managed_copy -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test ac_activation ac_23_deactivate_all_removes_exactly_the_two_owned_and_leaves_foreign_and_directory -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test ac_activation ac_22_collision_with_a_foreign_skill_refuses_names_both_paths_and_changes_nothing -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test activation_cli modified_owned_copy_is_released_and_never_deleted -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test ac_recovery ac_32_one_of_three_entries_fails_the_other_two_remain_applied_and_the_failure_is_named -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test ac_recovery ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test ac_recovery ac_53_second_mutating_command_refuses_while_locked_and_changes_nothing -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test ac_recovery crafted_journal_cannot_escape_the_destination_root -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test activation_cli invalid_skill_name_is_a_blocking_conflict -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test activation_cli dest_root_symlink_outside_project_is_a_blocking_conflict -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test activation_cli crafted_state_symlinks_are_refused_and_the_outside_file_is_untouched -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test ac_recovery execute_refuses_when_the_destination_root_was_swapped_during_the_prompt -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    },
+    {
+      "gate": "step",
+      "command": "gate cargo test -p unam --test activation_cli project_root_inside_a_source_is_refused_before_the_lock -- --exact",
+      "result": "PASS",
+      "notes": "run individually at J2b; exactly 1 test passed"
+    }
+  ],
+  "manualChecks": [
+    {
+      "check": "Every new and changed snapshot read before keeping it (12 new, usage_bare changed)",
+      "result": "done"
+    },
+    {
+      "check": "Hybrid D4: one real activation in the first adopting project (owner Taylor)",
+      "result": "pending: backlog NOTE m3-d4-first-real-activation"
+    },
+    {
+      "check": "Agent-Probe: reviewer judgment of this pack and review-decision.json (owner Taylor)",
+      "result": "pending: Taylor"
+    }
+  ],
+  "result": "PASS: every Exit Gate G1 to G19 passed on 2026-10-06 (512 tests; perf median 123.8 ms). Pending outside EXECUTE: review-decision.json (Taylor, Agent-Probe) and Hybrid D4 (first adopting project).",
+  "steps": [
+    {
+      "step": "Symlink apply (two skills, empty project)",
+      "command": "gate cargo test -p unam --test ac_activation ac_13_two_skills_from_two_categories_both_applied_with_no_category_step -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Copy apply and removal of a managed copy",
+      "command": "gate cargo test -p unam --test activation_cli copy_strategy_applies_and_removes_a_managed_copy -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "deactivate removes only owned entries and keeps foreign and the directory",
+      "command": "gate cargo test -p unam --test ac_activation ac_23_deactivate_all_removes_exactly_the_two_owned_and_leaves_foreign_and_directory -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Foreign collision refuses and changes nothing",
+      "command": "gate cargo test -p unam --test ac_activation ac_22_collision_with_a_foreign_skill_refuses_names_both_paths_and_changes_nothing -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Modified owned copy released and never deleted",
+      "command": "gate cargo test -p unam --test activation_cli modified_owned_copy_is_released_and_never_deleted -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "One failed step with the others applied, then rollback to the start",
+      "command": "gate cargo test -p unam --test ac_recovery ac_32_one_of_three_entries_fails_the_other_two_remain_applied_and_the_failure_is_named -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Crash and resume, crash and rollback (every-N matrix, scenarios A, B, C)",
+      "command": "gate cargo test -p unam --test ac_recovery ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Lock contention",
+      "command": "gate cargo test -p unam --test ac_recovery ac_53_second_mutating_command_refuses_while_locked_and_changes_nothing -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Crafted journal rejected",
+      "command": "gate cargo test -p unam --test ac_recovery crafted_journal_cannot_escape_the_destination_root -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Name escape rejected",
+      "command": "gate cargo test -p unam --test activation_cli invalid_skill_name_is_a_blocking_conflict -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Symlinked destination root rejected",
+      "command": "gate cargo test -p unam --test activation_cli dest_root_symlink_outside_project_is_a_blocking_conflict -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Symlinked state entry refused",
+      "command": "gate cargo test -p unam --test activation_cli crafted_state_symlinks_are_refused_and_the_outside_file_is_untouched -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Destination root swapped after the prompt refused",
+      "command": "gate cargo test -p unam --test ac_recovery execute_refuses_when_the_destination_root_was_swapped_during_the_prompt -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    },
+    {
+      "step": "Project overlapping a source refused",
+      "command": "gate cargo test -p unam --test activation_cli project_root_inside_a_source_is_refused_before_the_lock -- --exact",
+      "result": "PASS",
+      "notes": "run at J2b through the plan gate helper; exactly 1 test passed"
+    }
+  ]
+}
