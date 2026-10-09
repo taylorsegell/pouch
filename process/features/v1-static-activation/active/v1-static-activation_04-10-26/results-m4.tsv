@@ -1,0 +1,2 @@
+iteration	timestamp	gaps_found	fail_count	concern_count	applied	saturation_status	loop_status	notes
+0	2026-10-09T00:00:00Z	0	0	0	0	saturated	HALTED_SUCCESS	M4 PVL cycle 1 (light process): Gate PASS, 0 FAIL-class gaps, 8 execute-time notes
