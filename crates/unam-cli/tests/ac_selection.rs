@@ -1,6 +1,6 @@
 //! Acceptance criteria for selections (milestone M2: AC-10, AC-12, AC-35,
 //! desired side), plus core-API checks of `save_selection` and
-//! `detect_root`. Activation (AC-10 end to end) arrives in milestone M3; the
+//! `detect_root`. Activation (AC-10 end to end) arrived in milestone M3; the
 //! status side of AC-12 and AC-35 in milestone M4.
 
 // Integration test file: unwrap is acceptable here.
@@ -189,6 +189,32 @@ fn ac_12_bundle_plus_add_plus_remove_resolves_with_provenance() {
             .iter()
             .all(|e| e.id.to_string() != "fx:alpha-root-skill")
     );
+    // Status half (M4): `status` shows the same set as `selected`, with the
+    // same provenance; nothing is applied, so nothing is orphaned.
+    let (code, out, err) = run_in(&fx.env, &p, &["--json", "status"]);
+    assert_eq!(code, 0, "{out} {err}");
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(
+        record_states(&v),
+        vec![
+            ("code-review".to_string(), "selected".to_string()),
+            ("pytest-fixtures".to_string(), "selected".to_string()),
+            ("rest-design".to_string(), "selected".to_string()),
+        ]
+    );
+    assert_eq!(
+        record(&v, "code-review")["provenance"],
+        serde_json::json!([{"bundle": "hermes-only"}, {"adhoc": true}])
+    );
+    assert_eq!(
+        record(&v, "pytest-fixtures")["provenance"],
+        serde_json::json!([{"bundle": "hermes-only"}])
+    );
+    assert_eq!(
+        record(&v, "rest-design")["provenance"],
+        serde_json::json!([{"adhoc": true}])
+    );
+    assert!(!p.join(".unam/claude-code/applied.json").exists());
     fx.done();
 }
 
@@ -218,6 +244,26 @@ fn ac_35_hand_edited_selection_is_desired_not_applied() {
         if name == "without-version" {
             assert!(r.resolved.iter().all(|e| e.strategy == Strategy::Copy));
         }
+        // Status half (M4): desired, not applied, so `selected`, never
+        // `active`, and `status` writes nothing.
+        let (code, out, err) = run_in(&fx.env, &p, &["--json", "status"]);
+        assert_eq!(code, 0, "{name}: {out} {err}");
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let states = record_states(&v);
+        assert!(!states.is_empty(), "{name}");
+        assert!(
+            states.iter().all(|(_, s)| s == "selected"),
+            "{name}: {states:?}"
+        );
+        assert!(
+            record(&v, "rest-design")["strategy"]
+                == if name == "without-version" {
+                    "copy"
+                } else {
+                    "symlink"
+                },
+            "{name}: {v}"
+        );
         // Desired, not applied: no receipt and no destination directory.
         for q in [
             ".unam/claude-code/applied.json",

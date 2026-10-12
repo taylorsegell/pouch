@@ -1,6 +1,6 @@
 # Adapters and Hermes compatibility
 
-This document records how unam stays compatible with tools it reads from or writes for. Milestone M2 created it with the two bundle sections below; milestone M4 extends it with adapter evidence (see Maintenance).
+This document records how unam stays compatible with tools it reads from or writes for. Milestone M2 created it with the two bundle sections; milestone M4 added the adapter evidence sections after them (see Maintenance).
 
 ## Bundle slugify parity with Hermes
 
@@ -48,6 +48,48 @@ TL;DR: unam reads every manifest Hermes reads, in the same order, with the same 
 | Symlinked manifests | followed | followed when loading; never written through (in-place edits, `--force` overwrites, and `bundle edit` refuse with `bundle-edit-unsupported`); `bundle rm <name>` unlinks only the link |
 | Path-like entries | not special | not special: parsed as references per spec 4.6 |
 
+## Adapter evidence: the M0 outcome
+
+TL;DR: every tested agent that scans a destination discovered a symlinked skill directory exactly as it discovered a real copy, so both adapters default to `symlink`. The full run is `spike/symlink-discovery.md`; this section keeps the conclusions each adapter claim rests on.
+
+| Adapter | Destination | Default strategy | Rests on |
+|---|---|---|---|
+| `claude-code` | `.claude/skills` | `symlink` | Claude Code 2.1.285 (run 2026-10-05): the symlinked probe was listed at start, and a symlink added mid-session appeared with no reload. The cursor-agent CLI, which reads `.claude/skills` for compatibility, found it too. |
+| `agents-neutral` | `.agents/skills` | `symlink` | Codex 0.160.0, the cursor-agent CLI, and Hermes (after `hermes skills trust`) all found the symlinked probe. The adapter itself arrives in milestone M5. |
+
+Refresh behavior observed: Claude Code needs nothing for an existing `.claude/skills` directory; Codex needs nothing; the cursor-agent CLI shows a mid-session addition only after a restart; Hermes needs `hermes skills trust <repo>` once and a restart for a mid-session addition. Claude Code does not scan `.agents/skills` at all (no discovery even after a restart, copy or symlink).
+
+Not tested: Windsurf (not installed) and the Cursor editor. The Cursor results are evidence for the `cursor-agent` CLI only; the Cursor editor is not tested, so its behavior stays "not documented".
+
+## Adapter evidence: the claude-code claims
+
+TL;DR: every claim the `claude-code` adapter makes carries a source, and `unam doctor --evidence` prints this same list. A claim marked `assumption` is a guess that has not been checked against the vendor documentation.
+
+The table lists the 13 entries of `Adapter::evidence()` for `claude-code` (`crates/unam-core/src/adapter/claude_code.rs`), in source order, as `unam doctor --evidence` prints them. A unit test fails when a destination, scan location, strategy, refresh, or consumer claim has no entry.
+
+| Claim | Evidence | Status | What it says |
+|---|---|---|---|
+| `destination` | https://code.claude.com/docs/en/skills | verified | Project skills live in .claude/skills/<name>/SKILL.md |
+| `scan:user` | https://code.claude.com/docs/en/skills | verified | Personal skills live in ~/.claude/skills |
+| `scan:project` | https://code.claude.com/docs/en/skills | verified | Project skills live in .claude/skills |
+| `scan:enterprise` | https://code.claude.com/docs/en/skills | assumption | The enterprise location outranks personal and project scope; the platform paths used are an assumption |
+| `scan:nested` | https://code.claude.com/docs/en/skills | verified | Nested .claude/skills directories are discovered (not enumerated in v1) |
+| `precedence` | https://code.claude.com/docs/en/skills | verified | Enterprise beats personal beats project when names collide |
+| `strategy:symlink` | spike/symlink-discovery.md | verified | A symlinked skill directory is discovered at start and mid-session with no reload (Claude Code 2.1.285, 2026-10-05) |
+| `strategy:copy` | spike/symlink-discovery.md | verified | A copied skill directory is discovered like any project skill |
+| `refresh:none` | https://code.claude.com/docs/en/skills | verified | Existing skill directories are watched; no restart or reload is needed (except in bare mode) |
+| `refresh:command` | https://code.claude.com/docs/en/skills | verified | Run /reload-skills once when the skills directory did not exist at startup |
+| `consumers:claude-code` | https://code.claude.com/docs/en/skills | verified | Claude Code reads .claude/skills |
+| `consumers:cursor` | https://cursor.com/docs/skills | verified | Cursor reads .claude/skills for compatibility |
+| `consumers:windsurf-devin` | https://docs.devin.ai/desktop/cascade/skills | verified | Windsurf and Devin read .claude/skills when Claude config reading is enabled |
+
+Notes:
+
+- `scan:nested`: Claude Code also discovers nested `.claude/skills` directories. unam does not enumerate them in v1, so a skill placed there is neither listed in `status` nor treated as a shadow.
+- `scan:enterprise` is the one assumption: the documentation says the enterprise location outranks personal and project scope, but the platform paths unam checks are not specified there. Override them with `UNAM_ENTERPRISE_SKILLS_DIRS`.
+- The `consumers:*` rows are why the plan header says "visible to" more than one agent. They say these tools read `.claude/skills`; the M0 run tested only the cursor-agent CLI among them.
+
 ## Maintenance
 
-- Milestone M4 extends this document with adapter evidence; milestone M7 may regenerate the adapter-evidence part from `unam doctor --evidence` and must keep the two M2 sections above.
+- The two M2 sections (Hermes slugify parity and the bundle loader differences) and the two M4 evidence sections are all kept.
+- When an adapter changes its evidence entries, regenerate the claim table from `unam doctor --evidence` (run it only against a temporary `UNAM_CONFIG_DIR` and `HOME`, never against a real project) and keep the M0 outcome section in step with `spike/symlink-discovery.md`. Milestone M5 adds the `agents-neutral` claims.

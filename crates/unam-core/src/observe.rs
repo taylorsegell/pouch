@@ -162,6 +162,56 @@ pub fn observe(
     })
 }
 
+/// The foreign entries of the destination root (M4-3): non-hidden
+/// directories, and symlinks that resolve to directories, whose name is not
+/// in `known`. Plain files and dot-names (`.DS_Store`, `.unam-tmp-*`) are
+/// ignored. Empty unless the destination root is a plain directory. Sorted
+/// by name.
+pub fn list_foreign(
+    root: &Path,
+    rel: &str,
+    known: &BTreeSet<String>,
+) -> Result<Vec<(String, ObservedKind)>> {
+    if classify_dest_root(root, rel)? != DestRootState::Dir {
+        return Ok(Vec::new());
+    }
+    let droot = DestPath::dest_root(root, rel).map_err(|reason| Error::DestRootInvalid {
+        problem: crate::error::DestRootProblem::NotDirectory,
+        dest_root: rel.to_string(),
+        detail: reason,
+    })?;
+    let dir = root.join(rel);
+    let mut names: Vec<String> = Vec::new();
+    for entry in std::fs::read_dir(&dir)
+        .map_err(|e| Error::io(format!("cannot read {}", dir.display()), e))?
+    {
+        let entry = entry.map_err(|e| Error::io(format!("cannot read {}", dir.display()), e))?;
+        let Ok(name) = entry.file_name().into_string() else {
+            continue;
+        };
+        if !name.starts_with('.') && !known.contains(&name) {
+            names.push(name);
+        }
+    }
+    names.sort();
+    let mut out = Vec::new();
+    for name in names {
+        let Ok(child) = droot.join_child(&name) else {
+            continue;
+        };
+        let kind = observe_one(&child, false)?;
+        let is_dir = match &kind {
+            ObservedKind::Dir { .. } => true,
+            ObservedKind::Symlink { .. } => child.path().is_dir(),
+            _ => false,
+        };
+        if is_dir {
+            out.push((name, kind));
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,6 +311,32 @@ mod tests {
             classify_dest_root(&p, REL).unwrap(),
             DestRootState::Outside { .. }
         ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn foreign_listing_rules() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path();
+        let d = root.join(REL);
+        fs::create_dir_all(d.join("mine")).unwrap();
+        fs::create_dir_all(d.join("theirs")).unwrap();
+        fs::create_dir_all(d.join(".unam-tmp-x")).unwrap();
+        fs::write(d.join("README.md"), b"x").unwrap();
+        fs::write(d.join(".DS_Store"), b"x").unwrap();
+        fs::create_dir_all(root.join("elsewhere")).unwrap();
+        std::os::unix::fs::symlink(root.join("elsewhere"), d.join("linked")).unwrap();
+        std::os::unix::fs::symlink("/nonexistent/x", d.join("dangling")).unwrap();
+        let got = list_foreign(root, REL, &set(&["mine"])).unwrap();
+        let names: Vec<&str> = got.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(names, vec!["linked", "theirs"]);
+        // No destination root: nothing to list.
+        let empty = tempfile::tempdir().unwrap();
+        assert!(
+            list_foreign(empty.path(), REL, &set(&[]))
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

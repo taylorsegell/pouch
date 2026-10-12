@@ -5,11 +5,17 @@
 //! Schema: `{"version": 1, "projects": [string...]}`, canonical absolute root
 //! strings, sorted and deduplicated.
 
-use crate::bundle::slugify;
+use crate::adapter::adapters;
+use crate::bundle::{BundleSet, slugify};
+use crate::catalog::Catalog;
 use crate::error::{Diagnostic, Error, Result};
 use crate::fsops::{ToolPath, write_atomic};
 use crate::paths::Dirs;
+use crate::project::TargetId;
+use crate::resolve::resolve_entries;
+use crate::state::{Receipt, StateDir};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::path::Path;
 
 /// How the index file was found.
@@ -156,6 +162,98 @@ pub fn projects_referencing_source(dirs: &Dirs, alias: &str) -> (Vec<String>, Ve
     })
 }
 
+/// Project roots whose selection uses source `alias`, through a literal
+/// `add`/`remove` reference or through a bundle one of whose entries is (or
+/// resolves, through `catalog`, to) a skill of the alias (M4-11). Bundle
+/// entries that do not resolve and are not qualified with the alias are not
+/// counted.
+pub fn projects_using_source(
+    dirs: &Dirs,
+    catalog: &Catalog,
+    bundles: &BundleSet,
+    alias: &str,
+) -> (Vec<String>, Vec<Diagnostic>) {
+    let prefix = format!("{alias}:");
+    let member_bundles: BTreeSet<String> = bundles
+        .bundles
+        .iter()
+        .filter(|b| {
+            b.skills.iter().any(|s| s.trim().starts_with(&prefix))
+                || resolve_entries(b, catalog).iter().any(|e| {
+                    e.outcome
+                        .as_ref()
+                        .is_ok_and(|id| id.source.as_str() == alias)
+                })
+        })
+        .map(|b| b.slug.clone())
+        .collect();
+    referencing(dirs, |target| {
+        ["add", "remove"].iter().any(|key| {
+            strings_under(target, key)
+                .iter()
+                .any(|s| s.starts_with(&prefix))
+        }) || strings_under(target, "bundles")
+            .iter()
+            .any(|s| member_bundles.contains(&slugify(s)))
+    })
+}
+
+/// A project whose receipt holds entries from a source.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectUse {
+    pub root: String,
+    /// Targets whose receipt holds at least one entry of the alias.
+    pub targets: Vec<TargetId>,
+}
+
+/// Indexed projects whose receipts hold entries from source `alias`. A
+/// project directory that is gone, or a receipt that cannot be read,
+/// becomes a warning (the project is skipped).
+pub fn projects_with_receipt_from(dirs: &Dirs, alias: &str) -> (Vec<ProjectUse>, Vec<Diagnostic>) {
+    let prefix = format!("{alias}:");
+    let read = read_index(dirs);
+    let mut diagnostics = read.diagnostics;
+    let mut out: Vec<ProjectUse> = Vec::new();
+    let mut roots = read.projects;
+    roots.sort();
+    roots.dedup();
+    for root in roots {
+        let path = Path::new(&root);
+        if !path.is_dir() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "project-missing",
+                    format!("project {root} is in the index but its directory is gone"),
+                )
+                .with_path(root.clone()),
+            );
+            continue;
+        }
+        let mut targets = Vec::new();
+        for adapter in adapters() {
+            let t = adapter.id();
+            match Receipt::load(&StateDir::new(path, t), path, t) {
+                Ok(r) => {
+                    if r.skill_entries().any(|e| e.skill_id.starts_with(&prefix)) {
+                        targets.push(t);
+                    }
+                }
+                Err(e) => diagnostics.push(
+                    Diagnostic::warning(
+                        "receipt-unreadable",
+                        format!("cannot read the {t} receipt of {root}: {e}"),
+                    )
+                    .with_path(root.clone()),
+                ),
+            }
+        }
+        if !targets.is_empty() {
+            out.push(ProjectUse { root, targets });
+        }
+    }
+    (out, diagnostics)
+}
+
 /// Project roots whose selection references bundle `slug`: a string under
 /// `targets.*.bundles` whose slug equals `slug`.
 pub fn projects_referencing_bundle(dirs: &Dirs, slug: &str) -> (Vec<String>, Vec<Diagnostic>) {
@@ -266,6 +364,133 @@ mod tests {
         expected.sort();
         assert_eq!(p, expected);
         assert!(diags.is_empty());
+    }
+
+    fn bundle(slug: &str, skills: &[&str]) -> crate::bundle::Bundle {
+        crate::bundle::Bundle {
+            slug: slug.into(),
+            name: slug.into(),
+            description: String::new(),
+            skills: skills.iter().map(|s| s.to_string()).collect(),
+            instruction: None,
+            metadata: Default::default(),
+            path: std::path::PathBuf::from(format!("/b/{slug}.yaml")),
+            file_name: format!("{slug}.yaml"),
+        }
+    }
+
+    #[test]
+    fn guard_counts_bundle_members() {
+        use crate::catalog::tests_support::catalog_of;
+        let t = tempfile::tempdir().unwrap();
+        let d = dirs_in(t.path());
+        let catalog = catalog_of(
+            &[
+                ("fx", "sdlc/code-review", "code-review"),
+                ("hs", "ops/x", "x"),
+            ],
+            &[],
+        );
+        let bundles = BundleSet {
+            bundles: vec![
+                bundle("by-name", &["code-review"]),
+                bundle("by-id", &["hs:ops/x"]),
+                bundle("qualified-gone", &["fx:gone/skill"]),
+                bundle("unresolvable", &["nothing-like-it"]),
+            ],
+            diagnostics: vec![],
+        };
+        let projects: Vec<std::path::PathBuf> =
+            (1..=5).map(|i| t.path().join(format!("p{i}"))).collect();
+        for (p, bundle_name) in projects.iter().zip([
+            "by-name",
+            "by-id",
+            "qualified-gone",
+            "unresolvable",
+            "other",
+        ]) {
+            write_selection(
+                p,
+                &format!("targets:\n  claude-code:\n    bundles: [{bundle_name}]\n"),
+            );
+        }
+        write_index(
+            &d,
+            &serde_json::json!({"version": 1, "projects": projects}).to_string(),
+        );
+        let used = |alias: &str| -> Vec<String> {
+            projects_using_source(&d, &catalog, &bundles, alias)
+                .0
+                .iter()
+                .map(|p| {
+                    Path::new(p)
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned()
+                })
+                .collect()
+        };
+        assert_eq!(used("fx"), vec!["p1", "p3"]);
+        assert_eq!(used("hs"), vec!["p2"]);
+        assert!(used("nope").is_empty());
+        // Literal refs are still counted.
+        write_selection(&projects[4], "targets:\n  t:\n    add: [\"hs:ops/x\"]\n");
+        assert_eq!(used("hs"), vec!["p2", "p5"]);
+    }
+
+    #[test]
+    fn receipt_scan_finds_dependent_projects() {
+        use crate::state::{Entry, SkillEntry};
+        let t = tempfile::tempdir().unwrap();
+        let d = dirs_in(t.path());
+        let entry = |id: &str| {
+            Entry::Skill(Box::new(SkillEntry {
+                skill_id: id.into(),
+                name: "n".into(),
+                dest: ".claude/skills/n".into(),
+                strategy: crate::config::Strategy::Symlink,
+                source_path: "/x".into(),
+                tree_hash: "h".into(),
+                git_commit: serde_json::Value::Null,
+                pin: "follow".into(),
+                provenance: vec![],
+                applied_at: "t".into(),
+                extra: Default::default(),
+            }))
+        };
+        let write_receipt = |root: &Path, ids: &[&str]| {
+            std::fs::create_dir_all(root.join(".unam/claude-code")).unwrap();
+            let mut r = Receipt::empty(root, TargetId::ClaudeCode);
+            r.entries = ids.iter().map(|i| entry(i)).collect();
+            std::fs::write(root.join(".unam/claude-code/applied.json"), r.to_text()).unwrap();
+        };
+        let (a, b, c, gone) = (
+            t.path().join("a"),
+            t.path().join("b"),
+            t.path().join("c"),
+            t.path().join("gone"),
+        );
+        write_receipt(&a, &["fx:one", "hs:two"]);
+        write_receipt(&b, &["hs:two"]);
+        std::fs::create_dir_all(&c).unwrap();
+        write_index(
+            &d,
+            &serde_json::json!({"version": 1, "projects": [a, b, c, gone]}).to_string(),
+        );
+        let (found, diags) = projects_with_receipt_from(&d, "fx");
+        assert_eq!(
+            found,
+            vec![ProjectUse {
+                root: a.to_string_lossy().into_owned(),
+                targets: vec![TargetId::ClaudeCode],
+            }]
+        );
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].code, "project-missing");
+        // `fx` is not matched by `fxx`.
+        assert!(projects_with_receipt_from(&d, "f").0.is_empty());
+        assert_eq!(projects_with_receipt_from(&d, "hs").0.len(), 2);
     }
 
     fn read_projects(d: &Dirs) -> Vec<String> {

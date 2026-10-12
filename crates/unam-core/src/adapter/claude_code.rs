@@ -52,7 +52,7 @@ static EVIDENCE: &[Evidence] = &[
     },
     Evidence {
         claim_key: "scan:nested",
-        claim: "Nested .claude/skills directories are discovered (not enumerated until milestone M4)",
+        claim: "Nested .claude/skills directories are discovered (not enumerated in v1)",
         source: EvidenceSource::Url(DOCS),
         status: EvidenceStatus::Verified,
     },

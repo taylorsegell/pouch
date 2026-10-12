@@ -166,6 +166,16 @@ fn ac_13_two_skills_from_two_categories_both_applied_with_no_category_step() {
     assert_eq!(receipt_entry_texts(&p, "claude-code").len(), 2);
     let sel = selection_text(&p);
     assert!(sel.contains("fx:sdlc/code-review") && sel.contains("fx:testing/pytest-fixtures"));
+    // Status half (M4): both entries are `active`.
+    let (code, v) = fx.status(&p);
+    assert_eq!(code, 0, "{v}");
+    assert_eq!(
+        record_states(&v),
+        vec![
+            ("code-review".to_string(), "active".to_string()),
+            ("pytest-fixtures".to_string(), "active".to_string()),
+        ]
+    );
     fx.done();
 }
 
@@ -225,6 +235,14 @@ fn ac_15_yes_still_prints_the_plan_and_the_plan_matches_the_filesystem() {
             "{c} is neither planned nor receipted"
         );
     }
+    // Status half (M4): `status` reports exactly the entries the plans
+    // produced, all `active`.
+    let (code, v) = fx.status(&p);
+    assert_eq!(code, 0, "{v}");
+    let mut shown: Vec<String> = record_states(&v).into_iter().map(|(n, _)| n).collect();
+    shown.sort();
+    assert_eq!(shown, children(&dest(&p)));
+    assert!(record_states(&v).iter().all(|(_, s)| s == "active"));
     fx.done();
 }
 
@@ -410,6 +428,21 @@ fn ac_21_returning_to_a_project_shows_its_prior_selection_unchanged() {
         rec_a
     );
     assert_source_unchanged(&snap_b, &b);
+    // Status half (M4): the prior selection and states are unchanged.
+    let (code, status_a) = fx.status(&a);
+    assert_eq!(code, 0, "{status_a}");
+    assert_eq!(
+        record_states(&status_a),
+        vec![
+            ("code-review".to_string(), "active".to_string()),
+            ("pytest-fixtures".to_string(), "active".to_string()),
+        ]
+    );
+    let (code, status_b) = fx.status(&b);
+    assert_eq!(code, 0, "{status_b}");
+    assert_eq!(record_states(&status_b).len(), 3);
+    assert!(record_states(&status_b).iter().all(|(_, s)| s == "active"));
+    assert_eq!(fs::read(a.join(".unam/selection.yaml")).unwrap(), sel_a);
     fx.done();
 }
 

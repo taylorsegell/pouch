@@ -13,15 +13,47 @@ fn bare_unam_prints_usage_without_config() {
     let (code, out, _) = env.run(&[]);
     assert_eq!(code, 0);
     assert!(out.contains("Usage:"), "{out}");
-    assert!(out.contains("status arrives in a later milestone"), "{out}");
+    assert!(!out.contains("later milestone"), "{out}");
     assert!(out.contains("  bundle "), "{out}");
-    for cmd in ["add", "rm", "use", "deactivate", "resume", "rollback"] {
+    for cmd in [
+        "add",
+        "rm",
+        "use",
+        "deactivate",
+        "resume",
+        "rollback",
+        "status",
+        "reconcile",
+        "doctor",
+    ] {
         assert!(out.contains(&format!("  {cmd} ")), "{cmd}: {out}");
     }
     for flag in ["--project <PATH>", "--target <ID>", "--yes"] {
         assert!(out.contains(flag), "{flag}: {out}");
     }
     assert!(!env.config_file().exists());
+}
+
+#[test]
+fn bare_unam_prints_status_for_a_project() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    // No `.unam/` yet: usage only.
+    let (code, out, _) = fx.run(&p, &[]);
+    assert_eq!(code, 0);
+    assert!(out.contains("Usage:") && !out.contains("STATE"), "{out}");
+    let (code, v) = fx.json_raw(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    assert_eq!(code, 0, "{v}");
+    let (code, out, _) = fx.run(&p, &[]);
+    assert_eq!(code, 0);
+    assert!(out.contains("Usage:"), "{out}");
+    assert!(out.contains("STATE") && out.contains("active"), "{out}");
+    // Even with an orphaned entry, bare `unam` exits 0.
+    std::fs::remove_file(p.join(".claude/skills/code-review")).unwrap();
+    let (code, out, _) = fx.run(&p, &[]);
+    assert_eq!(code, 0);
+    assert!(out.contains("orphaned"), "{out}");
+    fx.done();
 }
 
 #[test]

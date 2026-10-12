@@ -876,3 +876,52 @@ fn run_registers_the_project_on_every_selection_write() {
         );
     }
 }
+
+// ---- history rollback and reconcile edits (milestone M4) ----
+
+#[test]
+fn history_edit_restores_target_selection_before() {
+    let f = fx();
+    let root = f.project("p");
+    let e = history_edit(&root.path, TargetId::ClaudeCode).unwrap_err();
+    assert_eq!(e.code(), "no-history");
+    f.add(&root, &["fx:sdlc/code-review"]);
+    // The first apply had no selection: the history edit clears the target.
+    assert_eq!(
+        history_edit(&root.path, TargetId::ClaudeCode).unwrap(),
+        Edit::Deactivate
+    );
+    f.add(&root, &["fx:testing/pytest-fixtures"]);
+    let edit = history_edit(&root.path, TargetId::ClaudeCode).unwrap();
+    assert_eq!(
+        edit,
+        Edit::Restore(tsel(&[], &["fx:sdlc/code-review"], &[]))
+    );
+    let out = f
+        .run_edit(&root, edit, &RealFs, &mut |_| Decision::Proceed)
+        .map_err(|c| c.error)
+        .unwrap();
+    assert!(matches!(out, Outcome::Applied(..)));
+    let state = StateDir::new(&root.path, TargetId::ClaudeCode);
+    let receipt = Receipt::load(&state, &root.path, TargetId::ClaudeCode).unwrap();
+    let names: Vec<&str> = receipt.skill_entries().map(|e| e.name.as_str()).collect();
+    assert_eq!(names, vec!["code-review"]);
+    assert!(!has_journal(&root.path, None));
+    assert!(!has_journal(&root.path, Some(TargetId::ClaudeCode)));
+}
+
+#[test]
+fn reconcile_and_restore_edits_in_apply_edit() {
+    let f = fx();
+    let before = tsel(&[], &["fx:sdlc/code-review"], &[]);
+    let bundles = f.bundles();
+    let (out, changed) = apply_edit(&before, &Edit::Reconcile, &f.catalog, &bundles).unwrap();
+    assert_eq!((out, changed), (before.clone(), false));
+    let other = tsel(&["b1"], &[], &[]);
+    let (out, changed) =
+        apply_edit(&before, &Edit::Restore(other.clone()), &f.catalog, &bundles).unwrap();
+    assert_eq!((out, changed), (other.clone(), true));
+    let (_, changed) =
+        apply_edit(&other, &Edit::Restore(other.clone()), &f.catalog, &bundles).unwrap();
+    assert!(!changed);
+}

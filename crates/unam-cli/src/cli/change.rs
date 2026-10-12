@@ -53,7 +53,7 @@ pub fn confirm_with(
     }
 }
 
-fn ask(ctx: &Ctx) -> Decision {
+pub(super) fn ask(ctx: &Ctx) -> Decision {
     if ctx.interactive && !ctx.yes {
         eprint!("Apply these changes? [y/N] ");
         let _ = std::io::stderr().flush();
@@ -63,7 +63,7 @@ fn ask(ctx: &Ctx) -> Decision {
     confirm_with(&mut lock, ctx.interactive, ctx.yes, ctx.json)
 }
 
-fn global(diags: &[Diagnostic]) -> Vec<FlatDiagnostic> {
+pub(super) fn global(diags: &[Diagnostic]) -> Vec<FlatDiagnostic> {
     diags.iter().cloned().map(FlatDiagnostic::global).collect()
 }
 
@@ -565,9 +565,22 @@ pub fn resume(ctx: &Ctx) -> CmdResult {
     recover_run(ctx, "resume")
 }
 
-/// `unam rollback`.
+/// `unam rollback`: undo an interrupted apply from the journal, or, with no
+/// journal, restore the previous applied state from history (spec 4.10).
 pub fn rollback(ctx: &Ctx) -> CmdResult {
-    recover_run(ctx, "rollback")
+    let root = ctx.root().map_err(Failed::from)?;
+    let flag = ctx.target_flag().map_err(Failed::from)?;
+    if change::has_journal(&root.path, flag) {
+        recover_run(ctx, "rollback")
+    } else {
+        edit_run(ctx, "rollback", Edit::FromHistory)
+    }
+}
+
+/// `unam reconcile --repair`: the repair plan runs through the journaled
+/// executor like any other change (spec 4.12).
+pub fn reconcile_repair(ctx: &Ctx) -> CmdResult {
+    edit_run(ctx, "reconcile", Edit::Reconcile)
 }
 
 #[cfg(test)]

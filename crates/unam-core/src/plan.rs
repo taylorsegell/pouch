@@ -405,6 +405,10 @@ pub struct DiffInput<'a> {
     pub budget_tokens: u32,
     /// True only for `deactivate` (G3).
     pub release_created_dirs: bool,
+    /// True only for `reconcile --repair` and relocate repair (M4-7): an
+    /// owned symlink whose live source path differs from the receipt
+    /// `source_path` is replaced instead of left "unchanged".
+    pub repoint_moved: bool,
 }
 
 fn found_text(k: &ObservedKind) -> &'static str {
@@ -586,7 +590,22 @@ pub fn diff(input: &DiffInput<'_>) -> Plan {
                     }
                 } else if is_owned(r, &obs) {
                     if r.skill_id == id && r.strategy == d.strategy {
-                        if canonical_provenance(&r.provenance) == want_prov {
+                        let repoint = (input.repoint_moved && r.strategy == Strategy::Symlink)
+                            .then(|| make_add(d))
+                            .flatten()
+                            .filter(|s| {
+                                matches!(s, Step::Add { source, .. }
+                                    if source.to_string_lossy() != r.source_path)
+                            });
+                        if let Some(add) = repoint {
+                            removes.push(Step::Remove {
+                                n: 0,
+                                id: r.skill_id.clone(),
+                                name: r.name.clone(),
+                                expect: expectation_of(r),
+                            });
+                            adds.push(add);
+                        } else if canonical_provenance(&r.provenance) == want_prov {
                             unchanged.push(PlanEntry {
                                 id: id.clone(),
                                 name: d.name.clone(),

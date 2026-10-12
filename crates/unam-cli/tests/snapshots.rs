@@ -464,3 +464,100 @@ fn rollback_apply() {
     insta::assert_json_snapshot!("rollback_apply", v);
     fx.done();
 }
+
+// ---- milestone M4: status, reconcile, history rollback, doctor, relocate ----
+
+/// A project showing most states: `code-review` active, `pytest-fixtures`
+/// shadowed by a user-scope skill, `alpha-root-skill` orphaned (its link
+/// deleted by hand), `house-style` foreign, `rest-design` selected only.
+#[cfg(unix)]
+fn mixed_states_project(fx: &Fx) -> std::path::PathBuf {
+    let p = fx.project("p");
+    fx.json(&p, &["use", "hermes-only", "--replace", "--yes"]);
+    fx.plant_foreign(&p, "house-style");
+    fx.plant_user_skill("pytest-fixtures");
+    std::fs::remove_file(p.join(".claude/skills/alpha-root-skill")).unwrap();
+    fx.write_selection(
+        &p,
+        "version: 1\ntargets:\n  claude-code:\n    bundles:\n      - hermes-only\n    add:\n      - hs:api/rest-design\n",
+    );
+    p
+}
+
+#[cfg(unix)]
+#[test]
+fn status_json() {
+    let fx = Fx::new();
+    let p = mixed_states_project(&fx);
+    let (code, v) = fx.json(&p, &["status"]);
+    assert_eq!(code, 8);
+    insta::assert_json_snapshot!("status_json", v);
+    fx.done();
+}
+
+#[cfg(unix)]
+#[test]
+fn reconcile_json() {
+    let fx = Fx::new();
+    let p = mixed_states_project(&fx);
+    let (code, v) = fx.json(&p, &["reconcile"]);
+    assert_eq!(code, 8);
+    insta::assert_json_snapshot!("reconcile_json", v);
+    fx.done();
+}
+
+#[cfg(unix)]
+#[test]
+fn rollback_history_json() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.json(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    fx.json(&p, &["add", "fx:testing/pytest-fixtures", "--yes"]);
+    let (code, v) = fx.json(&p, &["rollback", "--yes"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("rollback_history_json", v);
+    fx.done();
+}
+
+#[cfg(unix)]
+#[test]
+fn doctor_json() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.json(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    let (code, v) = fx.json(&p, &["doctor"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("doctor_json", v);
+    fx.done();
+}
+
+#[cfg(unix)]
+#[test]
+fn source_relocate_json() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.json(
+        &p,
+        &[
+            "add",
+            "fx:sdlc/code-review",
+            "fx:testing/pytest-fixtures",
+            "--yes",
+        ],
+    );
+    let new_lib = fx.env.path("work/lib-moved");
+    std::fs::rename(&fx.lib, &new_lib).unwrap();
+    let (code, v) = fx.json(
+        &p,
+        &[
+            "source",
+            "relocate",
+            "fx",
+            new_lib.to_str().unwrap(),
+            "--yes",
+        ],
+    );
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("source_relocate_json", v);
+    fx.done_at(&new_lib);
+}

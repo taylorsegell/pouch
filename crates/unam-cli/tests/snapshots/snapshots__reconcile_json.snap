@@ -1,0 +1,193 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": false,
+  "command": "reconcile",
+  "data": {
+    "command": "reconcile",
+    "project_root": "[TMP]/work/p",
+    "root_detection": "git",
+    "target": "claude-code",
+    "destination": ".claude/skills",
+    "records": [
+      {
+        "id": "fx:alpha-root-skill",
+        "name": "alpha-root-skill",
+        "category": "",
+        "source_path": "[TMP]/work/lib/alpha-root-skill",
+        "dest": ".claude/skills/alpha-root-skill",
+        "strategy": "symlink",
+        "provenance": [
+          {
+            "bundle": "hermes-only"
+          }
+        ],
+        "state": "orphaned",
+        "reason": "missing"
+      },
+      {
+        "id": "fx:sdlc/code-review",
+        "name": "code-review",
+        "category": "sdlc",
+        "source_path": "[TMP]/work/lib/sdlc/code-review",
+        "dest": ".claude/skills/code-review",
+        "strategy": "symlink",
+        "provenance": [
+          {
+            "bundle": "hermes-only"
+          }
+        ],
+        "state": "active"
+      },
+      {
+        "id": null,
+        "name": "house-style",
+        "category": "",
+        "source_path": null,
+        "dest": ".claude/skills/house-style",
+        "strategy": null,
+        "provenance": [],
+        "state": "foreign"
+      },
+      {
+        "id": "fx:testing/pytest-fixtures",
+        "name": "pytest-fixtures",
+        "category": "testing",
+        "source_path": "[TMP]/work/lib/testing/pytest-fixtures",
+        "dest": ".claude/skills/pytest-fixtures",
+        "strategy": "symlink",
+        "provenance": [
+          {
+            "bundle": "hermes-only"
+          }
+        ],
+        "state": "shadowed",
+        "shadowed_by": "[TMP]/home/.claude/skills/pytest-fixtures"
+      },
+      {
+        "id": "hs:api/rest-design",
+        "name": "rest-design",
+        "category": "api",
+        "source_path": "[TMP]/work/lib2/api/rest-design",
+        "dest": ".claude/skills/rest-design",
+        "strategy": "symlink",
+        "provenance": [
+          {
+            "adhoc": true
+          }
+        ],
+        "state": "selected"
+      }
+    ],
+    "summary": {
+      "selected": 1,
+      "applied": 0,
+      "active": 1,
+      "shadowed": 1,
+      "foreign": 1,
+      "orphaned": 1
+    },
+    "footer": "Verified means discoverable under the target's documented scan rules. It does not mean the agent has read it.",
+    "divergences": [
+      {
+        "cause": "hand-deleted",
+        "id": "fx:alpha-root-skill",
+        "name": "alpha-root-skill",
+        "dest": ".claude/skills/alpha-root-skill",
+        "detail": ".claude/skills/alpha-root-skill is gone from the destination (fx:alpha-root-skill)"
+      },
+      {
+        "cause": "not-applied",
+        "id": "hs:api/rest-design",
+        "name": "rest-design",
+        "dest": ".claude/skills/rest-design",
+        "detail": "hs:api/rest-design is selected but not applied"
+      }
+    ],
+    "findings": [
+      {
+        "kind": "foreign",
+        "name": "house-style",
+        "dest": ".claude/skills/house-style",
+        "detail": "not managed by unam; never touched"
+      },
+      {
+        "kind": "shadowed",
+        "name": "pytest-fixtures",
+        "dest": ".claude/skills/pytest-fixtures",
+        "detail": "shadowed by [TMP]/home/.claude/skills/pytest-fixtures"
+      }
+    ],
+    "plan": {
+      "steps": [
+        {
+          "n": 1,
+          "op": "add",
+          "id": "fx:alpha-root-skill",
+          "name": "alpha-root-skill",
+          "dest": ".claude/skills/alpha-root-skill",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib/alpha-root-skill",
+          "provenance": [
+            {
+              "bundle": "hermes-only"
+            }
+          ]
+        },
+        {
+          "n": 2,
+          "op": "add",
+          "id": "hs:api/rest-design",
+          "name": "rest-design",
+          "dest": ".claude/skills/rest-design",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib2/api/rest-design",
+          "provenance": [
+            {
+              "adhoc": true
+            }
+          ]
+        }
+      ],
+      "unchanged": [
+        {
+          "id": "fx:sdlc/code-review",
+          "name": "code-review",
+          "dest": ".claude/skills/code-review"
+        },
+        {
+          "id": "fx:testing/pytest-fixtures",
+          "name": "pytest-fixtures",
+          "dest": ".claude/skills/pytest-fixtures"
+        }
+      ],
+      "carried": [],
+      "conflicts": [],
+      "warnings": [
+        {
+          "code": "shadowed",
+          "severity": "warning",
+          "message": "pytest-fixtures is shadowed by [TMP]/home/.claude/skills/pytest-fixtures (user scope wins)",
+          "path": "[TMP]/home/.claude/skills/pytest-fixtures",
+          "remedy": null
+        }
+      ],
+      "estimate": {
+        "skills": 4,
+        "tokens": 141,
+        "estimate": true
+      }
+    },
+    "repair_blocked": null
+  },
+  "warnings": [],
+  "errors": [
+    {
+      "code": "diverged",
+      "message": "2 divergence(s) found",
+      "remedy": "Run `unam reconcile` to see the causes, or `unam reconcile --repair` to repair them (the plan is printed first)."
+    }
+  ]
+}

@@ -1,9 +1,13 @@
-//! Sources (spec 4.2): registration, listing, removal.
+//! Sources (spec 4.2): registration, listing, removal, relocation.
 
+use crate::bundle::BundleSet;
 use crate::catalog::{ALL_CLASSES, Catalog, CatalogDiagnostic, FlatDiagnostic, LoadOptions};
+use crate::change::{ChangeRequest, Edit, Prepared, prepare};
 use crate::config::{Config, SourceEntry, is_valid_alias};
 use crate::error::{Diagnostic, Error, Result};
 use crate::paths::Dirs;
+use crate::project::{ProjectRoot, RootDetection, TargetId};
+use crate::state::Clock;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -127,14 +131,25 @@ pub struct RemoveOutcome {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-/// Unregister `alias`: refuse when referenced unless `force`; delete its cache file.
-pub fn remove(config: &mut Config, dirs: &Dirs, alias: &str, force: bool) -> Result<RemoveOutcome> {
+/// Unregister `alias`: refuse when referenced unless `force`; delete its
+/// cache file. A project references the alias through a literal `add` or
+/// `remove` reference, or through a selected bundle with a member from it
+/// (M4-11); `catalog` and `bundles` resolve the bundle members.
+pub fn remove(
+    config: &mut Config,
+    dirs: &Dirs,
+    catalog: &Catalog,
+    bundles: &BundleSet,
+    alias: &str,
+    force: bool,
+) -> Result<RemoveOutcome> {
     let Some(pos) = config.sources.iter().position(|s| s.alias == alias) else {
         return Err(Error::SourceNotFound {
             alias: alias.to_string(),
         });
     };
-    let (projects, diagnostics) = crate::project::index::projects_referencing_source(dirs, alias);
+    let (projects, diagnostics) =
+        crate::project::index::projects_using_source(dirs, catalog, bundles, alias);
     if !projects.is_empty() && !force {
         return Err(Error::SourceReferenced {
             alias: alias.to_string(),
@@ -180,6 +195,38 @@ fn canonical_of(entry: &SourceEntry, dirs: &Dirs) -> Option<PathBuf> {
     std::fs::canonicalize(p).ok()
 }
 
+/// Validate a source root (shared by `add` and `relocate`): it expands,
+/// canonicalizes, is a readable directory, and is not registered under
+/// another alias (`except` names the alias being relocated). Returns the
+/// expanded and the canonical path.
+fn validate_root(
+    config: &Config,
+    dirs: &Dirs,
+    raw_path: &str,
+    except: Option<&str>,
+) -> Result<(PathBuf, PathBuf)> {
+    let invalid = |reason: String| Error::SourcePathInvalid {
+        path: raw_path.to_string(),
+        reason,
+    };
+    let expanded = dirs.expand(raw_path)?;
+    let canonical = std::fs::canonicalize(&expanded).map_err(|e| invalid(e.to_string()))?;
+    if !canonical.is_dir() {
+        return Err(invalid("not a directory".to_string()));
+    }
+    std::fs::read_dir(&canonical).map_err(|e| invalid(format!("not readable: {e}")))?;
+    if let Some(existing) = config.sources.iter().find(|s| {
+        Some(s.alias.as_str()) != except
+            && canonical_of(s, dirs).as_deref() == Some(canonical.as_path())
+    }) {
+        return Err(Error::SourcePathAlreadyRegistered {
+            path: canonical.to_string_lossy().into_owned(),
+            alias: existing.alias.clone(),
+        });
+    }
+    Ok((expanded, canonical))
+}
+
 /// Register a source (spec 4.2): validate, canonicalize, reject duplicates,
 /// scan it, warn on zero skills, then append the entry and save the config.
 /// Nothing is written to the config when validation fails.
@@ -196,26 +243,7 @@ pub fn add(
             alias: alias.to_string(),
         });
     }
-    let invalid = |reason: String| Error::SourcePathInvalid {
-        path: raw_path.to_string(),
-        reason,
-    };
-    let expanded = dirs.expand(raw_path)?;
-    let canonical = std::fs::canonicalize(&expanded).map_err(|e| invalid(e.to_string()))?;
-    if !canonical.is_dir() {
-        return Err(invalid("not a directory".to_string()));
-    }
-    std::fs::read_dir(&canonical).map_err(|e| invalid(format!("not readable: {e}")))?;
-    if let Some(existing) = config
-        .sources
-        .iter()
-        .find(|s| canonical_of(s, dirs).as_deref() == Some(canonical.as_path()))
-    {
-        return Err(Error::SourcePathAlreadyRegistered {
-            path: canonical.to_string_lossy().into_owned(),
-            alias: existing.alias.clone(),
-        });
-    }
+    let (expanded, canonical) = validate_root(config, dirs, raw_path, None)?;
     let entry = SourceEntry {
         alias: alias.to_string(),
         path: stored_spelling(raw_path, &canonical),
@@ -241,6 +269,142 @@ pub fn add(
         skill_count,
         catalog,
     })
+}
+
+/// What planning found for one dependent project.
+pub enum Planned {
+    /// The repair plan (`Edit::Reconcile` against the relocated catalog).
+    Plan(Box<Prepared>),
+    /// The project cannot be planned (a skill is missing at the new path,
+    /// an unrelated reference does not resolve, ...); it stays as it is.
+    Unplanned(String),
+}
+
+/// One dependent project and target.
+pub struct ProjectRelocation {
+    pub project: ProjectRoot,
+    pub target: TargetId,
+    pub planned: Planned,
+}
+
+/// A planned relocation (M4-10). Nothing is written until
+/// `commit_relocation`; the caller then applies each plan with
+/// `change::run` using `config` and `catalog`.
+pub struct Relocation {
+    pub alias: String,
+    pub old_path: String,
+    pub entry: SourceEntry,
+    pub expanded_path: PathBuf,
+    /// The configuration with the new path.
+    pub config: Config,
+    /// The catalog loaded from `config` (no cache read or write).
+    pub catalog: Catalog,
+    pub projects: Vec<ProjectRelocation>,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// Plan `source relocate <alias> <path>` (spec 4.2, SRC-4, EDG-4): validate
+/// the new path like `add`, build the configuration and catalog as they
+/// would be, and compute the repair plan of every indexed project whose
+/// receipt holds an entry from the alias. Writes nothing.
+pub fn plan_relocation(
+    config: &Config,
+    dirs: &Dirs,
+    bundles: &BundleSet,
+    alias: &str,
+    raw_path: &str,
+    options: LoadOptions,
+    clock: &dyn Clock,
+) -> Result<Relocation> {
+    let Some(pos) = config.sources.iter().position(|s| s.alias == alias) else {
+        return Err(Error::SourceNotFound {
+            alias: alias.to_string(),
+        });
+    };
+    let (expanded, canonical) = validate_root(config, dirs, raw_path, Some(alias))?;
+    let mut new_config = config.clone();
+    let old_path = std::mem::replace(
+        &mut new_config.sources[pos].path,
+        stored_spelling(raw_path, &canonical),
+    );
+    let entry = new_config.sources[pos].clone();
+    let catalog = Catalog::load(
+        &new_config.sources,
+        dirs,
+        LoadOptions {
+            use_cache: false,
+            ..options
+        },
+    )?;
+    let (uses, mut diagnostics) = crate::project::index::projects_with_receipt_from(dirs, alias);
+    let mut projects = Vec::new();
+    for u in uses {
+        let Ok(path) = std::fs::canonicalize(&u.root) else {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "project-missing",
+                    format!("project {} cannot be resolved; it is left as it is", u.root),
+                )
+                .with_path(u.root.clone()),
+            );
+            continue;
+        };
+        let how = if std::fs::symlink_metadata(path.join(".git")).is_ok() {
+            RootDetection::Git
+        } else {
+            RootDetection::Explicit
+        };
+        let project = ProjectRoot { path, how };
+        for target in u.targets {
+            let req = ChangeRequest {
+                dirs,
+                config: &new_config,
+                catalog: &catalog,
+                bundles,
+                root: &project,
+                target,
+                edit: Edit::Reconcile,
+                command: "source relocate",
+                clock,
+            };
+            let planned = match prepare(&req) {
+                Ok(p) => Planned::Plan(Box::new(p)),
+                Err(f) => Planned::Unplanned(f.error.to_string()),
+            };
+            projects.push(ProjectRelocation {
+                project: project.clone(),
+                target,
+                planned,
+            });
+        }
+    }
+    Ok(Relocation {
+        alias: alias.to_string(),
+        old_path,
+        entry,
+        expanded_path: expanded,
+        config: new_config,
+        catalog,
+        projects,
+        diagnostics,
+    })
+}
+
+/// Save the relocated configuration and delete the alias cache file. The
+/// caller applies the project plans afterwards.
+pub fn commit_relocation(relocation: &Relocation, dirs: &Dirs) -> Result<()> {
+    relocation.config.save(dirs)?;
+    // The alias is validated (it came from the config), so this path stays
+    // inside `<cache dir>/catalog/`.
+    let cache = dirs.catalog_cache_file(&relocation.alias);
+    match std::fs::remove_file(&cache) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(Error::io(
+            format!("cannot delete cache {}", cache.display()),
+            e,
+        )),
+    }
 }
 
 /// One row of `source list`.
@@ -364,7 +528,15 @@ mod tests {
         use crate::fsops::{ToolPath, write_atomic};
         write_atomic(&ToolPath::new(d.catalog_cache_file("fx")), b"{}").unwrap();
         write_atomic(&ToolPath::new(d.catalog_cache_file("other")), b"{}").unwrap();
-        let out = remove(&mut c, &d, "fx", false).unwrap();
+        let out = remove(
+            &mut c,
+            &d,
+            &Catalog::default(),
+            &BundleSet::default(),
+            "fx",
+            false,
+        )
+        .unwrap();
         assert!(out.dangling_projects.is_empty());
         assert!(!d.catalog_cache_file("fx").exists());
         assert!(d.catalog_cache_file("other").exists());
@@ -378,7 +550,15 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let d = dirs_in(t.path());
         let mut c = config_with(&d, &["fx"]);
-        let e = remove(&mut c, &d, "nope", false).unwrap_err();
+        let e = remove(
+            &mut c,
+            &d,
+            &Catalog::default(),
+            &BundleSet::default(),
+            "nope",
+            false,
+        )
+        .unwrap_err();
         assert_eq!(e.code(), "source-not-found");
         assert_eq!(e.exit_code(), 4);
     }
@@ -394,17 +574,113 @@ mod tests {
             &d,
             &serde_json::json!({"version": 1, "projects": [proj]}).to_string(),
         );
-        let e = remove(&mut c, &d, "fx", false).unwrap_err();
+        let e = remove(
+            &mut c,
+            &d,
+            &Catalog::default(),
+            &BundleSet::default(),
+            "fx",
+            false,
+        )
+        .unwrap_err();
         assert_eq!(e.code(), "source-referenced");
         assert_eq!(e.exit_code(), 3);
         assert_eq!(c.sources.len(), 1);
-        let out = remove(&mut c, &d, "fx", true).unwrap();
+        let out = remove(
+            &mut c,
+            &d,
+            &Catalog::default(),
+            &BundleSet::default(),
+            "fx",
+            true,
+        )
+        .unwrap();
         assert!(out.forced);
         assert_eq!(
             out.dangling_projects,
             vec![proj.to_string_lossy().into_owned()]
         );
         assert!(c.sources.is_empty());
+    }
+
+    // ---- relocate (milestone M4) ----
+
+    #[cfg(unix)]
+    #[test]
+    fn relocate_plans_each_dependent_project() {
+        use crate::verify::fixture::*;
+        let mut f = fx();
+        f.add(&["fx:sdlc/code-review"]);
+        let new_lib = f.base.join("moved");
+        std::fs::rename(&f.lib, &new_lib).unwrap();
+        // A second indexed project whose directory is gone.
+        crate::project::index::register(&f.dirs, &f.base.join("work/p")).unwrap();
+        let gone = f.base.join("work/gone");
+        std::fs::create_dir_all(&gone).unwrap();
+        crate::project::index::register(&f.dirs, &gone).unwrap();
+        std::fs::remove_dir_all(&gone).unwrap();
+        // Unknown alias and a path registered under another alias.
+        let unknown = plan_relocation(
+            &f.config,
+            &f.dirs,
+            &f.bundles,
+            "nope",
+            "/x",
+            opts(),
+            &f.clock,
+        );
+        assert_eq!(unknown.err().unwrap().code(), "source-not-found");
+        let other = f.base.join("other");
+        std::fs::create_dir_all(&other).unwrap();
+        f.config.sources.push(SourceEntry {
+            alias: "other".into(),
+            path: other.to_string_lossy().into_owned(),
+            precedence: 20,
+        });
+        let clash = plan_relocation(
+            &f.config,
+            &f.dirs,
+            &f.bundles,
+            "fx",
+            other.to_str().unwrap(),
+            opts(),
+            &f.clock,
+        );
+        assert_eq!(clash.err().unwrap().code(), "source-path-registered");
+        f.config.sources.pop();
+        f.config.save(&f.dirs).unwrap();
+        write_atomic_cache(&f.dirs);
+        // The plan: one project, remove then add, nothing written yet.
+        let rel = plan_relocation(
+            &f.config,
+            &f.dirs,
+            &f.bundles,
+            "fx",
+            new_lib.to_str().unwrap(),
+            opts(),
+            &f.clock,
+        )
+        .unwrap();
+        assert_eq!(rel.projects.len(), 1);
+        let Planned::Plan(p) = &rel.projects[0].planned else {
+            panic!("expected a plan");
+        };
+        let ops: Vec<&str> = p.plan.steps.iter().map(|s| s.op()).collect();
+        assert_eq!(ops, vec!["remove", "add"]);
+        assert!(rel.diagnostics.iter().any(|d| d.code == "project-missing"));
+        assert_eq!(rel.entry.path, new_lib.to_str().unwrap());
+        let (before, _) = Config::load_or_create(&f.dirs).unwrap();
+        assert_eq!(before.sources[0].path, f.lib.to_str().unwrap());
+        assert!(f.dirs.catalog_cache_file("fx").exists());
+        commit_relocation(&rel, &f.dirs).unwrap();
+        let (after, _) = Config::load_or_create(&f.dirs).unwrap();
+        assert_eq!(after.sources[0].path, new_lib.to_str().unwrap());
+        assert!(!f.dirs.catalog_cache_file("fx").exists());
+    }
+
+    fn write_atomic_cache(d: &Dirs) {
+        use crate::fsops::{ToolPath, write_atomic};
+        write_atomic(&ToolPath::new(d.catalog_cache_file("fx")), b"{}").unwrap();
     }
 
     // ---- add and list (step D3) ----
