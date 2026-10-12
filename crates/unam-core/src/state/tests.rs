@@ -394,6 +394,30 @@ fn history_write_and_prune() {
     assert_eq!(back, hist("0000000000025-0000abcd"));
 }
 
+#[test]
+fn latest_history_is_newest_op_id() {
+    let t = tmp();
+    let s = sd(t.path());
+    assert_eq!(read_latest_history(&s).unwrap(), None);
+    for i in [3u64, 11, 7] {
+        write_history(&RealFs, &s, &hist(&format!("{i:013}-0000abcd"))).unwrap();
+    }
+    fs::write(s.history_dir().path().join("9999999999999-zzzz.json"), b"x").unwrap();
+    fs::write(s.history_dir().path().join("notes.txt"), b"mine").unwrap();
+    let latest = read_latest_history(&s).unwrap().unwrap();
+    assert_eq!(latest.op_id, "0000000000011-0000abcd");
+    // A corrupt newest entry is an error, not a silent fallback.
+    fs::write(
+        s.history_file("0000000000012-0000abcd").unwrap().path(),
+        b"{not json",
+    )
+    .unwrap();
+    assert_eq!(
+        read_latest_history(&s).unwrap_err().code(),
+        "state-dir-invalid"
+    );
+}
+
 struct FailRemove;
 impl FsOps for FailRemove {
     fn write_state(&self, p: &StatePath, b: &[u8]) -> Result<()> {

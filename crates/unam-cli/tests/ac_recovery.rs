@@ -139,13 +139,22 @@ fn ac_31_interrupted_apply_leaves_the_journal_and_the_next_command_detects_it_wi
     fx.done();
 }
 
-#[test]
-fn ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure() {
+/// The AC-31 fault matrix over the scenarios named in `only`; every
+/// `resume` and every `rollback` must also leave `reconcile` with zero
+/// divergence (spec 8, PRD S7).
+fn run_fault_matrix(only: &[&str]) {
     quiet_crashes();
     let fx = Fx::new();
     fx.write_bundle("swap", &["fx:sdlc/code-review", "fx:data/schema-migration"]);
     type Build = fn(&Fx, &str) -> Scenario;
-    let builders: [(&str, Build); 3] = [("a", scenario_a), ("b", scenario_b), ("c", scenario_c)];
+    let builders: Vec<(&str, Build)> = [
+        ("a", scenario_a as Build),
+        ("b", scenario_b as Build),
+        ("c", scenario_c as Build),
+    ]
+    .into_iter()
+    .filter(|(label, _)| only.contains(label))
+    .collect();
     let full = std::env::var("UNAM_FULL_FAULT_MATRIX").is_ok_and(|v| v == "1");
     println!(
         "fault matrix mode: {}",
@@ -243,6 +252,7 @@ fn ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure
                         assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
                         assert_eq!(change_state(&s.project), clean_state, "{ctx}");
                         assert!(!journal(&s.project).exists(), "{ctx}");
+                        assert_zero_divergence(&c, &ctx);
                         if label == "c" {
                             let r = read_receipt(&s.project, "claude-code");
                             assert_eq!(
@@ -274,6 +284,7 @@ fn ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure
                             report.warnings
                         );
                         assert_project_unchanged(&start, &s.project);
+                        assert_zero_divergence(&c, &ctx);
                         if label == "c" {
                             assert!(!s.project.join(".claude").exists(), "{ctx}");
                             assert!(
@@ -291,8 +302,18 @@ fn ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure
         }
     }
     println!("fault matrix runs: {runs}");
-    assert!(runs > 100, "{runs} matrix runs");
+    assert!(runs > 30 * only.len(), "{runs} matrix runs");
     fx.done();
+}
+
+#[test]
+fn ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure() {
+    run_fault_matrix(&["a", "b", "c"]);
+}
+
+#[test]
+fn s7_interruption_zero_divergence() {
+    run_fault_matrix(&["a"]);
 }
 
 #[test]

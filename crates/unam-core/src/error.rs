@@ -187,6 +187,12 @@ pub enum Error {
     NotSelected { reference: String },
     #[error("target {target} has no interrupted apply (no journal)")]
     NoJournal { target: String },
+    #[error("target {target} has no history to roll back to")]
+    NoHistory { target: String },
+    #[error("{count} {kind} found")]
+    Diverged { count: usize, kind: String },
+    #[error("{failed} doctor check(s) failed")]
+    DoctorFailed { failed: usize },
     #[error("target {target} is not supported yet")]
     TargetUnsupported { target: String },
     #[error("invalid target {value:?}")]
@@ -284,6 +290,9 @@ impl Error {
             Error::ConfirmationRequired => "confirmation-required",
             Error::NotSelected { .. } => "not-selected",
             Error::NoJournal { .. } => "no-journal",
+            Error::NoHistory { .. } => "no-history",
+            Error::Diverged { .. } => "diverged",
+            Error::DoctorFailed { .. } => "doctor-failed",
             Error::TargetUnsupported { .. } => "target-unsupported",
             Error::InvalidTarget { .. } => "invalid-target",
             Error::ProjectPathInvalid { .. } => "project-path-invalid",
@@ -352,10 +361,13 @@ impl Error {
             | Error::SkillNotInBundle { .. }
             | Error::NoSelection { .. }
             | Error::NotSelected { .. }
-            | Error::NoJournal { .. } => 4,
+            | Error::NoJournal { .. }
+            | Error::NoHistory { .. } => 4,
             Error::Ambiguous { .. } => 5,
             Error::Conflicts { .. } | Error::DestRootInvalid { .. } => 6,
             Error::ApplyFailed { .. } => 7,
+            Error::Diverged { .. } => 8,
+            Error::DoctorFailed { .. } => 9,
             Error::Interrupted { .. } => 10,
             Error::Locked { .. } => 11,
         }
@@ -464,8 +476,17 @@ impl Error {
                 "The skill is not in this project's selection for the target; nothing was changed.",
             ),
             Error::NoJournal { .. } => Some(
-                "There is no interrupted apply to resume or roll back. Rolling back from history arrives in milestone M4.",
+                "There is no interrupted apply to resume. `unam rollback` without a journal restores the previous applied state from history.",
             ),
+            Error::NoHistory { .. } => Some(
+                "There is no interrupted apply and no earlier applied state for this target, so there is nothing to roll back to.",
+            ),
+            Error::Diverged { .. } => Some(
+                "Run `unam reconcile` to see the causes, or `unam reconcile --repair` to repair them (the plan is printed first).",
+            ),
+            Error::DoctorFailed { .. } => {
+                Some("Fix the failed checks above, then re-run `unam doctor`.")
+            }
             Error::TargetUnsupported { .. } => {
                 Some("Only `claude-code` is available until milestone M5.")
             }
@@ -816,6 +837,17 @@ mod tests {
                 true,
             ),
             (Error::NoJournal { target: s("t") }, "no-journal", 4, true),
+            (Error::NoHistory { target: s("t") }, "no-history", 4, true),
+            (
+                Error::Diverged {
+                    count: 1,
+                    kind: s("orphaned entries"),
+                },
+                "diverged",
+                8,
+                true,
+            ),
+            (Error::DoctorFailed { failed: 1 }, "doctor-failed", 9, true),
             (
                 Error::TargetUnsupported { target: s("t") },
                 "target-unsupported",
@@ -939,11 +971,12 @@ mod tests {
                 true,
             ),
         ];
-        // Twenty new variants (DestRootInvalid twice, one per problem).
-        assert_eq!(m3.len(), 21);
+        // Twenty M3 variants (DestRootInvalid twice, one per problem) plus
+        // the three M4 variants.
+        assert_eq!(m3.len(), 24);
         let mut table = table;
         table.extend(m3);
-        assert_eq!(table.len(), 53);
+        assert_eq!(table.len(), 56);
         for (err, code, exit, has_remedy) in table {
             assert_eq!(err.code(), code);
             assert_eq!(err.exit_code(), exit, "{code}");

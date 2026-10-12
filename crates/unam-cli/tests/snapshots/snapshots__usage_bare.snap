@@ -16,7 +16,10 @@ Commands:
   use         Use a bundle in this project (with --replace or --add) and apply it
   deactivate  Remove every skill unam placed for the target and clear its selection
   resume      Finish an interrupted apply
-  rollback    Undo an interrupted apply
+  rollback    Undo an interrupted apply, or restore the previous applied state
+  status      Show the six-state table of this project's target
+  reconcile   Report where the destination diverges from the selection
+  doctor      Check symlinks, the destination, sources, the receipt, and the journal
   help        Print this message or the help of the given subcommand(s)
 
 Options:
@@ -29,5 +32,3 @@ Options:
       --yes             Apply without a prompt (the plan is still printed)
   -h, --help            Print help
   -V, --version         Print version
-
-status arrives in a later milestone

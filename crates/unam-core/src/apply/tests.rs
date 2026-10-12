@@ -268,6 +268,7 @@ impl Fx {
             selection_hash: Hash::of_bytes(names.join(",").as_bytes()),
             budget_tokens: 100_000,
             release_created_dirs: deactivate,
+            repoint_moved: false,
         })
     }
 

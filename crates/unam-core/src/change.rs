@@ -23,7 +23,7 @@ use crate::project::{
 use crate::resolve::{ProblemKind, resolve_selection};
 use crate::state::{
     Clock, ProjectLock, Receipt, SelectionBefore, StateDir, check_state_layout, new_op_id,
-    selection_hash, strategy_text,
+    read_latest_history, selection_hash, strategy_text,
 };
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -36,6 +36,15 @@ pub enum Edit {
     UseReplace(String),
     UseAdd(String),
     Deactivate,
+    /// `reconcile --repair` and relocate repair: the selection stays as it
+    /// is; the plan re-aligns the destination with it (M4-7).
+    Reconcile,
+    /// `rollback` from history: make the target selection this one (M4-9).
+    Restore(TargetSelection),
+    /// `rollback` with no journal: `prepare` resolves this to `Restore` (or
+    /// `Deactivate`) from the newest history entry, after `run` took the
+    /// lock, so a locked project answers `Locked` first (AC-53).
+    FromHistory,
 }
 
 /// The answer of the confirmation step (P13).
@@ -278,9 +287,39 @@ pub fn apply_edit(
             }
         }
         Edit::Deactivate => out = TargetSelection::default(),
+        // `FromHistory` is resolved by `prepare` before it reaches here.
+        Edit::Reconcile | Edit::FromHistory => {}
+        Edit::Restore(t) => out = t.clone(),
     }
     let changed = out != *tsel;
     Ok((out, changed))
+}
+
+/// The edit that rolls back from history (M4-9): restore the target
+/// selection the newest history entry held before its change, or
+/// `Deactivate` when that selection had no such target. Read-only;
+/// `NoHistory` when the target has none.
+pub fn history_edit(root: &Path, target: TargetId) -> Result<Edit> {
+    check_state_layout(root, Some(target.as_str()))?;
+    let state = StateDir::new(root, target);
+    let entry = read_latest_history(&state)?.ok_or_else(|| Error::NoHistory {
+        target: target.as_str().to_string(),
+    })?;
+    let before = parse_selection(&entry.selection_before.text, &selection_path(root))?;
+    Ok(match before.targets.get(&target) {
+        Some(t) => Edit::Restore(t.clone()),
+        None => Edit::Deactivate,
+    })
+}
+
+/// True when a journal exists for `target`, or (no target) for any target.
+pub fn has_journal(root: &Path, target: Option<TargetId>) -> bool {
+    let exists =
+        |t: TargetId| std::fs::symlink_metadata(StateDir::new(root, t).journal().path()).is_ok();
+    match target {
+        Some(t) => exists(t),
+        None => adapters().into_iter().any(|a| exists(a.id())),
+    }
 }
 
 fn bundle_slug(text: &str) -> String {
@@ -310,6 +349,10 @@ pub fn prepare(req: &ChangeRequest<'_>) -> CResult<Prepared> {
         target: req.target.as_str().to_string(),
     })?;
     let root = &req.root.path;
+    let edit = match &req.edit {
+        Edit::FromHistory => history_edit(root, req.target)?,
+        other => other.clone(),
+    };
     let (existed, text) = read_selection_text(root)?;
     let mut selection = parse_selection(&text, &selection_path(root))?;
     let tsel_before = selection
@@ -317,7 +360,7 @@ pub fn prepare(req: &ChangeRequest<'_>) -> CResult<Prepared> {
         .get(&req.target)
         .cloned()
         .unwrap_or_default();
-    let deactivate = req.edit == Edit::Deactivate;
+    let deactivate = edit == Edit::Deactivate;
     let strategy = tsel_before.strategy.unwrap_or(req.config.defaults.strategy);
     if !adapter.strategies().contains(&strategy) {
         return Err(Error::StrategyUnsupported {
@@ -330,7 +373,7 @@ pub fn prepare(req: &ChangeRequest<'_>) -> CResult<Prepared> {
         let had = selection.targets.remove(&req.target).is_some();
         (None, had)
     } else {
-        let (t, changed) = apply_edit(&tsel_before, &req.edit, req.catalog, req.bundles)?;
+        let (t, changed) = apply_edit(&tsel_before, &edit, req.catalog, req.bundles)?;
         selection.targets.insert(req.target, t.clone());
         (Some(t), changed)
     };
@@ -403,6 +446,7 @@ pub fn prepare(req: &ChangeRequest<'_>) -> CResult<Prepared> {
         selection_hash: selection_hash(strategy, &plan_tsel),
         budget_tokens: req.config.defaults.catalog_budget_tokens,
         release_created_dirs: deactivate,
+        repoint_moved: edit == Edit::Reconcile,
     });
     let (selection_after_text, selection_after_hash) = if changed {
         let rendered = render_selection(&selection)?;

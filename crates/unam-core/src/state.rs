@@ -661,6 +661,49 @@ pub fn prune_history(fs: &dyn FsOps, state: &StateDir, keep: usize) -> Result<us
     Ok(excess)
 }
 
+/// The newest history entry of `state` (op IDs sort by time), or `None`
+/// when there is none. Only files named `<op_id>.json` count. An entry that
+/// cannot be read or parsed is `StateDirInvalid`.
+pub fn read_latest_history(state: &StateDir) -> Result<Option<HistoryEntry>> {
+    let dir = state.history_dir();
+    let rd = match std::fs::read_dir(dir.path()) {
+        Ok(rd) => rd,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(e) => {
+            return Err(Error::io(
+                format!("cannot read {}", dir.path().display()),
+                e,
+            ));
+        }
+    };
+    let mut newest: Option<String> = None;
+    for entry in rd {
+        let entry = entry.map_err(|e| Error::io("cannot read history", e))?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Some(id) = name.strip_suffix(".json") else {
+            continue;
+        };
+        let is_file = std::fs::symlink_metadata(entry.path())
+            .map(|m| m.file_type().is_file())
+            .unwrap_or(false);
+        if valid_op_id(id) && is_file && newest.as_deref().is_none_or(|n| id > n) {
+            newest = Some(id.to_string());
+        }
+    }
+    let Some(id) = newest else {
+        return Ok(None);
+    };
+    let path = state.history_file(&id)?;
+    let invalid = |reason: String| Error::StateDirInvalid {
+        path: path.path().to_path_buf(),
+        reason,
+    };
+    let bytes = std::fs::read(path.path()).map_err(|e| invalid(e.to_string()))?;
+    serde_json::from_slice(&bytes)
+        .map(Some)
+        .map_err(|e| invalid(format!("invalid history entry: {e}")))
+}
+
 // ---- journal ----
 
 /// What `remove_owned` expects, as recorded in the journal.

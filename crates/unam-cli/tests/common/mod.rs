@@ -565,10 +565,39 @@ impl Fx {
         write_file(project, ".unam/selection.yaml", text.as_bytes());
     }
 
+    /// `unam status` in `project`, normalized.
+    pub fn status(&self, project: &Path) -> (i32, Value) {
+        self.json(project, &["status"])
+    }
+
+    /// Plant a user-scope skill (under the test `HOME`) with this name: it
+    /// shadows a project skill of the same name.
+    pub fn plant_user_skill(&self, name: &str) -> PathBuf {
+        let dir = self.env.path("home").join(".claude/skills").join(name);
+        write_file(
+            &dir,
+            "SKILL.md",
+            skill_md(name, "A user-scope skill.").as_bytes(),
+        );
+        dir
+    }
+
     /// The two invariants: every source snapshot equals the start and every
     /// planted foreign fixture is byte-identical.
     pub fn done(&self) {
-        assert_source_unchanged(&self.before, &self.lib);
+        self.done_at(&self.lib);
+    }
+
+    /// `done` for a library that was moved (the deliberate change of AC-37):
+    /// the `fx` source now lives at `lib` and must equal the start snapshot.
+    pub fn done_at(&self, lib: &Path) {
+        self.done_with(lib, &self.before);
+    }
+
+    /// `done` after a deliberate edit of the `fx` library (AC-36, AC-39):
+    /// the caller retook `snapshot` right after the edit.
+    pub fn done_with(&self, lib: &Path, snapshot: &SourceSnapshot) {
+        assert_source_unchanged(snapshot, lib);
         assert_source_unchanged(&self.before2, &self.lib2);
         for f in self.foreign.borrow().iter() {
             for (p, bytes) in &f.files {
@@ -592,6 +621,32 @@ impl Fx {
             }
         }
     }
+}
+
+/// The `data.records` of a `status` or `reconcile` JSON result as
+/// `(name, state)` pairs.
+pub fn record_states(v: &Value) -> Vec<(String, String)> {
+    v["data"]["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["name"].as_str().unwrap().to_string(),
+                r["state"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect()
+}
+
+/// The record named `name` in a `status` or `reconcile` JSON result.
+pub fn record<'a>(v: &'a Value, name: &str) -> &'a Value {
+    v["data"]["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["name"] == name)
+        .unwrap_or_else(|| panic!("no record {name} in {v}"))
 }
 
 /// One project entry: (relative path, kind, mode, bytes or link text).

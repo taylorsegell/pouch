@@ -90,6 +90,7 @@ fn run(
         selection_hash: Hash::of_bytes(b"sel"),
         budget_tokens: 100_000,
         release_created_dirs: deactivate,
+        repoint_moved: false,
     })
 }
 
@@ -401,6 +402,7 @@ fn estimate_formula_and_over_budget() {
         selection_hash: Hash::of_bytes(b"s"),
         budget_tokens: 10,
         release_created_dirs: false,
+        repoint_moved: false,
     });
     assert!(p2.warnings.iter().any(|w| w.code == "catalog-over-budget"));
     assert!(!p.warnings.iter().any(|w| w.code == "catalog-over-budget"));
@@ -846,4 +848,95 @@ proptest! {
             prop_assert_eq!(s.n() as usize, i + 1);
         }
     }
+}
+
+// ---- repoint (milestone M4) ----
+
+fn run_repoint(
+    c: &Catalog,
+    desired: &[DesiredEntry],
+    receipt: &Receipt,
+    obs: &Observed,
+    repoint_moved: bool,
+) -> Plan {
+    diff(&DiffInput {
+        header: header(),
+        op_id: OP.into(),
+        desired,
+        carry_ids: &none(),
+        receipt,
+        observed: obs,
+        catalog: c,
+        selection_hash: Hash::of_bytes(b"sel"),
+        budget_tokens: 100_000,
+        release_created_dirs: false,
+        repoint_moved,
+    })
+}
+
+/// A catalog whose `fx` source moved from `/fx` to `/fx-new`, a receipt
+/// written before the move, and the (dangling) link it left behind.
+fn moved_setup() -> (Catalog, Receipt, Observed, Vec<DesiredEntry>) {
+    let receipt = receipt_with(&cat(), &["fx:sdlc/code-review"], Strategy::Symlink);
+    let mut moved = cat();
+    for s in &mut moved.sources {
+        if s.alias.as_str() == "fx" {
+            s.root = PathBuf::from("/fx-new");
+        }
+    }
+    let d = vec![want(
+        &moved,
+        "fx:sdlc/code-review",
+        Strategy::Symlink,
+        adhoc(),
+    )];
+    let mut obs = observed_from(&receipt);
+    obs.entries.insert(
+        "code-review".into(),
+        ObservedKind::Symlink {
+            target: "/fx/sdlc/code-review".into(),
+            resolves: false,
+        },
+    );
+    (moved, receipt, obs, d)
+}
+
+#[test]
+fn repoint_replaces_a_moved_symlink() {
+    let (c, receipt, obs, d) = moved_setup();
+    let p = run_repoint(&c, &d, &receipt, &obs, true);
+    assert_eq!(ops(&p), vec!["remove", "add"]);
+    assert!(p.unchanged.is_empty());
+    let Step::Remove { expect, .. } = &p.steps[0] else {
+        panic!()
+    };
+    assert_eq!(expect.source, "/fx/sdlc/code-review");
+    let Step::Add { source, .. } = &p.steps[1] else {
+        panic!()
+    };
+    assert_eq!(source, &PathBuf::from("/fx-new/sdlc/code-review"));
+    // A moved link whose provenance also changed is still replaced.
+    let bundle = vec![Provenance::Bundle("b".into())];
+    let d2 = vec![want(&c, "fx:sdlc/code-review", Strategy::Symlink, bundle)];
+    let p = run_repoint(&c, &d2, &receipt, &obs, true);
+    assert_eq!(ops(&p), vec!["remove", "add"]);
+}
+
+#[test]
+fn without_repoint_a_moved_symlink_stays_unchanged_with_an_info() {
+    let (c, receipt, obs, d) = moved_setup();
+    let p = run_repoint(&c, &d, &receipt, &obs, false);
+    assert!(p.steps.is_empty());
+    assert_eq!(p.unchanged.len(), 1);
+    assert!(p.warnings.iter().any(|w| w.code == "source-moved"));
+}
+
+#[test]
+fn repoint_leaves_an_unmoved_symlink_alone() {
+    let c = cat();
+    let receipt = receipt_with(&c, &["fx:sdlc/code-review"], Strategy::Symlink);
+    let d = vec![want(&c, "fx:sdlc/code-review", Strategy::Symlink, adhoc())];
+    let p = run_repoint(&c, &d, &receipt, &observed_from(&receipt), true);
+    assert!(p.steps.is_empty());
+    assert_eq!(p.unchanged.len(), 1);
 }

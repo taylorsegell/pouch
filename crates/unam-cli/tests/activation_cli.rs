@@ -756,14 +756,11 @@ fn deactivate_removes_created_directories_only_when_empty() {
 fn resume_and_rollback_without_a_journal_exit_4() {
     let fx = Fx::new();
     let p = fx.project("p");
-    for cmd in ["resume", "rollback"] {
-        let v = fails(&fx, &p, &[cmd, "--yes"], 4, "no-journal");
-        assert!(
-            v["errors"][0]["remedy"]
-                .as_str()
-                .unwrap()
-                .contains("milestone M4")
-        );
+    // `resume` has no journal; `rollback` also has no history to fall back to.
+    for (cmd, code) in [("resume", "no-journal"), ("rollback", "no-history")] {
+        let v = fails(&fx, &p, &[cmd, "--yes"], 4, code);
+        let remedy = v["errors"][0]["remedy"].as_str().unwrap();
+        assert!(!remedy.contains("milestone"), "{remedy}");
     }
     fx.done();
 }

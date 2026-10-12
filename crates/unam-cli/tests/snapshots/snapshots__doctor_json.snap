@@ -1,0 +1,62 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "doctor",
+  "data": {
+    "command": "doctor",
+    "project_root": "[TMP]/work/p",
+    "root_detection": "git",
+    "target": "claude-code",
+    "destination": ".claude/skills",
+    "checks": [
+      {
+        "id": "destination-writable",
+        "status": "ok",
+        "message": "[TMP]/work/p/.claude/skills accepts new entries",
+        "remedy": null
+      },
+      {
+        "id": "symlink-capability",
+        "status": "ok",
+        "message": "directory symbolic links can be created and followed here",
+        "remedy": null
+      },
+      {
+        "id": "adapter-detection",
+        "status": "info",
+        "message": "claude-code detected (<root>/.claude exists)",
+        "remedy": null
+      },
+      {
+        "id": "source-reachability",
+        "status": "ok",
+        "message": "source `fx` at [TMP]/work/lib is reachable",
+        "remedy": null
+      },
+      {
+        "id": "source-reachability",
+        "status": "ok",
+        "message": "source `hs` at [TMP]/work/lib2 is reachable",
+        "remedy": null
+      },
+      {
+        "id": "receipt-integrity",
+        "status": "ok",
+        "message": "1 receipt entry(ies), all consistent",
+        "remedy": null
+      },
+      {
+        "id": "journal-presence",
+        "status": "ok",
+        "message": "no interrupted apply",
+        "remedy": null
+      }
+    ],
+    "evidence": null
+  },
+  "warnings": [],
+  "errors": []
+}

@@ -382,6 +382,29 @@ pub fn scenario_c(fx: &super::Fx, name: &str) -> Scenario {
     }
 }
 
+/// Assert `reconcile` reports zero divergence and no leftover journal for
+/// the project of `c` (spec 8, PRD S7).
+pub fn assert_zero_divergence(c: &CoreCtx, context: &str) {
+    let req = unam_core::verify::VerifyRequest {
+        dirs: &c.dirs,
+        config: &c.config,
+        catalog: &c.catalog,
+        bundles: &c.bundles,
+        root: &c.root,
+        target: TargetId::ClaudeCode,
+    };
+    let report = unam_core::reconcile::report(&req, &StepClock::new()).unwrap();
+    assert!(
+        report.divergences.is_empty(),
+        "{context}: divergences remain: {:?}",
+        report.divergences
+    );
+    assert!(
+        !report.verify.journal_present,
+        "{context}: a journal is still present"
+    );
+}
+
 /// The three-part ordering invariant of the AC-31 row, checked after an
 /// injection and before any recovery.
 pub fn assert_ordering_invariant(project: &Path, context: &str) {

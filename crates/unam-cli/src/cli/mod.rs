@@ -3,9 +3,11 @@
 
 mod bundle;
 mod change;
+mod doctor;
 mod search;
 mod show;
 mod source;
+mod status;
 
 use crate::output::{self, ErrorInfo, warnings_only};
 use clap::{Args, CommandFactory, Parser, Subcommand};
@@ -116,8 +118,22 @@ pub enum Command {
     },
     /// Finish an interrupted apply.
     Resume,
-    /// Undo an interrupted apply.
+    /// Undo an interrupted apply, or restore the previous applied state.
     Rollback,
+    /// Show the six-state table of this project's target.
+    Status,
+    /// Report where the destination diverges from the selection.
+    Reconcile {
+        /// Repair the divergences through the journaled executor.
+        #[arg(long)]
+        repair: bool,
+    },
+    /// Check symlinks, the destination, sources, the receipt, and the journal.
+    Doctor {
+        /// Also list every adapter claim with its evidence.
+        #[arg(long)]
+        evidence: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -177,6 +193,8 @@ pub enum SourceCmd {
         #[arg(long)]
         force: bool,
     },
+    /// Point a source at a new path and repair the projects that use it.
+    Relocate { alias: String, path: String },
 }
 
 /// The global flags a command may use.
@@ -337,23 +355,24 @@ impl From<unam_core::error::Error> for Failed {
 pub type CmdResult = Result<Done, Failed>;
 
 fn usage_text() -> String {
-    let mut text = Cli::command().render_help().to_string();
-    text.push_str("\nstatus arrives in a later milestone\n");
-    text
+    Cli::command().render_help().to_string()
 }
 
 /// Run the parsed command; returns the process exit code.
 pub fn run(cli: Cli) -> i32 {
-    let Some(command) = cli.command else {
-        print!("{}", usage_text());
-        return 0;
-    };
     let flags = Flags {
         no_cache: cli.no_cache,
         project: cli.project.clone(),
         target: cli.target.clone(),
         yes: cli.yes,
         json: cli.json,
+    };
+    let Some(command) = cli.command else {
+        print!("{}", usage_text());
+        if let Some(table) = status::bare(&flags) {
+            print!("\n{table}");
+        }
+        return 0;
     };
     let (name, result) = match Ctx::load(&flags) {
         Err(e) => (command_name(&command), Err(Failed::from(e))),
@@ -364,6 +383,7 @@ pub fn run(cli: Cli) -> i32 {
                     SourceCmd::Add { alias, path } => source::add(&ctx, &alias, &path),
                     SourceCmd::List => source::list(&ctx),
                     SourceCmd::Rm { alias, force } => source::rm(&ctx, &alias, force),
+                    SourceCmd::Relocate { alias, path } => source::relocate(&ctx, &alias, &path),
                 },
                 Command::Search {
                     query,
@@ -398,6 +418,9 @@ pub fn run(cli: Cli) -> i32 {
                 Command::Deactivate { all } => change::deactivate(&ctx, all),
                 Command::Resume => change::resume(&ctx),
                 Command::Rollback => change::rollback(&ctx),
+                Command::Status => status::status(&ctx),
+                Command::Reconcile { repair } => status::reconcile(&ctx, repair),
+                Command::Doctor { evidence } => doctor::run(&ctx, evidence),
             };
             (name, r)
         }
@@ -411,6 +434,7 @@ fn command_name(c: &Command) -> &'static str {
             SourceCmd::Add { .. } => "source add",
             SourceCmd::List => "source list",
             SourceCmd::Rm { .. } => "source rm",
+            SourceCmd::Relocate { .. } => "source relocate",
         },
         Command::Search { .. } => "search",
         Command::Show { .. } => "show",
@@ -429,6 +453,9 @@ fn command_name(c: &Command) -> &'static str {
         Command::Deactivate { .. } => "deactivate",
         Command::Resume => "resume",
         Command::Rollback => "rollback",
+        Command::Status => "status",
+        Command::Reconcile { .. } => "reconcile",
+        Command::Doctor { .. } => "doctor",
     }
 }
 

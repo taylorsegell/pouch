@@ -8,7 +8,9 @@ use unam_core::catalog::FlatDiagnostic;
 use unam_core::error::Severity;
 use unam_core::plan::{Plan, Step, StepOutcome, StepResult};
 use unam_core::project::RootDetection;
+use unam_core::resolve::Provenance;
 use unam_core::state::strategy_text;
+use unam_core::verify::{EntryState, Reason, Record};
 
 /// Maximum characters of a description head in `search` output.
 pub const HEAD_CHARS: usize = 80;
@@ -440,6 +442,116 @@ pub fn change_json(h: &ChangeHeader<'_>, b: &ChangeBody<'_>) -> Value {
         "gitignore_lines": b.gitignore_lines,
         "visible_to": b.visible_to,
     })
+}
+
+// ---- status output (milestone M4; spec 4.11, 5) ----
+
+/// `bundle:slug` and `adhoc` joined with commas (`-` when empty).
+fn provenance_text(p: &[Provenance]) -> String {
+    if p.is_empty() {
+        return "-".to_string();
+    }
+    p.iter()
+        .map(|x| match x {
+            Provenance::Bundle(slug) => format!("bundle:{slug}"),
+            Provenance::Adhoc => "adhoc".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn reason_text(r: Reason) -> &'static str {
+    match r {
+        Reason::Missing => "the destination is missing",
+        Reason::BrokenLink => "the link does not resolve",
+        Reason::Modified => "the destination differs from what unam placed",
+        Reason::SourceSkillMissing => "the skill is no longer in its source",
+    }
+}
+
+/// The project and target lines above a status or reconcile report.
+pub fn render_target_header(
+    root: &std::path::Path,
+    how: RootDetection,
+    target: &str,
+    dest_rel: &str,
+) -> String {
+    format!(
+        "Project   {}  ({})\nTarget    {}  ->  {}/\n\n",
+        neutralize(&root.to_string_lossy()),
+        root_how_text(how),
+        target,
+        neutralize(dest_rel)
+    )
+}
+
+/// The six-state table, one detail line per orphaned or shadowed entry,
+/// and the spec 4.11 footer.
+pub fn render_records(records: &[Record]) -> String {
+    let mut out = String::new();
+    if records.is_empty() {
+        out.push_str("No entries: nothing is selected, applied, or found in the destination.\n");
+    } else {
+        let rows: Vec<Vec<String>> = records
+            .iter()
+            .map(|r| {
+                vec![
+                    r.state.as_str().to_string(),
+                    neutralize(r.id.as_deref().unwrap_or(&r.name)).into_owned(),
+                    r.strategy.map_or("-", strategy_text).to_string(),
+                    provenance_text(&r.provenance),
+                    neutralize(&r.dest).into_owned(),
+                    r.source_path
+                        .as_deref()
+                        .map_or("-".to_string(), |p| neutralize(p).into_owned()),
+                ]
+            })
+            .collect();
+        out.push_str(&table(
+            &["STATE", "SKILL", "STRATEGY", "PROVENANCE", "DEST", "SOURCE"],
+            &rows,
+        ));
+        let mut notes = String::new();
+        for r in records {
+            match r.state {
+                EntryState::Orphaned => {
+                    let why = r.reason.map_or("", reason_text);
+                    notes.push_str(&format!(
+                        "  ! {}: orphaned ({}): {why}\n",
+                        neutralize(&r.dest),
+                        r.reason.map_or("-", Reason::as_str),
+                    ));
+                    if !r.candidates.is_empty() {
+                        let old = r.id.as_deref().unwrap_or("");
+                        notes.push_str(&format!(
+                            "      closest in the source: {}\n      to switch: `unam rm {}` then `unam add {}`\n",
+                            neutralize(&r.candidates.join(", ")),
+                            neutralize(old),
+                            neutralize(&r.candidates[0]),
+                        ));
+                    }
+                }
+                EntryState::Shadowed => notes.push_str(&format!(
+                    "  ! {}: shadowed by {}\n",
+                    neutralize(&r.dest),
+                    neutralize(
+                        r.shadowed_by
+                            .as_deref()
+                            .unwrap_or("a higher-precedence scope")
+                    ),
+                )),
+                _ => {}
+            }
+        }
+        if !notes.is_empty() {
+            out.push('\n');
+            out.push_str(&notes);
+        }
+    }
+    out.push('\n');
+    out.push_str(unam_core::verify::FOOTER);
+    out.push('\n');
+    out
 }
 
 /// The `--json` envelope (spec 5).
