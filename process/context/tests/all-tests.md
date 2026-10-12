@@ -1,6 +1,6 @@
 ---
 name: context:all-tests
-description: "Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2 and M3; CI written, not yet run)"
+description: "Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M4 (567 tests); CI written, not yet run)"
 keywords: tests, testing, cargo test, clippy, fmt, verification, acceptance criteria, ac_nn, insta, proptest, assert_cmd, fixtures, ci, gates, bundle, editor, slugify, word table
 related: [context:all-product]
 date: 04-10-26
@@ -8,13 +8,15 @@ date: 04-10-26
 
 # Unambiguous - All Tests
 
-Last updated: 2026-10-09
+Last updated: 2026-10-12
 
 Attach this file first when the task involves testing, verification, or test debugging.
 
 ---
 
 ## Current State
+
+**M4 update (EVL 2026-10-10, 567 tests, all green):** new integration suites `ac_verify` (7; AC-14, 26, 27, 28, 36, 39, 41), `ac_reconcile` (12; AC-33, 34, 37, S8, the `source rm` bundle guard, and the seven `evidence_*` deletion-safety rows) and `doctor_cli` (5); `ac_recovery` grew to 14 (adds `s7_interruption_zero_divergence`); `snapshots` grew to 36 (adds `status_json`, `reconcile_json`, `rollback_history_json`, `doctor_json`, `source_relocate_json`; only `usage_bare` changed among earlier ones). `common/mod.rs` gains `Fx::done_at` (retake the source snapshot after a deliberate library edit, rename, or move) and `assert_zero_divergence(&CoreCtx, context)` (calls `reconcile::report`; use it after any `resume` or `rollback`). The status halves of AC-12, 13, 15, 21, 35 are assertions inside the existing tests. Gate G5 for M4 was a presence check on `cargo test --workspace --locked -- --list` (ten distinct `ac_NN_` names, `s7_`, `s8_`, exactly seven `evidence_` names, at least one `doctor_`). Exit codes 8 (`status` on an orphaned row, `reconcile` on divergence) and 9 (`doctor`) return `ok: false` JSON with the full report in `data`. The doctor unwritable-destination row is Hybrid and self-skips as root.
 
 **M3 update (EVL 2026-10-09, 512 tests, all green):** new integration suites `ac_activation` (17 tests; AC-2, 10, 13 to 19, 21 to 25, 29, 30, 40, plus S2), `ac_recovery` (13; AC-31, 32, 53 and the recovery and trust-boundary rows) and `activation_cli` (36; command behavior and refusals); `snapshots` grew to 31. Run one with `cargo test -p unam --test ac_activation ac_NN`. The AC-31 fault matrix (`ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure`) runs a deterministic strided sample by default (call 1, every third call, and the last call of each scenario, all four modes, both recoveries) and the full matrix (about 62 s) when `UNAM_FULL_FAULT_MATRIX=1` is set: `UNAM_FULL_FAULT_MATRIX=1 cargo test -p unam --test ac_recovery --locked ac_31`. The test prints which mode ran.
 
@@ -100,7 +102,7 @@ Milestone gates are run through two shell functions defined inside each Bash cal
 ## Known Gaps
 
 - AC-2 closes in milestone M3 (spec 10, decided 2026-10-04). The first test, in M1, is the read-side source-tree-unchanged test (register, scan, search leave the source tree hash unchanged); the invariant is asserted in every mutating test from M3 on.
-- Interruption tests (AC-31, AC-32) closed in M3 by comparing destination and receipt to the expected state; M4 adds the `reconcile` zero-divergence assertion (spec 8). Gaps: no pty test for the interactive prompt, no kernel-level torn write, Linux never run, D4 real activation pending (backlog NOTE `m3-d4-first-real-activation_NOTE_05-10-26.md`), and the `status` halves of AC-13, 15, 21 (and 12, 35) belong to M4.
+- Interruption tests (AC-31, AC-32) closed in M3 by comparing destination and receipt to the expected state; M4 adds the `reconcile` zero-divergence assertion (spec 8). Gaps: no pty test for the interactive prompt, no kernel-level torn write, Linux never run, D4 real activation pending (backlog NOTE `m3-d4-first-real-activation_NOTE_05-10-26.md`), the `status` halves of AC-13, 15, 21, 12, and 35 closed in M4, and AC-36/37/39/41 are Fully-Automated since M4.
 - CI is written, not run. First push will show Linux behavior; the `show_found` (tree hash) and `add_bad_path` (OS error text) snapshots may differ on Linux.
 - `perf_cold_scan` is machine dependent: EVL median 183.9 ms but two of five runs were near or over 300 ms (297.9, 365.2). The gate is the median; watch it under CI load.
 - Chmod-based Hybrid tests self-skip when run as root (M2 adds `register_does_not_write_an_unreadable_index`).

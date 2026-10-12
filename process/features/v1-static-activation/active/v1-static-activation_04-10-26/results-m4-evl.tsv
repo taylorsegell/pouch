@@ -1,0 +1,2 @@
+iteration	timestamp	gaps_found	fail_count	concern_count	applied	saturation_status	loop_status	notes
+1	2026-10-10T00:00:00Z	0	0	0	0	saturated	HALTED_SUCCESS	vc-tester: G1 to G6 green, 567 tests, full fault matrix passes

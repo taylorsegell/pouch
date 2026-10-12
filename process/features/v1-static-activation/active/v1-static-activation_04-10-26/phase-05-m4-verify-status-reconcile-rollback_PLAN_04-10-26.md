@@ -16,8 +16,8 @@ metadata:
 **Date**: 04-10-26 (supplemented 2026-10-09 in one combined research, design, and plan pass; lighter process per `v1-static-activation_WAVES_09-10-26.md`)
 **Complexity**: COMPLEX
 **Phase:** Phase 5 of 8: milestone M4
-**Status**: PLANNED (plan supplemented 2026-10-09; PVL cycle 1 passed 2026-10-09, ready for EXECUTE)
-**Phase status:** PLANNED
+**Status**: VERIFIED (WITH_GAPS) 2026-10-12 (EXECUTED 2026-10-10; EVL CLEAN, G1 to G6 green, 567 tests; UPDATE PROCESS done; commit pending in the same wave)
+**Phase status:** VERIFIED (WITH_GAPS)
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-05-m4-verify-status-reconcile-rollback_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 **Execution strategy:** sequential, one sonnet execute agent (Taylor, 2026-10-09: all agents sonnet). The work is one compile chain (`error` -> `plan` -> `change` -> `verify` -> `reconcile` -> `source` -> CLI -> tests); no disjoint file groups exist for a team.
@@ -178,45 +178,45 @@ Compile order. Spec sections are cited, not copied; reuse the named functions.
 
 ### Step A: Errors, plan hook, change edits (core, compile first)
 
-- [ ] A1. `error.rs`: add `NoHistory { target }` (exit 4, code `no-history`, remedy), `Diverged { count, kind }` (exit 8, code `diverged`), `DoctorFailed { failed }` (exit 9, code `doctor-failed`); extend `code`, `exit_code`, `remedy`, and the variant tests (M4-1).
-- [ ] A2. `plan.rs`: add `DiffInput.repoint_moved`; in the owned-symlink "unchanged" branch, when set and `catalog.abs_path(id)` differs from `r.source_path`, push `Step::Remove` (expectation from `expectation_of`) plus `make_add`; add `false` at the 4 existing `DiffInput` call sites (`change.rs`, `plan/tests.rs` x2, `apply/tests.rs`); add `plan::tests::repoint_replaces_a_moved_symlink` and a test that `false` keeps the old "unchanged plus `source-moved` info" result.
-- [ ] A3. `state.rs`: add `read_latest_history(state: &StateDir) -> Result<Option<HistoryEntry>>` (newest valid `<op_id>.json`, same name filter as `prune_history`).
-- [ ] A4. `change.rs`: add `Edit::Reconcile` and `Edit::Restore(TargetSelection)` handled in `apply_edit` (Reconcile: unchanged; Restore: replace the target selection, `changed` when different); `prepare` sets `repoint_moved` from `req.edit == Edit::Reconcile`; add `pub fn history_edit(root, target) -> Result<Edit>` (`NoHistory`, or `Edit::Deactivate` when `selection_before` has no such target); unit tests in `change/tests.rs`.
+- [x] A1. `error.rs`: add `NoHistory { target }` (exit 4, code `no-history`, remedy), `Diverged { count, kind }` (exit 8, code `diverged`), `DoctorFailed { failed }` (exit 9, code `doctor-failed`); extend `code`, `exit_code`, `remedy`, and the variant tests (M4-1).
+- [x] A2. `plan.rs`: add `DiffInput.repoint_moved`; in the owned-symlink "unchanged" branch, when set and `catalog.abs_path(id)` differs from `r.source_path`, push `Step::Remove` (expectation from `expectation_of`) plus `make_add`; add `false` at the 4 existing `DiffInput` call sites (`change.rs`, `plan/tests.rs` x2, `apply/tests.rs`); add `plan::tests::repoint_replaces_a_moved_symlink` and a test that `false` keeps the old "unchanged plus `source-moved` info" result.
+- [x] A3. `state.rs`: add `read_latest_history(state: &StateDir) -> Result<Option<HistoryEntry>>` (newest valid `<op_id>.json`, same name filter as `prune_history`).
+- [x] A4. `change.rs`: add `Edit::Reconcile` and `Edit::Restore(TargetSelection)` handled in `apply_edit` (Reconcile: unchanged; Restore: replace the target selection, `changed` when different); `prepare` sets `repoint_moved` from `req.edit == Edit::Reconcile`; add `pub fn history_edit(root, target) -> Result<Edit>` (`NoHistory`, or `Edit::Deactivate` when `selection_before` has no such target); unit tests in `change/tests.rs`.
 
 ### Step B: Observation, verify, reconcile (core)
 
-- [ ] B1. `observe.rs`: add `list_foreign(root, rel, known: &BTreeSet<String>) -> Result<Vec<(String, ObservedKind)>>` per M4-3 (shallow `read_dir`, `observe_one` per child).
-- [ ] B2. `verify.rs` (+ `pub mod` in `lib.rs`): `EntryState { Selected, Applied, Active, Shadowed, Foreign, Orphaned }`, `Reason`, `Record` (fields per AC-14 plus `reason`, `candidates`, `shadowed_by`), `VerifyReport`, and `verify(&VerifyRequest) -> Result<VerifyReport>` using `resolve::resolve_selection`, `Receipt::load`, `observe::observe`, `catalog::frontmatter::parse_skill_md` (Applied when it fails), `resolve::resolve_text` candidates, and the journal-present warning. Read-only. Unit tests named in the AC map.
-- [ ] B3. `reconcile.rs`: `report(&VerifyRequest) -> Result<ReconcileReport>` = `verify` + divergences grouped by the M4-6 causes + `findings` (shadowed, foreign) + a preview `Plan` from `change::prepare` with `Edit::Reconcile` (a `prepare` error becomes `repair_blocked` with the error text, not a failure). `repair` is `change::run` with `Edit::Reconcile` (no new code beyond a thin wrapper). Unit tests.
+- [x] B1. `observe.rs`: add `list_foreign(root, rel, known: &BTreeSet<String>) -> Result<Vec<(String, ObservedKind)>>` per M4-3 (shallow `read_dir`, `observe_one` per child).
+- [x] B2. `verify.rs` (+ `pub mod` in `lib.rs`): `EntryState { Selected, Applied, Active, Shadowed, Foreign, Orphaned }`, `Reason`, `Record` (fields per AC-14 plus `reason`, `candidates`, `shadowed_by`), `VerifyReport`, and `verify(&VerifyRequest) -> Result<VerifyReport>` using `resolve::resolve_selection`, `Receipt::load`, `observe::observe`, `catalog::frontmatter::parse_skill_md` (Applied when it fails), `resolve::resolve_text` candidates, and the journal-present warning. Read-only. Unit tests named in the AC map.
+- [x] B3. `reconcile.rs`: `report(&VerifyRequest) -> Result<ReconcileReport>` = `verify` + divergences grouped by the M4-6 causes + `findings` (shadowed, foreign) + a preview `Plan` from `change::prepare` with `Edit::Reconcile` (a `prepare` error becomes `repair_blocked` with the error text, not a failure). `repair` is `change::run` with `Edit::Reconcile` (no new code beyond a thin wrapper). Unit tests.
 
 ### Step C: Source edge cases (core)
 
-- [ ] C1. `project/index.rs`: `projects_with_receipt_from(dirs, alias)` (reads each indexed root's receipts via `Receipt::load`; missing project directories become diagnostics) and `projects_using_source(dirs, catalog, bundles, alias)` (M4-11); unit tests.
-- [ ] C2. `source.rs`: change `remove` to take `catalog` and `bundles` and use `projects_using_source`; add `relocate` pieces per M4-10 (path validation shared with `add`, in-memory config, `plan_relocations`, then `commit_relocation`: save config, delete the alias cache file); unit tests.
+- [x] C1. `project/index.rs`: `projects_with_receipt_from(dirs, alias)` (reads each indexed root's receipts via `Receipt::load`; missing project directories become diagnostics) and `projects_using_source(dirs, catalog, bundles, alias)` (M4-11); unit tests.
+- [x] C2. `source.rs`: change `remove` to take `catalog` and `bundles` and use `projects_using_source`; add `relocate` pieces per M4-10 (path validation shared with `add`, in-memory config, `plan_relocations`, then `commit_relocation`: save config, delete the alias cache file); unit tests.
 
 ### Step D: Doctor (core)
 
-- [ ] D1. `doctor.rs`: the M4-12 checks and evidence listing returning a typed report; unit tests with temp dirs.
-- [ ] D2. `adapter/claude_code.rs`: M4-15 wording only.
+- [x] D1. `doctor.rs`: the M4-12 checks and evidence listing returning a typed report; unit tests with temp dirs.
+- [x] D2. `adapter/claude_code.rs`: M4-15 wording only.
 
 ### Step E: CLI
 
-- [ ] E1. `cli/mod.rs`: add `Command::Status`, `Command::Reconcile { repair }`, `Command::Doctor { evidence }`, `SourceCmd::Relocate { alias, path }`; extend `command_name`; replace `usage_text` per M4-13.
-- [ ] E2. `cli/status.rs`: `status` and `reconcile` (report prints the table and divergences, returns `Diverged` via `Failed::with_data` when divergent; `--repair` reuses the `cli/change.rs` confirmation and outcome rendering, so those helpers become `pub(super)`). `output.rs`: six-state table with source path per entry, the spec 4.11 footer, `data.footer` in JSON.
-- [ ] E3. `cli/doctor.rs`: render checks and optional evidence; `DoctorFailed` on any `fail`.
-- [ ] E4. `cli/source.rs`: `relocate` (M4-10 flow) and `rm` (load catalog and bundles for the guard). `cli/change.rs` `rollback`: no journal selects the M4-9 history path via `change::history_edit` and `change::run`; journal present keeps the M3 path.
+- [x] E1. `cli/mod.rs`: add `Command::Status`, `Command::Reconcile { repair }`, `Command::Doctor { evidence }`, `SourceCmd::Relocate { alias, path }`; extend `command_name`; replace `usage_text` per M4-13.
+- [x] E2. `cli/status.rs`: `status` and `reconcile` (report prints the table and divergences, returns `Diverged` via `Failed::with_data` when divergent; `--repair` reuses the `cli/change.rs` confirmation and outcome rendering, so those helpers become `pub(super)`). `output.rs`: six-state table with source path per entry, the spec 4.11 footer, `data.footer` in JSON.
+- [x] E3. `cli/doctor.rs`: render checks and optional evidence; `DoctorFailed` on any `fail`.
+- [x] E4. `cli/source.rs`: `relocate` (M4-10 flow) and `rm` (load catalog and bundles for the guard). `cli/change.rs` `rollback`: no journal selects the M4-9 history path via `change::history_edit` and `change::run`; journal present keeps the M3 path.
 
 ### Step F: Tests (after the code they exercise)
 
-- [ ] F1. `common/mod.rs`: `Fx::done_at`, `assert_zero_divergence`, helpers for a user-scope shadow skill, library rename, and library move. `common/faults.rs`: reuse as is.
-- [ ] F2. Write `ac_verify.rs`, `ac_reconcile.rs`, `doctor_cli.rs` per the Test Plan; extract the AC-31 loop in `ac_recovery.rs` and add `s7_interruption_zero_divergence`.
-- [ ] F3. Append the status halves to `ac_12`, `ac_13`, `ac_15`, `ac_21`, `ac_35`.
-- [ ] F4. Create new insta snapshots (`INSTA_UPDATE=always` once), review that only `usage_bare` changed among existing ones, then run with `INSTA_UPDATE=no`.
+- [x] F1. `common/mod.rs`: `Fx::done_at`, `assert_zero_divergence`, helpers for a user-scope shadow skill, library rename, and library move. `common/faults.rs`: reuse as is.
+- [x] F2. Write `ac_verify.rs`, `ac_reconcile.rs`, `doctor_cli.rs` per the Test Plan; extract the AC-31 loop in `ac_recovery.rs` and add `s7_interruption_zero_divergence`.
+- [x] F3. Append the status halves to `ac_12`, `ac_13`, `ac_15`, `ac_21`, `ac_35`.
+- [x] F4. Create new insta snapshots (`INSTA_UPDATE=always` once), review that only `usage_bare` changed among existing ones, then run with `INSTA_UPDATE=no`.
 
 ### Step G: Docs and report
 
-- [ ] G1. `docs/adapters.md`: add the claude-code evidence table from `unam doctor --evidence` (run only against temporary `UNAM_CONFIG_DIR`/`HOME`, never this repository) and the M0 Outcome; state that M0 Cursor results are evidence for the `cursor-agent` CLI only and the Cursor editor is not tested; keep both M2 sections; remove the "M4 extends" wording.
-- [ ] G2. Run the Exit Gate, write the phase report (decisions M4-1 to M4-15 as deviations from this plan if any change, REPORT TO TAYLOR items, evidence-check results, S7 and S8 results).
+- [x] G1. `docs/adapters.md`: add the claude-code evidence table from `unam doctor --evidence` (run only against temporary `UNAM_CONFIG_DIR`/`HOME`, never this repository) and the M0 Outcome; state that M0 Cursor results are evidence for the `cursor-agent` CLI only and the Cursor editor is not tested; keep both M2 sections; remove the "M4 extends" wording.
+- [x] G2. (Exit Gate run 2026-10-10; the phase report file is written in UPDATE PROCESS, not by EXECUTE) Run the Exit Gate, write the phase report (decisions M4-1 to M4-15 as deviations from this plan if any change, REPORT TO TAYLOR items, evidence-check results, S7 and S8 results).
 
 ---
 
@@ -261,9 +261,9 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 - [x] 2. INNOVATE (2026-10-09): folded into this pass; design choices recorded as Decisions M4-1 to M4-15 (no separate Decision Summary)
 - [x] 3. PLAN-SUPPLEMENT (2026-10-09): existing phase plan rewritten into an executable plan; Inner Loop Refresh Note written
 - [x] 4. PVL (2026-10-09, cycle 1, no FAIL-class gap; contract below): vc-validate-agent: at most 2 cycles; only FAIL-class gaps (wrong requirement mapping, steps that cannot compile in order) trigger a cycle; nits go to execute time; validate-contract written per `.claude/skills/vc-validate-findings/references/example-validate-output.md`
-- [ ] 5. EXECUTE: all checklist items done; per-section test gates run and green (or gaps documented)
-- [ ] 6. EVL: independent vc-tester re-run of the Exit Gate; follow-up stubs registered; EVL HANDOFF SUMMARY written
-- [ ] 7. UPDATE PROCESS: phase report written, umbrella state updated, evidence check recorded, commit done
+- [x] 5. EXECUTE (2026-10-10): all checklist items done (A1 to G1); gates G1, G2, G3, G5, G6 green (G4 not applicable, no catalog change); deviations listed below; the phase report (G2 report write) is left to UPDATE PROCESS
+- [x] 6. EVL (2026-10-10): independent vc-tester re-run of the Exit Gate: G1 to G6 green, 567 tests, full fault matrix passes (`results-m4-evl.tsv`, HALTED_SUCCESS cycle 1); deletion-safety evidence check PASS 2026-10-12 (`phase-05-m4-verify-status-reconcile-rollback_EVIDENCE_12-10-26.md`)
+- [x] 7. UPDATE PROCESS (2026-10-12): phase report written (`phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md`), umbrella state updated, evidence check recorded, context refreshed; commit pending (separate git step: code commit, then process commit)
 
 **Validate-contract required before execute.** If step 4 (PVL) is unchecked or `## Validate Contract` reads "(placeholder - vc-validate-agent writes this section before EXECUTE)", the orchestrator must spawn vc-validate-agent first.
 
@@ -321,10 +321,10 @@ No Known-Gap rows.
 ## Resume and Execution Handoff
 
 - Selected plan file path: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-05-m4-verify-status-reconcile-rollback_PLAN_04-10-26.md`
-- Last completed step: 4 PVL (2026-10-09, cycle 1)
+- Last completed step: 7 UPDATE PROCESS (2026-10-12)
 - Validate-contract status: written 2026-10-09 (inner-pvl: phase-5, PASS, cycle 1)
 - Supporting context files: `process/context/all-context.md` (Threat Model), `process/context/tests/all-tests.md`, `phase-04-m3-plan-apply-claude-code_REPORT_04-10-26.md` (Forward Preview), `open-items-decision-sheet_REF_09-10-26.md`, `v1-static-activation_WAVES_09-10-26.md`
-- Next step: EXECUTE (step 5) with one sonnet execute agent and this file path; honor the execute-time notes EX1 to EX8 and the G5 presence checks in the Validate Contract.
+- Next step: none for M4 beyond the commits; the program continues with milestone M5 (phase 6 of 8).
 
 ---
 
@@ -405,6 +405,24 @@ Accepted by: not required (no CONCERN remains); the named residuals above are re
 
 ---
 
+## Deviations (EXECUTE 2026-10-10)
+
+All within the validate-contract blast radius; none touches auth, billing, schema, public API beyond the declared exit-8/9 JSON, or the journal record types. Each entry: what deviated / why / impact.
+
+| # | What deviated | Why | Impact |
+|---|---|---|---|
+| D1 (EX1) | `usage.rs` no longer asserts "status arrives in a later milestone" (it asserts `status`, `reconcile`, `doctor` are listed); `activation_cli.rs` `resume_and_rollback_without_a_journal_exit_4` expects `no-journal` for `resume` and `no-history` for `rollback`, and a remedy without "milestone M4". `error.rs` `NoJournal` remedy text refreshed. | Decisions M4-9, M4-13 change those outputs. | Two existing assertions edited, as planned; no other existing test changed except the additive status halves (F3). |
+| D2 (EX6) | New `Edit::FromHistory`: `change::prepare` resolves it with `history_edit` AFTER `run` took the lock. The CLI `rollback` calls `edit_run(.., Edit::FromHistory)` when no journal exists (`change::has_journal`, new). `history_edit` stays public. | Resolving the history before `change::run` made `rollback` answer `no-history` (exit 4) instead of `locked` (exit 11) on a locked project, which broke the existing `ac_53` row. | One extra `Edit` variant and one small helper; behavior otherwise as M4-9. With no journal and no history, `rollback` creates `.unam/lock` like `resume` already does. |
+| D3 | `reconcile::report` takes a `&dyn Clock` (the op id of the preview plan needs it); `assert_zero_divergence` takes `(&CoreCtx, context)` instead of `(env, project)`. | Signatures forced by `change::prepare` and by the existing `core_ctx` fixture. | Library and test-helper signatures only. |
+| D4 | The interrupted-repair evidence row asserts: `resume` ends with zero divergence; `rollback` returns the project to its exact pre-repair state (byte-identical) with the same two hand deletions still reported. | Rolling back a repair restores the diverged state by construction, so `assert_zero_divergence` cannot hold after `rollback` in that row. The S7 fault matrix (apply scenarios) asserts zero divergence after both recoveries. | Reading of the plan row, not a behavior change. |
+| D5 | `source rm` guard also counts a bundle entry written with the alias qualifier (`alias:path`) even when it does not resolve. | A qualified entry is as explicit as a literal `add` ref (M4-11 counts those); bare unresolvable entries are still not counted. | Slightly stricter guard; one extra clause in `projects_using_source`. |
+| D6 | The five new snapshots live in `snapshots.rs` (not in the AC test files); `status_json` and `reconcile_json` are the exit-8 envelopes of one mixed-state project. | Keeps all snapshots in one binary with the existing normalization. | Only `usage_bare` changed among existing snapshots. |
+| D7 | `docs/adapters.md` claim table was generated from the `EVIDENCE` table in `claude_code.rs` (what `doctor --evidence` prints) instead of running the binary. | The binary must not run outside test tempdirs. `doctor_evidence_lists_every_adapter_claim_with_its_source` checks the listing against `Adapter::evidence()`. | None. |
+| D8 | Tests were written after the code (plan Step F order); no separate red run was recorded for the Mode A stubs. | Plan order; lighter process (known M3 gap D22). | Gates were run green; no red-first proof. |
+| D9 | The core doctor unit test is named `listing_has_every_adapter_claim_with_its_source`. | G5(c) counts names matching `(^|::)evidence_[a-z_]+`; exactly 7 are required. | None. |
+
+REPORT TO TAYLOR (from the plan): exits 8 and 9 give `ok: false` JSON envelopes with the full report in `data` (M4-1); the renamed-skill "offer repoint" is a printed remedy line, not a prompt (M4-8); `rollback` after `reconcile --repair` or a relocate repair is a no-op, and history rollback restores the selection, so it matches the old destination only while bundles and sources are unchanged (EX8).
+
 ## Next Step
 
-Run PVL (Wave 2 stops at the PVL verdict), then EXECUTE in Wave 3.
+M4 is closed (EVL CLEAN, UPDATE PROCESS done 2026-10-12). Commit the code, then the process files. Next: milestone M5 (phase 6 of 8), RESEARCH, light lane.

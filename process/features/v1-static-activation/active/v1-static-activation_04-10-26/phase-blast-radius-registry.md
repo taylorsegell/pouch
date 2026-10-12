@@ -32,6 +32,8 @@ Append-only. One section per toolkit phase (one milestone each). Phases run sequ
 
 ## Phase 5: milestone M4
 - `docs/adapters.md` (create if absent, otherwise extend); `crates/unam-core/src/{verify,reconcile}.rs`; additions to `apply.rs`, `source.rs`, `adapter/claude_code.rs`; CLI status, reconcile, rollback, resume, doctor, source relocate; `crates/unam-cli/tests/`
+- Actual (2026-10-12): created `crates/unam-core/src/{verify,reconcile,doctor}.rs`, `crates/unam-cli/src/cli/{status,doctor}.rs`, `crates/unam-cli/tests/{ac_verify,ac_reconcile,doctor_cli}.rs`, five `snapshots__*.snap` (status_json, reconcile_json, rollback_history_json, doctor_json, source_relocate_json); modified `error.rs`, `plan.rs`, `state.rs`, `change.rs`, `observe.rs`, `source.rs`, `project/index.rs`, `adapter/claude_code.rs` (wording), `lib.rs`, `cli/{mod,source,change}.rs`, `output.rs`, tests `ac_recovery`, `ac_selection`, `ac_activation`, `activation_cli`, `usage`, `snapshots`, `common/{mod,faults}.rs`, snapshot `usage_bare`; `apply.rs` and `fsops.rs` not modified; `Cargo.lock` unchanged
+- status: DONE (2026-10-12; EVL G1 to G6 green, 567 tests; VERIFIED WITH_GAPS)
 
 ## Phase 6: milestone M5
 - `crates/unam-core/src/adapter/agents_neutral.rs`; additions to `adapter/mod.rs`, `plan.rs`, `apply.rs`, `verify.rs`; CLI output; `crates/unam-cli/tests/`

@@ -1,6 +1,6 @@
 # Unambiguous - All Context
 
-Last updated: 2026-10-05
+Last updated: 2026-10-12
 
 This file is the root context entrypoint for the repo.
 
@@ -19,7 +19,7 @@ Unambiguous is a Rust command-line tool, invoked as `unam`, that controls which 
 
 - **User:** Taylor, solo, on macOS and Linux, across Claude Code, Codex, Cursor, and Hermes.
 - **Standard:** personal tool built to open-source-ready standards: tests, docs, reproducible builds, no telemetry, no network.
-- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), and M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock) are done and VERIFIED with gaps. Next is milestone M4 (verify, status, reconcile, rollback from history, doctor). Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
+- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), and M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members) are done and VERIFIED with gaps (M4 commit pending at the time of this update). Next is milestone M5 (agents-neutral adapter and generated briefs), light lane; it ends at the Product Phase 1 Gate. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
 - **Not a harness.** It sits in front of existing agent harnesses (PRD D7).
 
 Full product and design context: `process/context/product/all-product.md`.
@@ -100,7 +100,7 @@ For most substantial tasks:
 | `process/context/all-context.md` | any substantial planning, research, review, or implementation task |
 | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2 and M3; CI written, not yet run) |
+| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M4 (567 tests); CI written, not yet run) |
 
 ## Current Context Groups
 
@@ -108,7 +108,7 @@ For most substantial tasks:
 |---|---|---|
 | `planning/` | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `product/` | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown in M2 and M3; CI written, not yet run) |
+| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M4 (567 tests); CI written, not yet run) |
 <!-- /GENERATED:routing -->
 
 ## Task Routing Table
@@ -158,7 +158,7 @@ unambiguous/
   README.md START-HERE.md .gitignore
 ```
 
-Source layout as of milestone M3 (M1 created 2026-10-05, M2 added the desired-state side, M3 added plan and apply; the rest of spec section 1.3 arrives in later milestones):
+Source layout as of milestone M4 (M1 created 2026-10-05, M2 added the desired-state side, M3 added plan and apply, M4 added verify, reconcile, and doctor; the rest of spec section 1.3 arrives in later milestones):
 
 ```
 Cargo.toml Cargo.lock clippy.toml     virtual workspace, resolver = "3", unwrap denied
@@ -167,23 +167,26 @@ dist-workspace.toml                   hand-written, unverified (dist not install
 crates/
   unam-core/src/                      config, paths, error, fsops (FsOps seam, typed paths), hash, source,
                                       resolve, observe, state, plan, apply, change,
+                                      verify, reconcile, doctor,
                                       adapter/{mod,claude_code},
                                       catalog/{mod,cache,frontmatter,lookup,scan,search},
                                       bundle/{mod,crud,slug,edit},
                                       project/{mod,selection,index}
   unam-core/tests/                    perf_cold_scan.rs (500-skill fixture, 300 ms limit)
-  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle,change}
+  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle,change,status,doctor}
   unam-cli/tests/                     ac_read_path, ac_bundles, ac_selection, ac_activation,
-                                      ac_recovery, activation_cli, bundle_cli, read_side_invariant,
+                                      ac_recovery, ac_verify, ac_reconcile, doctor_cli, activation_cli,
+                                      bundle_cli, read_side_invariant,
                                       search_cli, show_cli, source_cli, cache_cli, usage, snapshots
                                       (+ common/{mod,faults}.rs, fixtures/)
 .unam/<target>/                       per-project state written by unam (not in this repo): receipt,
                                       JSONL journal, history, lock; target is the adapter name
-docs/adapters.md                      spec-called doc (M2): Hermes slugify parity and bundle loader
-                                      differences; M4 and M7 extend it
+docs/adapters.md                      spec-called doc (M2): Hermes slugify differences and bundle loader
+                                      differences; M4 added the claude-code evidence table and M0 Outcome;
+                                      M7 regenerates the adapter-evidence part and keeps the M2 sections
 ```
 
-Still to come: `verify`, `reconcile` (M4); `agents_neutral` adapter (M5); `tui/` (M6); `docs/json.md` (M7). `docs/adapters.md` exists since M2 (M4 extends, M7 regenerates the adapter-evidence part and must keep the two M2 sections).
+Still to come: `agents_neutral` adapter (M5); `tui/` (M6); `docs/json.md` (M7). `docs/adapters.md` exists since M2 (M4 extended it; M7 regenerates the adapter-evidence part and must keep the two M2 sections).
 
 ## Technology Stack
 
@@ -253,7 +256,7 @@ When durable project knowledge changes:
 
 ## Scan Metadata
 
-- Generated: 2026-10-04; delta update 2026-10-09 (milestone M3 closeout)
-- HEAD: commit f9da049 or later (milestone M3 commits pending at the time of this update)
-- Mode: delta (status, repository structure refreshed; no dependency change in M3; `rust-version = "1.89"` added to the manifests)
+- Generated: 2026-10-04; delta update 2026-10-12 (milestone M4 closeout)
+- HEAD: commit 4e7222b or later (milestone M4 commits pending at the time of this update)
+- Mode: delta (status, repository structure refreshed; no dependency change in M4, `Cargo.lock` unchanged)
 - Package manager: cargo (workspace exists since milestone M1)
