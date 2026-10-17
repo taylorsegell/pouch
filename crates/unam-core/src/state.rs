@@ -818,6 +818,10 @@ pub enum JournalStep {
         name: String,
         content: String,
         content_hash: String,
+        /// The destination already held exactly this content (see
+        /// `Step::WriteGenerated`); rollback leaves the file alone.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        adopt: bool,
     },
     RemoveGenerated {
         n: u32,

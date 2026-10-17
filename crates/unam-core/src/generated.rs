@@ -214,13 +214,15 @@ pub fn diff_generated(
             .get(name)
             .cloned()
             .unwrap_or(BriefObserved::Missing);
-        let write = || Step::WriteGenerated {
+        let write_as = |adopt: bool| Step::WriteGenerated {
             n: 0,
             bundle: spec.bundle.clone(),
             name: spec.name.clone(),
             content: spec.content.clone(),
             content_hash: spec.content_hash.clone(),
+            adopt,
         };
+        let write = || write_as(false);
         match (receipted.get(name), observed) {
             (None, BriefObserved::Missing) => {
                 writes.insert(spec.name.clone(), write());
@@ -252,7 +254,7 @@ pub fn diff_generated(
                 // Hand-edited to exactly the desired text (or the receipt
                 // hash is stale): adopt it. The write step observes the
                 // matching content, writes nothing, and refreshes the receipt.
-                writes.insert(spec.name.clone(), write());
+                writes.insert(spec.name.clone(), write_as(true));
             }
             (Some(_), BriefObserved::Brief { .. }) => {
                 // Edited by the user and still wanted: leave it, keep the

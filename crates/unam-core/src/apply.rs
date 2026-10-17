@@ -217,12 +217,14 @@ pub fn journal_step(step: &Step) -> JournalStep {
             name,
             content,
             content_hash,
+            adopt,
         } => JournalStep::WriteGenerated {
             n: *n,
             bundle: bundle.clone(),
             name: name.clone(),
             content: content.clone(),
             content_hash: content_hash.to_string(),
+            adopt: *adopt,
         },
         Step::RemoveGenerated {
             n,
@@ -305,12 +307,14 @@ pub fn step_from_journal(step: &JournalStep) -> Step {
             name,
             content,
             content_hash,
+            adopt,
         } => Step::WriteGenerated {
             n: *n,
             bundle: bundle.clone(),
             name: name.clone(),
             content: content.clone(),
             content_hash: hash_from_text(content_hash),
+            adopt: *adopt,
         },
         JournalStep::RemoveGenerated {
             n,
@@ -557,7 +561,13 @@ impl Runner<'_, '_> {
 
     /// Write a bundle brief at an absent destination (M5-8, EX9). The
     /// content is hash-checked first: a journal is untrusted input.
-    fn write_brief(&mut self, name: &str, content: &str, hash: &Hash) -> Result<StepOutcome> {
+    fn write_brief(
+        &mut self,
+        name: &str,
+        content: &str,
+        hash: &Hash,
+        adopt: bool,
+    ) -> Result<StepOutcome> {
         if Hash::of_bytes(content.as_bytes()) != *hash {
             return Ok(StepOutcome::Failed {
                 code: "journal-invalid".into(),
@@ -574,7 +584,7 @@ impl Runner<'_, '_> {
         match observe_brief(&child) {
             Ok(BriefObserved::Missing) => {}
             // Hand-edited to exactly this content: adopt it (no write).
-            Ok(BriefObserved::Brief { hash: on_disk }) if on_disk == *hash => {
+            Ok(BriefObserved::Brief { hash: on_disk }) if adopt && on_disk == *hash => {
                 return Ok(StepOutcome::Done);
             }
             Ok(_) => return Ok(StepOutcome::Skipped(SkipReason::DestOccupied)),
@@ -657,8 +667,9 @@ impl Runner<'_, '_> {
                 name,
                 content,
                 content_hash,
+                adopt,
                 ..
-            } => self.write_brief(name, content, content_hash),
+            } => self.write_brief(name, content, content_hash, *adopt),
             Step::RemoveGenerated {
                 name, expect_hash, ..
             } => self.remove_brief(name, expect_hash),
@@ -753,6 +764,39 @@ fn release_missing_briefs(
             .is_some_and(|g| g.consistent(rel) && gone.contains(&g.name)),
         crate::state::Entry::Skill(_) => true,
     });
+}
+
+/// A plan with no steps still lets go of the receipt rows of briefs that are
+/// gone from disk (with no step in the plan, none of them is wanted: a wanted
+/// missing brief gets a write step). A receipt-only rewrite; nothing else on
+/// disk changes. Returns whether the receipt was rewritten.
+pub fn release_stale_brief_rows(
+    ctx: &ApplyCtx<'_>,
+    fs: &dyn FsOps,
+    receipt: &Receipt,
+) -> Result<bool> {
+    let rel = ctx.adapter.destination();
+    let mut next = receipt.clone();
+    let gone: Vec<String> = receipt
+        .generated_entries()
+        .filter(|g| g.consistent(rel))
+        .filter(|g| {
+            ctx.dest
+                .join_child(&g.name)
+                .is_ok_and(|c| matches!(observe_brief(&c), Ok(BriefObserved::Missing)))
+        })
+        .map(|g| g.name)
+        .collect();
+    if gone.is_empty() {
+        return Ok(false);
+    }
+    next.entries.retain(|e| match e {
+        crate::state::Entry::Other(v) => !crate::state::GeneratedEntry::from_value(v)
+            .is_some_and(|g| g.consistent(rel) && gone.contains(&g.name)),
+        crate::state::Entry::Skill(_) => true,
+    });
+    fs.write_state(&ctx.state.applied(), next.to_text().as_bytes())?;
+    Ok(true)
 }
 
 /// History, receipt, marker, journal removal, prune (or the partial form).
@@ -1285,6 +1329,7 @@ fn resume_step(
             name,
             content,
             content_hash,
+            adopt,
             ..
         } => {
             let child = match runner.child(name) {
@@ -1298,7 +1343,7 @@ fn resume_step(
                 return Ok((StepOutcome::Done, "observed"));
             }
             let (c, h) = (content.clone(), content_hash.clone());
-            Ok((runner.write_brief(name, &c, &h)?, "ran"))
+            Ok((runner.write_brief(name, &c, &h, *adopt)?, "ran"))
         }
         Step::RemoveGenerated {
             name, expect_hash, ..
@@ -1466,8 +1511,17 @@ pub fn rollback(ctx: &ApplyCtx<'_>, fs: &dyn FsOps) -> Result<RecoverReport> {
             }
             Step::DropOrphan { .. } | Step::UpdateProvenance { .. } => {}
             Step::WriteGenerated {
-                name, content_hash, ..
+                name,
+                content_hash,
+                adopt,
+                ..
             } => {
+                // An adopted brief was the user's file before the operation
+                // and nothing was written: rollback leaves it alone (the
+                // receipt goes back to its prior entry).
+                if *adopt {
+                    continue;
+                }
                 // A step that never started wrote nothing. This matters for
                 // a replacement: until its remove step ran, the old brief
                 // still sits at the destination.

@@ -637,6 +637,7 @@ pub fn run(
         return Ok(Outcome::Blocked(Box::new(prepared)));
     }
     if prepared.plan.steps.is_empty() {
+        apply::release_stale_brief_rows(&ctx, fs, &prepared.receipt)?;
         write_selection(req, fs, &mut prepared)?;
         return Ok(Outcome::NoChanges(Box::new(prepared)));
     }

@@ -810,6 +810,7 @@ fn journal_round_trips_the_generated_step_ops_inside_the_begin_record() {
             name: "b-brief".into(),
             content: "---\nname: b-brief\n---\n\nText \u{e9}\n".into(),
             content_hash: "blake3:bb".into(),
+            adopt: false,
         },
     ];
     let line = begin_line(begin_for(&root, plan.clone()));
@@ -850,6 +851,7 @@ fn journal_rejects_a_generated_step_with_an_invalid_name() {
                 name: name.into(),
                 content: "x".into(),
                 content_hash: "blake3:00".into(),
+                adopt: false,
             }],
         );
         assert_invalid(&root, &[begin_line(b)], "generated name");
