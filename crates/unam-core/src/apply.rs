@@ -573,6 +573,10 @@ impl Runner<'_, '_> {
         };
         match observe_brief(&child) {
             Ok(BriefObserved::Missing) => {}
+            // Hand-edited to exactly this content: adopt it (no write).
+            Ok(BriefObserved::Brief { hash: on_disk }) if on_disk == *hash => {
+                return Ok(StepOutcome::Done);
+            }
             Ok(_) => return Ok(StepOutcome::Skipped(SkipReason::DestOccupied)),
             Err(e) => return Ok(failed_outcome(&e)),
         }
@@ -662,6 +666,11 @@ impl Runner<'_, '_> {
     }
 }
 
+/// The rollback scratch directory inside an operation trash. It starts with
+/// the reserved temp prefix, so `validate_dest_name` rejects it and no
+/// removed skill or brief can ever share its name.
+pub(crate) const ROLLBACK_SCRATCH: &str = ".unam-tmp-rollback";
+
 /// Delete the trash copies of removed briefs once the apply is final (the
 /// copies exist only so a rollback can restore them exactly). Failures are
 /// warnings: the operation itself is complete.
@@ -712,6 +721,40 @@ fn purge_brief_copy(fs: &dyn FsOps, trash: &StatePath, name: &str) -> Result<()>
     Ok(())
 }
 
+/// Drop receipt entries of briefs that are gone from disk and that no step of
+/// this operation touches (an unwanted brief that was already missing: the
+/// plan shows nothing for it, the receipt just lets go).
+fn release_missing_briefs(
+    receipt: &mut Receipt,
+    rel: &str,
+    steps: &[Step],
+    runner: &Runner<'_, '_>,
+) {
+    let gone: Vec<String> = receipt
+        .generated_entries()
+        .filter(|g| g.consistent(rel))
+        .filter(|g| {
+            !steps.iter().any(|s| {
+                matches!(s, Step::WriteGenerated { name, .. } | Step::RemoveGenerated { name, .. } if *name == g.name)
+            })
+        })
+        .filter(|g| {
+            runner
+                .child(&g.name)
+                .is_ok_and(|c| matches!(observe_brief(&c), Ok(BriefObserved::Missing)))
+        })
+        .map(|g| g.name)
+        .collect();
+    if gone.is_empty() {
+        return;
+    }
+    receipt.entries.retain(|e| match e {
+        crate::state::Entry::Other(v) => !crate::state::GeneratedEntry::from_value(v)
+            .is_some_and(|g| g.consistent(rel) && gone.contains(&g.name)),
+        crate::state::Entry::Skill(_) => true,
+    });
+}
+
 /// History, receipt, marker, journal removal, prune (or the partial form).
 fn finish(
     ctx: &ApplyCtx<'_>,
@@ -737,6 +780,7 @@ fn finish(
         dirs_removed: &runner.dirs_removed,
     });
     receipt.project_root = ctx.root_text();
+    release_missing_briefs(&mut receipt, ctx.adapter.destination(), steps, runner);
     let status = status_of(outcomes);
     let mut history_written = false;
     match status {
@@ -1437,7 +1481,7 @@ pub fn rollback(ctx: &ApplyCtx<'_>, fs: &dyn FsOps) -> Result<RecoverReport> {
                         // A scratch trash of its own: a replacement's old
                         // copy may sit in the operation trash under the
                         // same name.
-                        let scratch = trash.join("rollback");
+                        let scratch = trash.join(ROLLBACK_SCRATCH);
                         let outcome = match fs.remove_generated(&child, content_hash, &scratch)? {
                             RemoveOutcome::Removed | RemoveOutcome::RemovedWithResidue { .. } => {
                                 let _ = purge_brief_copy(fs, &scratch, name);

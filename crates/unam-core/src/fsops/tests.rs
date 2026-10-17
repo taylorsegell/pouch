@@ -1108,6 +1108,57 @@ mod briefs {
     }
 
     #[test]
+    fn brief_observation_ignores_ds_store_and_vcs_entries() {
+        let t = tmp();
+        let project = canon(t.path());
+        let d = dest_for(&project, "noisy-brief");
+        write(&d.path().join("SKILL.md"), "a");
+        write(&d.path().join(".DS_Store"), "junk");
+        fs::create_dir_all(d.path().join(".git")).unwrap();
+        assert_eq!(
+            observe_brief(&d).unwrap(),
+            BriefObserved::Brief {
+                hash: Hash::of_bytes(b"a")
+            }
+        );
+        // Any other extra entry still breaks the shape.
+        write(&d.path().join("notes.md"), "b");
+        assert_eq!(
+            observe_brief(&d).unwrap(),
+            BriefObserved::Other { found: "directory" }
+        );
+    }
+
+    #[test]
+    fn remove_takes_a_ds_store_with_the_brief_and_never_deletes_a_vcs_entry() {
+        let t = tmp();
+        let project = canon(t.path());
+        fs::create_dir_all(project.join(".claude/skills")).unwrap();
+        let trash = StatePath::new(project.join(".unam/claude-code/trash/op1"));
+        let h = Hash::of_bytes(b"text");
+        let d = dest_for(&project, "b-brief");
+        RealFs.write_generated(&d, b"text", "op1").unwrap();
+        write(&d.path().join(".DS_Store"), "junk");
+        assert_eq!(
+            RealFs.remove_generated(&d, &h, &trash).unwrap(),
+            RemoveOutcome::Removed
+        );
+        assert!(!d.path().exists());
+        assert!(!trash.path().join("b-brief/.DS_Store").exists());
+        // A vcs entry: skipped as modified, nothing deleted.
+        let g = dest_for(&project, "g-brief");
+        RealFs.write_generated(&g, b"text", "op1").unwrap();
+        fs::create_dir_all(g.path().join(".git")).unwrap();
+        write(&g.path().join(".git/HEAD"), "ref");
+        assert_eq!(
+            RealFs.remove_generated(&g, &h, &trash).unwrap(),
+            RemoveOutcome::Skipped(SkipReason::Modified)
+        );
+        assert_eq!(fs::read(g.path().join("SKILL.md")).unwrap(), b"text");
+        assert_eq!(fs::read(g.path().join(".git/HEAD")).unwrap(), b"ref");
+    }
+
+    #[test]
     fn remove_moves_a_matching_brief_aside_and_skips_everything_else() {
         let t = tmp();
         let project = canon(t.path());

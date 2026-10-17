@@ -314,18 +314,21 @@ fn brief_edited_is_kept_and_released() {
         );
         let file = brief_dir(&p, dest, "hermes-only").join("SKILL.md");
         fs::write(&file, b"my own notes\n").unwrap();
-        // Still wanted: the edited brief blocks the change, nothing moves.
-        let start = snapshot_project(&p);
+        // Still wanted: the edited brief never blocks the plan. It is left
+        // alone, kept in the receipt, and named in a plan warning.
         let (code, v) = fx.json_raw(
             &p,
             &["--target", t, "add", "hs:ops/deploy-checklist", "--yes"],
         );
-        assert_eq!(code, 6, "{v}");
-        assert_eq!(
-            v["data"]["plan"]["conflicts"][0]["code"],
-            "modified-at-dest"
+        assert_eq!(code, 0, "{v}");
+        assert_eq!(fs::read(&file).unwrap(), b"my own notes\n");
+        let w = v["data"]["plan"]["warnings"].as_array().unwrap();
+        assert!(
+            w.iter().any(|x| x["code"] == "brief-modified"
+                && x["message"].as_str().unwrap().contains("hermes-only-brief")),
+            "{v}"
         );
-        assert_project_unchanged(&start, &p);
+        assert_eq!(generated_entries(&p, t).len(), 1, "receipt entry kept");
         // No longer wanted: kept (skipped as modified) and released.
         let (code, v) = fx.json_raw(&p, &["--target", t, "deactivate", "--yes"]);
         assert_eq!(code, 7, "{v}");
@@ -512,7 +515,8 @@ fn brief_missing_is_reported_and_repaired() {
             "{s}"
         );
         let (code, v) = fx.json_raw(&p, &["--target", t, "reconcile", "--repair", "--yes"]);
-        assert_eq!(code, 6, "{v}");
+        assert_eq!(code, 0, "{v}");
+        assert!(ops(&v).is_empty(), "{v}");
         assert_eq!(fs::read(dir.join("SKILL.md")).unwrap(), b"changed\n");
         zero(&fx, &p, t);
     }
@@ -874,6 +878,111 @@ fn brief_replace_interrupted_at_call_seven_resumes_to_clean_state() {
             "{ctx}: trash left"
         );
         assert_zero_divergence_for(&c, b.target, &ctx);
+    }
+    fx.done();
+}
+
+// ---- review fixes R1 to R4 ----
+
+#[test]
+fn brief_with_ds_store_is_not_a_conflict_and_is_removed_whole() {
+    let fx = Fx::new();
+    copy_fixture_bundle(&fx.env, "hermes-only.yaml");
+    for (t, dest) in TARGETS {
+        let p = fx.project(&format!("p-{t}"));
+        ok(
+            &fx,
+            &p,
+            &["--target", t, "use", "hermes-only", "--replace", "--yes"],
+        );
+        let dir = brief_dir(&p, dest, "hermes-only");
+        fs::write(dir.join(".DS_Store"), b"finder noise").unwrap();
+        // Still wanted: no conflict, no brief step, the noise file stays.
+        let v = ok(
+            &fx,
+            &p,
+            &["--target", t, "add", "hs:ops/deploy-checklist", "--yes"],
+        );
+        assert_eq!(ops(&v), vec!["add"], "{v}");
+        assert!(dir.join(".DS_Store").exists());
+        let s = ok(&fx, &p, &["--target", t, "status"]);
+        assert!(
+            !warning_codes(&s).iter().any(|c| c.starts_with("brief-")),
+            "{s}"
+        );
+        // Deactivated: the whole directory goes, noise included.
+        let v = ok(&fx, &p, &["--target", t, "deactivate", "--yes"]);
+        assert!(ops(&v).contains(&"remove_generated".to_string()), "{v}");
+        assert!(!dir.exists(), "brief directory removed whole");
+        assert!(generated_entries(&p, t).is_empty());
+        zero(&fx, &p, t);
+    }
+    fx.done();
+}
+
+#[test]
+fn brief_equal_to_the_desired_text_is_adopted_and_the_receipt_hash_refreshed() {
+    let fx = Fx::new();
+    copy_fixture_bundle(&fx.env, "hermes-only.yaml");
+    for (t, dest) in TARGETS {
+        let p = fx.project(&format!("p-{t}"));
+        ok(
+            &fx,
+            &p,
+            &["--target", t, "use", "hermes-only", "--replace", "--yes"],
+        );
+        let dir = brief_dir(&p, dest, "hermes-only");
+        let want = fs::read(dir.join("SKILL.md")).unwrap();
+        // Make the receipt hash stale; the disk already holds the desired text.
+        let receipt = p.join(".unam").join(t).join("applied.json");
+        let real = generated_entries(&p, t)[0]["content_hash"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let stale = format!("{}0", &real[..real.len() - 1]);
+        let stale = if stale == real {
+            format!("{}1", &real[..real.len() - 1])
+        } else {
+            stale
+        };
+        let text = fs::read_to_string(&receipt).unwrap();
+        fs::write(&receipt, text.replace(&real, &stale)).unwrap();
+        let v = ok(
+            &fx,
+            &p,
+            &["--target", t, "add", "hs:ops/deploy-checklist", "--yes"],
+        );
+        assert!(
+            !v["data"]["plan"]["warnings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|w| w["code"] == "brief-modified"),
+            "{v}"
+        );
+        assert_eq!(fs::read(dir.join("SKILL.md")).unwrap(), want);
+        assert_eq!(generated_entries(&p, t)[0]["content_hash"], real);
+        zero(&fx, &p, t);
+    }
+    fx.done();
+}
+
+#[test]
+fn unwanted_brief_already_missing_is_dropped_silently() {
+    let fx = Fx::new();
+    copy_fixture_bundle(&fx.env, "hermes-only.yaml");
+    for (t, dest) in TARGETS {
+        let p = fx.project(&format!("p-{t}"));
+        ok(
+            &fx,
+            &p,
+            &["--target", t, "use", "hermes-only", "--replace", "--yes"],
+        );
+        fs::remove_dir_all(brief_dir(&p, dest, "hermes-only")).unwrap();
+        let v = ok(&fx, &p, &["--target", t, "deactivate", "--yes"]);
+        assert!(!ops(&v).contains(&"remove_generated".to_string()), "{v}");
+        assert!(generated_entries(&p, t).is_empty(), "receipt let go");
+        zero(&fx, &p, t);
     }
     fx.done();
 }

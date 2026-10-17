@@ -788,6 +788,7 @@ pub fn diff(input: &DiffInput<'_>) -> Plan {
         .collect();
     let gd = diff_generated(dest_rel, input.generated, input.receipt, &skill_ids);
     conflicts.extend(gd.conflicts);
+    warnings.extend(gd.warnings);
     steps.extend(gd.steps);
     remaining_valid += gd.staying;
 

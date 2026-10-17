@@ -8,7 +8,7 @@
 //! pure except `observe_briefs`.
 
 use crate::bundle::{Bundle, BundleSet};
-use crate::error::Result;
+use crate::error::{Diagnostic, Result};
 use crate::fsops::{BriefObserved, DestPath, observe_brief, validate_dest_name};
 use crate::hash::Hash;
 use crate::observe::DestRootState;
@@ -53,6 +53,8 @@ pub struct GeneratedDiff {
     pub conflicts: Vec<Conflict>,
     /// Receipted briefs that stay in the destination (wanted again).
     pub staying: usize,
+    /// Wanted briefs the user edited: left untouched, receipt entry kept.
+    pub warnings: Vec<Diagnostic>,
 }
 
 /// The instruction text of a brief: everything after the frontmatter.
@@ -246,6 +248,27 @@ pub fn diff_generated(
                     writes.insert(spec.name.clone(), write());
                 }
             }
+            (Some(_), BriefObserved::Brief { hash }) if hash == spec.content_hash => {
+                // Hand-edited to exactly the desired text (or the receipt
+                // hash is stale): adopt it. The write step observes the
+                // matching content, writes nothing, and refreshes the receipt.
+                writes.insert(spec.name.clone(), write());
+            }
+            (Some(_), BriefObserved::Brief { .. }) => {
+                // Edited by the user and still wanted: leave it, keep the
+                // receipt entry, and say so; never block the plan.
+                out.warnings.push(
+                    Diagnostic::warning(
+                        "brief-modified",
+                        format!(
+                            "{} (the brief of bundle {}) was changed after unam wrote it; it is left as it is",
+                            dest(name),
+                            spec.bundle
+                        ),
+                    )
+                    .with_path(dest(name)),
+                );
+            }
             (Some(_), other) => out.conflicts.push(Conflict::ModifiedAtDest {
                 dest: dest(name),
                 id: spec.name.clone(),
@@ -261,7 +284,9 @@ pub fn diff_generated(
     // executor skips (and the receipt releases) one that is missing, edited,
     // or not a brief.
     for (name, r) in &receipted {
-        if !wanted_names.contains(name.as_str()) {
+        // Already gone from disk: nothing to remove, and no step to show.
+        // The receipt entry is released when the next apply finishes.
+        if !wanted_names.contains(name.as_str()) && !missing_on_disk(&input.observed, name) {
             removes.insert(
                 name.clone(),
                 Step::RemoveGenerated {
@@ -276,6 +301,11 @@ pub fn diff_generated(
     out.steps.extend(removes.into_values());
     out.steps.extend(writes.into_values());
     out
+}
+
+/// True when the brief was observed and is absent.
+fn missing_on_disk(observed: &BTreeMap<String, BriefObserved>, name: &str) -> bool {
+    matches!(observed.get(name), Some(BriefObserved::Missing))
 }
 
 /// The word `found` carries in a conflict.

@@ -519,7 +519,11 @@ fn brief_at(path: &Path) -> Result<BriefObserved> {
             let mut names: Vec<std::ffi::OsString> = Vec::new();
             for e in rd {
                 let e = e.map_err(io_err(format!("cannot read {}", path.display())))?;
-                names.push(e.file_name());
+                let name = e.file_name();
+                if SKILL_SKIP_NAMES.contains(&name.to_string_lossy().as_ref()) {
+                    continue;
+                }
+                names.push(name);
                 if names.len() > 1 {
                     break;
                 }
@@ -842,6 +846,22 @@ fn remove_generated_at(dst: &Path, expect: &Hash, trash: &Path) -> Result<Remove
             Ok(RemoveOutcome::Skipped(SkipReason::Modified))
         }
         BriefObserved::Brief { .. } => {
+            // Skip-listed entries are ignored when observing. A `.git` is
+            // never deleted (the brief is then Modified); a `.DS_Store` is
+            // editor/OS noise and goes with the brief.
+            if std::fs::symlink_metadata(dst.join(".git")).is_ok() {
+                return Ok(RemoveOutcome::Skipped(SkipReason::Modified));
+            }
+            let noise = dst.join(".DS_Store");
+            match std::fs::symlink_metadata(&noise) {
+                Ok(m) if m.file_type().is_file() => std::fs::remove_file(&noise)
+                    .map_err(io_err(format!("cannot remove {}", noise.display())))?,
+                Ok(_) => return Ok(RemoveOutcome::Skipped(SkipReason::Modified)),
+                Err(e) if e.kind() == ErrorKind::NotFound => {}
+                Err(e) => {
+                    return Err(Error::io(format!("cannot inspect {}", noise.display()), e));
+                }
+            }
             std::fs::create_dir_all(trash)
                 .map_err(io_err(format!("cannot create {}", trash.display())))?;
             let item = trash.join(file_name_text(dst)?);
