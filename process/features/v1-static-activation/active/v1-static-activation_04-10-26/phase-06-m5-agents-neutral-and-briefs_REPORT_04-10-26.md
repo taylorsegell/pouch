@@ -231,3 +231,33 @@ UNAM_REAL_LIBRARY=$HOME/Developer/01-AI/skillzone cargo test --release -p unam -
 #### Dependency Changes
 
 - None. `Cargo.lock` is unchanged.
+
+## EVL fix cycle 1
+
+Failing gate: full fault matrix on `ac_briefs` (`UNAM_FULL_FAULT_MATRIX=1`), 2 of 12 failed at `ac_briefs.rs:716` (scenario `replace claude-code`, `FailBefore(7)`, resume).
+
+### Root cause (product bug, not a matrix expectation error)
+
+Call 7 of the replace sequence is `remove_generated` of the old `mx-brief` (calls 1-6 are the selection write, journal write, journal append, the `deploy-checklist` symlink, and two journal appends). Evidence from the journal after `FailBefore(7)`: step 2 `failed io-error`, step 3 (`write_generated`) `skipped dest-occupied` (the old brief was still there), then a `partial` receipt marker.
+
+`resume` treats `Skipped` as terminal, so after the remove step re-ran and succeeded, the dependent write was never retried. The brief was gone, its receipt row was released, and resume reported Recovered. A brief silently dropped after a "recovered" replace is a product defect.
+
+Fixing that exposed a second defect on the same path, `FailAfter(7)` (the old brief moved aside, the error returned afterwards; the new brief written by step 3): on resume the failed remove step saw the new brief at the destination, found its hash differed from the expected old hash, and skipped as modified. The receipt was right but the moved-aside copy was never purged (trash left).
+
+### Fix (`crates/unam-core/src/apply.rs`, `resume` and `resume_step`)
+
+- `resume`: a `WriteGenerated` journaled `Skipped{dest-occupied}` is re-evaluated (not treated as terminal) when the same-name `RemoveGenerated` in the plan is not terminal. The write replay stays hash-checked (EX9 unchanged: `resume_step` still verifies the observed hash against the journaled content hash before treating it as done).
+- `resume_step` `RemoveGenerated`: when the destination holds a brief whose hash differs from the step's expected (old) hash and the operation trash already holds the moved-aside copy, the step is Done (observed), so the purge runs. The trash move-aside (EX5) is untouched.
+
+### Regression test
+
+`brief_replace_interrupted_at_call_seven_resumes_to_clean_state` in `crates/unam-cli/tests/ac_briefs.rs`: runs without the full-matrix env var; asserts call 7 is `remove_generated`, then for `FailBefore(7)` and `FailAfter(7)` resumes and checks Recovered, end state equals the clean run (brief file plus `generated mx-brief` receipt row), empty trash, zero divergence. Both cases failed before the fix.
+
+### Gate output
+
+- `UNAM_FULL_FAULT_MATRIX=1 cargo test --workspace --locked --test ac_briefs`: 13 passed, 0 failed (the 12 plus the new test).
+- `UNAM_FULL_FAULT_MATRIX=1 cargo test --workspace --locked --test ac_recovery`: 14 passed. `ac_briefs` and `ac_recovery` are the only suites that read the env var.
+- G1 `cargo fmt --all --check`: pass. G2 clippy `-D warnings`: pass. G3 `INSTA_UPDATE=no cargo test --workspace --locked`: all pass (core 390 unit tests, ac_briefs 13).
+- `git diff --stat HEAD -- crates/unam-cli/tests/snapshots`: empty.
+
+Closeout state: Keep in active/testing until the orchestrator's EVL re-run (vc-tester) confirms.

@@ -822,3 +822,58 @@ fn brief_interruption_resume_and_rollback() {
 fn brief_interruption_resume_and_rollback_claude_code() {
     all_matrices(TargetId::ClaudeCode);
 }
+
+/// EVL fix cycle 1 regression: a replaced brief interrupted at the seventh
+/// mutating call (the old brief's move-aside), failing before or after it,
+/// then resumed, must end with the new brief, its receipt row, and no trash
+/// (the strided matrix run does not reach this index).
+#[test]
+fn brief_replace_interrupted_at_call_seven_resumes_to_clean_state() {
+    quiet_crashes();
+    let fx = Fx::new();
+    fx.write_bundle_with("swap", &["hs:ops/deploy-checklist"], None, None);
+    let target = TargetId::ClaudeCode;
+    let clean = scenario_replace(&fx, target, "r7-clean");
+    let counter = FailingFs::new(FailMode::None);
+    clean
+        .s
+        .run(&fx.env, &counter, &StepClock::new())
+        .map_err(|f| f.error)
+        .unwrap();
+    // Call 7 is the replaced brief's remove_generated: a failure there leaves
+    // the old brief (before) or the old brief moved aside with the new brief
+    // already written (after).
+    assert_eq!(counter.calls()[6].1, "remove_generated");
+    let clean_state = essence(&clean.s.project, target);
+    for (i, mode) in [FailMode::FailBefore(7), FailMode::FailAfter(7)]
+        .into_iter()
+        .enumerate()
+    {
+        let ctx = format!("replace {mode:?} resume");
+        let b = scenario_replace(&fx, target, &format!("r7-run-{i}"));
+        let ff = FailingFs::new(mode);
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            b.s.run(&fx.env, &ff, &StepClock::new())
+        }));
+        let c = b.s.ctx(&fx.env);
+        let clock = StepClock::new();
+        let req = c.recover(&clock);
+        let out = change::resume(&req, &RealFs, &mut |_| Decision::Proceed)
+            .map_err(|f| f.error)
+            .unwrap();
+        assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
+        assert_eq!(essence(&b.s.project, target), clean_state, "{ctx}");
+        assert!(
+            all_files_under(
+                &b.s.project
+                    .join(".unam")
+                    .join(target.as_str())
+                    .join("trash")
+            )
+            .is_empty(),
+            "{ctx}: trash left"
+        );
+        assert_zero_divergence_for(&c, b.target, &ctx);
+    }
+    fx.done();
+}
