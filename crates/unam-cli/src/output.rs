@@ -844,6 +844,7 @@ mod tests {
                 name: "b-brief".into(),
                 content: format!("---\nname: b-brief\n---\n\nFirst\u{1b}[31m\n{long}"),
                 content_hash: Hash::of_bytes(b"c"),
+                adopt: false,
             });
             p.steps.push(Step::RemoveGenerated {
                 n: 7,

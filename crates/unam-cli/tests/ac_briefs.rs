@@ -986,3 +986,147 @@ fn unwanted_brief_already_missing_is_dropped_silently() {
     }
     fx.done();
 }
+
+// ---- R2 adopt: rollback leaves the user's file; resume ends clean ----
+
+/// The bundle applied, then the receipt hash of its brief made stale (the
+/// disk already holds the desired text), then `add`: the brief is adopted.
+fn scenario_adopt(fx: &Fx, target: TargetId, name: &str) -> BriefScenario {
+    let sc = scenario_create(fx, target, name);
+    core_apply_for(
+        &fx.env,
+        &sc.s.project,
+        target,
+        Edit::UseReplace(MATRIX_BUNDLE.into()),
+        false,
+    );
+    let receipt =
+        sc.s.project
+            .join(".unam")
+            .join(target.as_str())
+            .join("applied.json");
+    let real = generated_entries(&sc.s.project, target.as_str())[0]["content_hash"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let stale = format!(
+        "{}{}",
+        &real[..real.len() - 1],
+        if real.ends_with('0') { '1' } else { '0' }
+    );
+    let text = fs::read_to_string(&receipt).unwrap();
+    fs::write(&receipt, text.replace(&real, &stale)).unwrap();
+    BriefScenario {
+        s: Scenario {
+            edit: Edit::Add(refs(&["hs:ops/deploy-checklist"])),
+            command: "add",
+            ..sc.s
+        },
+        target,
+    }
+}
+
+fn adopt_matrix(target: TargetId, recovery: &str) {
+    quiet_crashes();
+    let fx = Fx::new();
+    let counter_sc = scenario_adopt(&fx, target, &format!("ad-count-{recovery}"));
+    let counter = FailingFs::new(FailMode::None);
+    counter_sc
+        .s
+        .run(&fx.env, &counter, &StepClock::new())
+        .map_err(|f| f.error)
+        .unwrap();
+    let total = counter.calls().len();
+    let clean_state = essence(&counter_sc.s.project, target);
+    for i in 1..=total {
+        let ctx = format!("adopt {recovery} crash after call {i}");
+        let b = scenario_adopt(&fx, target, &format!("ad-{recovery}-{i}"));
+        let brief =
+            b.s.project
+                .join(match target {
+                    TargetId::ClaudeCode => ".claude/skills",
+                    TargetId::AgentsNeutral => ".agents/skills",
+                })
+                .join(format!("{MATRIX_BUNDLE}-brief/SKILL.md"));
+        let before_bytes = fs::read(&brief).unwrap();
+        let start = snapshot_project(&b.s.project);
+        let ff = FailingFs::new(FailMode::FailAfter(i as u32));
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            b.s.run(&fx.env, &ff, &StepClock::new())
+        }));
+        let journal =
+            b.s.project
+                .join(".unam")
+                .join(target.as_str())
+                .join("journal.jsonl");
+        if !journal.exists() {
+            continue;
+        }
+        let c = b.s.ctx(&fx.env);
+        let clock = StepClock::new();
+        let req = c.recover(&clock);
+        if recovery == "resume" {
+            let out = change::resume(&req, &RealFs, &mut |_| Decision::Proceed)
+                .map_err(|f| f.error)
+                .unwrap();
+            assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
+            assert_eq!(essence(&b.s.project, target), clean_state, "{ctx}");
+            assert!(!journal.exists(), "{ctx}");
+        } else {
+            let out = change::rollback(&req, &RealFs, &mut |_| Decision::Proceed)
+                .map_err(|f| f.error)
+                .unwrap();
+            assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
+            assert_eq!(fs::read(&brief).unwrap(), before_bytes, "{ctx}: file");
+            assert_project_unchanged(&start, &b.s.project);
+        }
+    }
+    fx.done();
+}
+
+#[test]
+fn adopted_brief_survives_crash_then_rollback_with_receipt_restored() {
+    adopt_matrix(TargetId::ClaudeCode, "rollback");
+    adopt_matrix(TargetId::AgentsNeutral, "rollback");
+}
+
+#[test]
+fn adopted_brief_crash_then_resume_ends_clean() {
+    adopt_matrix(TargetId::ClaudeCode, "resume");
+    adopt_matrix(TargetId::AgentsNeutral, "resume");
+}
+
+#[test]
+fn zero_step_plan_still_drops_the_stale_row_of_a_missing_unwanted_brief() {
+    let fx = Fx::new();
+    for target in [TargetId::ClaudeCode, TargetId::AgentsNeutral] {
+        let sc = scenario_create(&fx, target, &format!("zs-{}", target.as_str()));
+        core_apply_for(
+            &fx.env,
+            &sc.s.project,
+            target,
+            Edit::UseReplace(MATRIX_BUNDLE.into()),
+            false,
+        );
+        let p = &sc.s.project;
+        let t = target.as_str();
+        assert_eq!(generated_entries(p, t).len(), 1);
+        // The bundle opts out of its brief and the brief is gone by hand:
+        // nothing is wanted, nothing to remove, the plan has no steps.
+        fx.write_bundle_with(
+            MATRIX_BUNDLE,
+            &["code-review", "pytest-fixtures"],
+            Some("Matrix instruction."),
+            Some(false),
+        );
+        let dest = match target {
+            TargetId::ClaudeCode => ".claude/skills",
+            TargetId::AgentsNeutral => ".agents/skills",
+        };
+        fs::remove_dir_all(brief_dir(p, dest, MATRIX_BUNDLE)).unwrap();
+        let v = ok(&fx, p, &["--target", t, "reconcile", "--repair", "--yes"]);
+        assert!(ops(&v).is_empty(), "{v}");
+        assert!(generated_entries(p, t).is_empty(), "stale row dropped: {v}");
+    }
+    fx.done();
+}

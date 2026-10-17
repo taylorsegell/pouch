@@ -87,6 +87,10 @@ pub enum Step {
         name: String,
         content: String,
         content_hash: Hash,
+        /// The destination already holds exactly this content (hand-edited
+        /// to the desired text): the step writes nothing, and rollback never
+        /// removes the file.
+        adopt: bool,
     },
     /// Remove a generated bundle brief that still holds `expect_hash`.
     RemoveGenerated {
@@ -209,11 +213,18 @@ impl Step {
                 bundle,
                 name,
                 content_hash,
+                adopt,
                 ..
-            } => json!({
-                "n": n, "op": "write_generated", "bundle": bundle, "name": name,
-                "dest": dest(name), "content_hash": content_hash.to_string(),
-            }),
+            } => {
+                let mut v = json!({
+                    "n": n, "op": "write_generated", "bundle": bundle, "name": name,
+                    "dest": dest(name), "content_hash": content_hash.to_string(),
+                });
+                if *adopt {
+                    v["adopt"] = json!(true);
+                }
+                v
+            }
             Step::RemoveGenerated {
                 n,
                 bundle,

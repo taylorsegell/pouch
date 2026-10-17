@@ -960,6 +960,7 @@ mod generated_receipt {
             name: name.into(),
             content: body.into(),
             content_hash: Hash::of_bytes(body.as_bytes()),
+            adopt: false,
         }
     }
 
