@@ -24,7 +24,7 @@ metadata:
 
 ## Overview
 
-Build `unam` v1 (the Rust CLI described in `docs/spec/unam-technical-spec.md`) milestone by milestone: M0 to M5 deliver product Phase 1 (selection and activation); M6 and M7 deliver the first part of product Phase 2 (picker, release readiness). There is a HARD STOP after M5: M6 and M7 may not start until product Phase 1 is done and Taylor confirms in writing (see "Product Phase 1 Gate" below). Milestones M6 and M7 are product Phase 2: they must not be researched, planned further, or executed until Taylor clears the stop. Their plans carry only the check additions recorded on 2026-10-04 (decision 11); nothing else in them changes.
+Build `unam` v1 (the Rust CLI described in `docs/spec/unam-technical-spec.md`) milestone by milestone: M0 to M5 deliver product Phase 1 (selection and activation); M6 and M7 deliver the first part of product Phase 2 (picker, release readiness). There was a HARD STOP after M5; Taylor cleared it on 2026-10-17 (see "Product Phase 1 Gate" below), so M6 and M7 proceed. Milestones M6 and M7 are product Phase 2. Their plans carry only the check additions recorded on 2026-10-04 (decision 11); nothing else in them changes.
 
 This plan sequences the milestones, holds the Program Goal Charter and the Stable Program Goal block, and records open items. It does not restate the spec or PRD: every milestone plan cites spec and PRD sections by number. Milestone M0 is the gate for everything: no application code and no Cargo files exist before the results table in `spike/symlink-discovery.md` is filled in and its Outcome section records the default strategy per adapter (brief rule; all-context standing rule).
 
@@ -86,7 +86,7 @@ Explicitly out of scope (deferred tier):
 - Product Phase 3, intent-driven exposure, dynamic routing, atlas, hooks (PRD 12; ADR-0001; gated by D8).
 - v2 items in spec section 11: pin mode, isolated cursor and windsurf-devin adapters, adopt (OWN-6),
   bundle composition and export, remote sources (SRC-7), committed-selection alias indirection, native
-  Hermes adapter, Windows. Milestones M6 and M7 are product Phase 2 and are held behind the stop.
+  Hermes adapter, Windows. Milestones M6 and M7 are product Phase 2; the stop was cleared on 2026-10-17.
 - Context offloading (PRD D6). A repository map for orientation (not part of any phase).
 - Any plan, code, or doc work for the above beyond a pointer in `process/general-plans/backlog/`.
 
@@ -121,7 +121,7 @@ TARGET: Complete milestones M0 to M5, then STOP. Done when:
 - each milestone Exit Gate passes and the spec 10 acceptance criteria it closes are green as ac_NN_* tests
 - M0 is done only when spike/symlink-discovery.md table is filled and Outcome names the default strategy per adapter
 - Test tiers: automated (iterate-until-green) / hybrid (fix-if-in-blast-radius) / agent-probe (record-judgment)
-- M6 and M7 (product Phase 2) are NOT in this goal: no research, planning, or execution until Taylor clears the stop (PRD 12).
+- M6 and M7 (product Phase 2): the stop was cleared by Taylor on 2026-10-17 (PRD 12); they proceed under the same loop.
 
 AUTONOMY: Before ANY subagent spawn read umbrella ## Current Execution State, then the milestone plan ## Phase Loop Progress; first unchecked box = next spawn.
 
@@ -133,7 +133,7 @@ PER-MILESTONE LOOP (7-step inner loop R,I,P,PVL,E,EVL,UP; never skip or reorder;
 - EXECUTE runs opus; every other step sonnet
 
 HARD STOPS (pause, wait for Taylor):
-- GATE: after M5 stop. Never start M6 or M7 until Taylor confirms product Phase 1 done (AC-1 to AC-43 and AC-53 pass AND daily use). Never auto-proceed under /goal.
+- GATE: CLEARED by Taylor on 2026-10-17 (daily use, D4, S5 deferred until after M7). M6 and M7 proceed.
 - M0 gate: no application code or Cargo files until spike table filled. Taylor runs the spike by hand.
 - Any push, publish, crates.io, Homebrew tap, license file
 - Doc contradictions: report to Taylor, never resolve
@@ -170,14 +170,14 @@ START: Milestone M4 (phase 5 of 8), loop step 1 RESEARCH.
 This gate sits between milestone M5 and milestone M6. It is never auto-proceeded, including under /goal.
 
 - Why: PRD section 12 (product Phase 1 "done when" the acceptance criteria pass and the author uses the tool daily instead of the manual workflow; PRD 13.2 rule: every AC is product Phase 1 unless under the "Phase 2" or "Phase 3" heading); spec section 10 after M5 ("Phase 2 does not start before that"); brief "Out of scope" (product Phase 2 until Phase 1 is done by the PRD definition).
-- What blocks: milestone M6 (TUI) and milestone M7 (OSS readiness) may not start, not even RESEARCH or any plan refresh for them, until the gate is confirmed.
+- What blocked: milestone M6 (TUI) and milestone M7 (OSS readiness) until the gate was confirmed. It is now confirmed (record below).
 - Preconditions the orchestrator checks and reports (it does not decide):
   1. Milestones M0 to M5 are VERIFIED with phase reports.
   2. AC-1 to AC-43 and AC-53 pass (PRD 13.2 rule: every AC is product Phase 1 unless it sits under the "Phase 2" or "Phase 3" heading). The set closed by M1 to M5 per spec section 10 is exactly this set (coverage map below; AC-2 closes in M3, AC-33 in M4).
   3. Taylor uses the tool daily (brief name of the first real adopting project, due end of M3).
   4. The S1 and S6 measurements on Taylor's real library are recorded in the M5 report (read-only against the library).
 - Confirmation: only an explicit message from Taylor stating that product Phase 1 is done (AC-1 to AC-43 and AC-53 pass and daily use) and M6 may start. The orchestrator then records it in the record below and in `## Current Execution State`. No agent may fill in the record on its own judgment.
-- Gate record: Confirmed by Taylor: NOT CONFIRMED. Date: n/a. Evidence message: n/a.
+- Gate record: Confirmed by Taylor: CLEARED. Date: 2026-10-17. Evidence message (given directly in session, recorded by the orchestrator): Taylor chose "Clear gate, continue M6+M7" and said "Daily will begin once we finish all of the milestones". Deferred until all milestones are done: daily use, D4 (the first adopting project), and S5. Open items for after M7 are listed in `## Current Execution State`.
 - Where it is enforced: this section, the Stable Program Goal HARD STOPS, the charter, the M5 plan Exit Gate (final item), and the M6 plan Entry Gate (first item).
 
 ---
@@ -195,14 +195,14 @@ One toolkit phase per milestone. Phase numbers are 1-indexed; milestone numbers 
 | 5 of 8 | M4 Verify, status, reconcile, rollback | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-05-m4-verify-status-reconcile-rollback_PLAN_04-10-26.md` | Six-state verify, status, reconcile, rollback, doctor | M3 |
 | 6 of 8 | M5 agents-neutral and generated briefs | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_PLAN_04-10-26.md` | Second adapter, shared-destination reporting, bundle brief. Completes product Phase 1 | M4 |
 | GATE | Product Phase 1 gate | this plan, section "Product Phase 1 Gate" | Taylor's explicit confirmation | M5 VERIFIED |
-| 7 of 8 | M6 TUI | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_PLAN_04-10-26.md` | PRODUCT PHASE 2, HELD: no research, planning, or execution until Taylor clears the stop. Picker, plan view, result view, interrupted modal | Gate |
-| 8 of 8 | M7 OSS readiness | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_PLAN_04-10-26.md` | PRODUCT PHASE 2, HELD: no research, planning, or execution until Taylor clears the stop. README, evidence docs, CHANGELOG, license, release workflow | M6, Q11 decided, Gate |
+| 7 of 8 | M6 TUI | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_PLAN_04-10-26.md` | PRODUCT PHASE 2, gate cleared 2026-10-17. Picker, plan view, result view, interrupted modal | Gate |
+| 8 of 8 | M7 OSS readiness | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_PLAN_04-10-26.md` | PRODUCT PHASE 2, gate cleared 2026-10-17. README, evidence docs, CHANGELOG, license, release workflow | M6, Q11 decided, Gate |
 
 ### Join Conditions
 
 - M1 MUST NOT start until M0 exit gate passes (results table filled, Outcome records default strategy per adapter). Every later milestone plan also lists this as an entry dependency.
 - M2 MUST NOT start until M1 exit gate passes; M3 after M2; M4 after M3; M5 after M4.
-- M6 MUST NOT start until M5 exit gate passes AND the Product Phase 1 Gate is confirmed by Taylor.
+- M6 MUST NOT start until M5 exit gate passes AND the Product Phase 1 Gate is confirmed by Taylor (met 2026-10-17).
 - M7 MUST NOT start until M6 exit gate passes, the Product Phase 1 Gate is confirmed, and PRD Q11 (crates.io published name and license) is decided by Taylor. Q11 is only an M7 entry condition; nothing before M7 depends on it.
 
 ---
@@ -217,8 +217,8 @@ One toolkit phase per milestone. Phase numbers are 1-indexed; milestone numbers 
 | M3 | M2 exit met | gates green; AC-2, 13, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25, 29, 30, 31, 32, 40, 53 tests green; S2 (`s2_one_command_add`), S3, S4 (invariants in every mutating test), S9 for claude-code (`adapter_claims_have_evidence`) green; interruption test proves consistency by comparing destination and receipt to expected state; first adopting project named |
 | M4 | M3 exit met | gates green; AC-14, 26, 27, 28, 33, 34, 36, 37, 39, 41 tests green; S7 (`s7_interruption_zero_divergence`) and S8 (`s8_divergence_always_reported`) green; interruption test also asserts `reconcile` reports zero divergence |
 | M5 | M4 exit met | gates green; AC-20, 42, 43, 24 (second adapter) tests green; S9 for agents-neutral green; S1 and S6 measured once on Taylor's real library (read-only) and recorded; network none and background none confirmed (`cargo tree`, source audit, `no_background_process`); product Phase 1 completeness report written (AC-1 to AC-43 and AC-53); S5 follow-up recorded; STOP at the gate |
-| M6 | M5 exit met and Gate confirmed (HELD: product Phase 2) | gates green; AC-44 test green; TUI parity test green; warm start to picker under 50 ms and memory under 50 MB (spec 9) |
-| M7 | M6 exit met, Gate confirmed, Q11 decided (HELD: product Phase 2) | README, docs, CHANGELOG, license, release workflow in place; local `cargo dist plan` lists macOS universal, Linux x86_64, Linux aarch64 (spec 9 binary row); no publish performed |
+| M6 | M5 exit met and Gate confirmed (met 2026-10-17; product Phase 2) | gates green; AC-44 test green; TUI parity test green; warm start to picker under 50 ms and memory under 50 MB (spec 9) |
+| M7 | M6 exit met, Gate confirmed (met 2026-10-17), Q11 decided (product Phase 2) | README, docs, CHANGELOG, license, release workflow in place; local `cargo dist plan` lists macOS universal, Linux x86_64, Linux aarch64 (spec 9 binary row); no publish performed |
 
 ---
 
@@ -241,8 +241,9 @@ Program-level summary. The authoritative per-step checkboxes are in each milesto
 | M2 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-05. Report: `phase-03-m2-bundles-and-selection_REPORT_04-10-26.md`. G1 to G14, G12b, E1 green; 13 design departures awaiting Taylor: items 24 to 36 |
 | M3 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-09. Report: `phase-04-m3-plan-apply-claude-code_REPORT_04-10-26.md`. G1 to G19 green, 512 tests; review decision approved by Taylor; D4 real activation pending |
 | M4 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-12. Report: `phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md`. G1 to G6 green, 567 tests; commit pending in the same wave |
-| M5 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-17. Report: `phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md`. EVL CLEAN after 1 fix cycle (5ba6888), 643 tests, full fault matrix. Hard stop: Product Phase 1 Gate |
-| M6, M7 | not started | Product Phase 2, held: no research, planning, or execution until Taylor clears the stop after M5 |
+| M5 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-17. Report: `phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md`. EVL CLEAN (3 iterations; 655 tests at 4832e31), full fault matrix. Product Phase 1 Gate cleared 2026-10-17 |
+| M6 | step 1 RESEARCH running | Product Phase 2, gate cleared 2026-10-17 |
+| M7 | not started | Product Phase 2, gate cleared; Q11 needed first |
 
 ---
 
@@ -266,8 +267,8 @@ Recorded per `vc-agent-strategy-compare`. All milestones form a dependency chain
 | M3 | 5+ files, high-risk class (destructive filesystem writes) | sequential, opus EXECUTE, hybrid gates |
 | M4 | 5+ files, high-risk class | sequential, opus EXECUTE |
 | M5 | 5+ files, shared-destination behavior | sequential, opus EXECUTE |
-| M6 | UI surface (HELD: product Phase 2) | sequential, opus EXECUTE |
-| M7 | outward-facing release mechanics (HELD: product Phase 2) | sequential; publish actions stay hard stops |
+| M6 | UI surface (product Phase 2) | sequential, opus EXECUTE |
+| M7 | outward-facing release mechanics (product Phase 2) | sequential; publish actions stay hard stops |
 
 Plan authoring for this program was done by one agent: each plan owns a distinct file, and blast radii are recorded in `phase-blast-radius-registry.md`, so no mid-draft coordination was needed.
 
@@ -276,8 +277,8 @@ Plan authoring for this program was done by one agent: each plan owns a distinct
 ## Autonomous Execution Rules (During /goal)
 
 - The agent self-decides at all V5 gates. CONDITIONAL net gate: proceed with fixes and gaps on record. BLOCKED net gate: write a backlog note, continue.
-- Hard stops (must pause for Taylor): the Product Phase 1 Gate (M6 and M7 are product Phase 2: no research, planning, or execution before Taylor clears it); the M0 spike (Taylor runs it); push, publish, crates.io, Homebrew tap, license file; any outward-facing or irreversible action not named in the validate-contract; contradictions between documents (report, do not resolve).
-- Under /goal the Product Phase 1 Gate is NEVER auto-proceeded: the goal ends at M5 UPDATE-PROCESS.
+- Hard stops (must pause for Taylor): (the Product Phase 1 Gate was cleared on 2026-10-17); the M0 spike (Taylor runs it); push, publish, crates.io, Homebrew tap, license file; any outward-facing or irreversible action not named in the validate-contract; contradictions between documents (report, do not resolve).
+- The Product Phase 1 Gate was cleared by Taylor on 2026-10-17; the earlier goal ended at M5 UPDATE-PROCESS.
 - The phase report is the communication channel for conflicts, errors, and learnings.
 - Subagent delegation (no inline execution) remains mandatory.
 
@@ -328,7 +329,7 @@ Source: spec section 10 ("Closes" lines, as edited in commit ae120c5); criteria 
 | M7 | none listed in spec 10 |
 | not in this program | AC-45 is product Phase 2 pinning (spec 11 v2 theme); AC-46 to AC-52, AC-54 to AC-56 are product Phase 3 and out of scope |
 
-Check (2026-10-04): every AC-1 to AC-43 and AC-53 is mapped exactly once, except AC-24, which appears in M3 (claude-code) and M5 (agents-neutral) by design (second adapter). AC-2 closes in M3 (needs apply for the full activate, modify, deactivate cycle); M1 supplies the source-tree hash helper and the read-side test as the first test. AC-33 closes in M4 (rollback from history). AC-37 closes in M4 (`source relocate`). AC-44 is M6 (product Phase 2, held).
+Check (2026-10-04): every AC-1 to AC-43 and AC-53 is mapped exactly once, except AC-24, which appears in M3 (claude-code) and M5 (agents-neutral) by design (second adapter). AC-2 closes in M3 (needs apply for the full activate, modify, deactivate cycle); M1 supplies the source-tree hash helper and the read-side test as the first test. AC-33 closes in M4 (rollback from history). AC-37 closes in M4 (`source relocate`). AC-44 is M6 (product Phase 2).
 
 ---
 
@@ -343,7 +344,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 5. RESOLVED 2026-10-04 (decision 5). Proceed with the spec: crates `unam-core` and `unam-cli`, package and binary `unam`. PRD Q11 is only the crates.io published name and the license; nothing before M7 depends on it. Q11 stays an M7 entry condition. The M1 conflict note is removed.
 6. RESOLVED 2026-10-04 (decision 6). `spike/symlink-discovery.md` is authoritative for the M0 procedure; spec 10 M0 now points to it. The spec/spike contradiction is closed.
 7. STILL OPEN (partly resolved). Spec 1.3 lists `hash.rs`, `state.rs`, `error.rs`, `fsops.rs` but spec section 10 does not assign each to a milestone. `hash.rs` is now created in M1 (decision 1: the hash helper). The first-needed milestone for the rest is decided at each milestone's RESEARCH (M1 creates the error skeleton; M3 plans `fsops.rs` and `state.rs`).
-8. RESOLVED 2026-10-04 (decision 11). Spec section 9 targets and PRD S1 to S9 are exit-gate checks in the milestone plans: M1 cold scan under 300 ms on a generated 500-skill fixture; M3 S2, S3, S4, S9 (claude-code); M4 S7, S8; M5 S9 (agents-neutral), S1 and S6 measured once on Taylor's real library at the product Phase 1 exit (read-only), network none and background none confirmed; M6 warm start under 50 ms and memory under 50 MB (held); M7 binary targets (held). S5 is observational (see "Follow-ups (not gates)").
+8. RESOLVED 2026-10-04 (decision 11). Spec section 9 targets and PRD S1 to S9 are exit-gate checks in the milestone plans: M1 cold scan under 300 ms on a generated 500-skill fixture; M3 S2, S3, S4, S9 (claude-code); M4 S7, S8; M5 S9 (agents-neutral), S1 and S6 measured once on Taylor's real library at the product Phase 1 exit (read-only), network none and background none confirmed; M6 warm start under 50 ms and memory under 50 MB; M7 binary targets. S5 is observational (see "Follow-ups (not gates)").
 9. RESOLVED 2026-10-04 (decision 10). Product Phase 1 done = AC-1 to AC-43 and AC-53 pass (PRD 13.2 rule: every AC is product Phase 1 unless under the "Phase 2" or "Phase 3" heading) AND Taylor uses the tool daily. No PRD section 7 computation is needed; the AC-2 caveat is gone.
 10. STILL OPEN. Toolkit shape notes: phase-stub template links the umbrella as `{program-slug}-umbrella_{date}/` (a folder) while the flat layout puts it in the program folder; template says "Phase Sequence" while validators and protocol say "Phase Ordering"; both phase and umbrella validators auto-scan only files directly in `active/` (not task folders), so they must be run with explicit paths; templates contain em dashes and emoji status values (replaced here); the template's "Phase 0 pre-program" row clashes with milestone M0 (this program maps M0 to phase 1 of 8); `validate-plan-artifact.mjs` requires Acceptance Criteria and Phase Completion Rules that the phase-stub template lacks (added).
 11. RESOLVED 2026-10-04 (decision 7). The spike run order (hide one folder per run for Claude Code and Cursor) is accepted; marked resolved in the M0 plan.
@@ -354,7 +355,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 16. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). The data dir (project index, `projects.json`) has no `UNAM_*` override in spec section 2 or PRD 9. Not added in M1 (the three documented overrides are unchanged); tests isolate it through `HOME` and `XDG_DATA_HOME`. Taylor to confirm whether a fourth override is wanted.
 17. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). The spec has no `Diagnostic` type and no catalog-level diagnostics, yet spec 4.2, 4.3, and AC-5 require named diagnostics. M1 adds `Diagnostic { code, severity, message, path, remedy }`, per-skill diagnostics, and a catalog-level list carrying the source alias; JSON arrays are always present. Code names are recorded in the M1 plan as stable contract.
 18. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). M1 gets a temporary `lookup(ref)` in the catalog module that handles all three spec 4.6 reference forms (exit 4 with candidates, exit 5 listing every candidate, never picking) so `show` works. It is explicitly temporary: milestone M2's `resolve.rs` supersedes it. M1 also reads a provisional `<data dir>/projects.json` for the `source rm` exit-3 check (index absent means no references); milestone M2's `project.rs` owns the real index format and replaces that reader.
-19. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). `dist-workspace.toml` is hand-written and unverified (`dist` is not installed; milestone M7 verifies with `dist plan`). Spec section 9 names a macOS universal binary, but the research evidence does not support a universal target, so M1 lists per-arch targets (`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`) and makes no universal claim. The M7 entry in the Per-Phase Exit Gate table still says "macOS universal"; to be reconciled when milestone M7 is researched (held).
+19. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). `dist-workspace.toml` is hand-written and unverified (`dist` is not installed; milestone M7 verifies with `dist plan`). Spec section 9 names a macOS universal binary, but the research evidence does not support a universal target, so M1 lists per-arch targets (`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`) and makes no universal claim. The M7 entry in the Per-Phase Exit Gate table still says "macOS universal"; to be reconciled when milestone M7 is researched.
 20. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). M1 CLI search uses `nucleo-matcher` (Pattern::parse, match_list) instead of the full `nucleo` crate named in spec 1.4. The picker in milestone M6 may adopt full `nucleo` if it needs incremental matching. Match-index output (spec 4.3) is deferred to milestone M6.
 21. DROPPED for v1 (decision sheet row 21 proposed answer; M4 did not build it; workaround `source rm` then `source add`; Taylor may override). PRD requirement SRC-4 lists "rename" among source operations, but the spec CLI (section 5) has no `source rename` command. M1 does not build it; sources are keyed by alias in the data model as the spec says. Suggested milestone: M4 (alongside `source relocate`, which already updates references). Taylor to confirm the milestone.
 22. RESOLVED 2026-10-12 (M4 built it: bare `unam` prints usage, then the status table when the root holds `.unam/`, exit 0; original note follows). Spec 5 says bare `unam` prints status and usage. M1 prints usage only (plus a line that status arrives later) because the `status` command is built in milestone M4; bare `unam` does not load the config. Taylor to confirm; milestone M4 adds status to bare `unam`.
@@ -411,10 +412,10 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 | 3 of 8: M2 Bundles and selection | VERIFIED (WITH_GAPS) 2026-10-05 (G1 to G14, G12b, E1 PASS; AC-10, 12, 35 desired side only; 13 design departures awaiting Taylor: items 24 to 36) |
 | 4 of 8: M3 Plan and apply for claude-code | VERIFIED (WITH_GAPS) 2026-10-09 (G1 to G19 PASS, 512 tests; review decision `approved` by Taylor; Linux/CI never run, D4 pending; residuals R1 to R10 accepted) |
 | 5 of 8: M4 Verify, status, reconcile, rollback | VERIFIED (WITH_GAPS) 2026-10-12 (G1 to G6 PASS, 567 tests, deletion-safety evidence check PASS; Linux/CI never run, D4 pending; three interpretations for Taylor in the M4 report) |
-| 6 of 8: M5 agents-neutral and generated briefs | VERIFIED (WITH_GAPS) 2026-10-17 (G1 to G3 PASS, 643 tests after EVL fix cycle 1, full fault matrix PASS, S1 and S6 PASS on the real library; literal G5 e and G6 diff commands mode-only (D9); Linux/CI never run, D4 pending; review findings R1 and R2 for Taylor) |
-| Product Phase 1 Gate | AWAITING TAYLOR (record NOT CONFIRMED) |
-| 7 of 8: M6 TUI | PLANNED (product Phase 2, held behind the gate) |
-| 8 of 8: M7 OSS readiness | PLANNED (product Phase 2, held behind the gate) |
+| 6 of 8: M5 agents-neutral and generated briefs | VERIFIED (WITH_GAPS) 2026-10-17 (G1 to G3 PASS, 655 tests after EVL fix cycle 1 and the review-fix round, full fault matrix PASS, S1 and S6 PASS on the real library; literal G5 e and G6 diff commands mode-only (D9); Linux/CI never run, D4 pending; review findings R1 and R2 for Taylor) |
+| Product Phase 1 Gate | CLEARED by Taylor 2026-10-17 (daily use, D4, S5 deferred until after M7) |
+| 7 of 8: M6 TUI | PLANNED (product Phase 2, gate cleared; RESEARCH running) |
+| 8 of 8: M7 OSS readiness | PLANNED (product Phase 2, gate cleared) |
 
 Status values: PLANNED | CODE DONE | TESTING | VERIFIED | BLOCKED | COMPLETE
 
@@ -462,7 +463,7 @@ Risk class: destructive filesystem writes in user-owned destinations (M3 to M5; 
 | M1 `source_tree_unchanged_read_side` and `perf_cold_scan` (under 300 ms, generated 500-skill fixture) | Fully-Automated (perf: Hybrid, release build, local SSD) | S3 read-side; spec 9 cold scan |
 | M3 S2, S9 (claude-code); M4 S7, S8; M5 S9 (agents-neutral), network and background none | Fully-Automated | PRD S2, S9, S7, S8; spec 9 |
 | M5 S1 and S6 measured once on Taylor's real library (read-only, temporary destination) | Hybrid (precondition: the real library present) | PRD S1, S6 |
-| M6 warm start under 50 ms and memory under 50 MB; M7 binary targets (held, recorded only) | Hybrid | spec 9 |
+| M6 warm start under 50 ms and memory under 50 MB; M7 binary targets (recorded only) | Hybrid | spec 9 |
 | Source-tree hash and foreign-file invariants in every mutating test (from M3 on) | Fully-Automated | S3, S4 (AC-2, AC-23) |
 | Gate record check before M6 | Agent-Probe (orchestrator reads the gate record) | PRD 12 product Phase 1 done condition |
 
@@ -480,40 +481,37 @@ No criterion is carried by Known-Gap. If a milestone discovers an untestable beh
 
 - Selected plan file path: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/v1-static-activation-umbrella_PLAN_04-10-26.md`
 - Last completed phase: phase 6 of 8 (milestone M5), VERIFIED (WITH_GAPS) 2026-10-17; phase report written
-- Validate-contract status: M0 to M5 written (Gate PASS) and closed; M6 and M7 pending and held (vc-validate-agent writes per milestone)
+- Validate-contract status: M0 to M5 written (Gate PASS) and closed; M6 and M7 pending (vc-validate-agent writes per milestone)
 - Supporting context files loaded: `process/context/all-context.md`, `process/context/product/all-product.md`, `process/context/tests/all-tests.md`, `docs/PROJECT-BRIEF.md`, spec sections 8 to 12, PRD sections 0, 3, 12, 13, 15, `spike/symlink-discovery.md`, `process/development-protocols/phase-programs.md`
-- Next step for a fresh agent: read this plan and the M5 report (Forward Preview). M0 to M5 are done. Do nothing further until Taylor clears the Product Phase 1 Gate. Do not research, plan, or execute M6 or M7 (product Phase 2, held).
-- Execute-agent start instruction: never start EXECUTE for M1 or later until the M0 gate is met; never start research, planning, or EXECUTE for M6 or M7 until the Product Phase 1 Gate record shows Taylor's confirmation.
+- Next step for a fresh agent: read this plan and the M5 report (Forward Preview). M0 to M5 are done. Taylor cleared the Product Phase 1 Gate on 2026-10-17; continue with M6 (RESEARCH next), then M7.
+- Execute-agent start instruction: never start EXECUTE for M1 or later until the M0 gate is met; the Product Phase 1 Gate record shows Taylor's confirmation (2026-10-17), so M6 and M7 may proceed through the normal loop.
 
 ---
 
 ## Current Execution State
 
-Last updated: 2026-10-17 (M5 UPDATE PROCESS complete)
-Current phase: 6 of 8 (milestone M5), closed; the program is stopped at the Product Phase 1 Gate
-Phase 6 name: M5 agents-neutral and generated briefs
+Last updated: 2026-10-17 (M5 review-fix round closed; Product Phase 1 Gate cleared by Taylor)
+Current phase: 7 of 8 (milestone M6, TUI)
+Phase 7 name: M6 TUI
+Phase 7 status: PLANNED (gate cleared; RESEARCH is the next spawn)
 Phase 6 status: VERIFIED (WITH_GAPS) 2026-10-17
-Phase 6 EVL: PASS after 1 fix cycle (HALTED_SUCCESS, `results-m5-evl.tsv`). Cycle 1 (vc-tester) found a real bug (replace, FailBefore(7), resume dropped the new brief) with the full fault matrix; fixed in 5ba6888. Cycle 2 at 5ba6888: G1 to G6 green (G5 e and G6 mode-only, see D9), 643 tests, full fault matrix `ac_briefs` 13 and `ac_recovery` 14, `git diff --check` clean. S1 and S6 PASS on the real library (median 0.648 s; four skills 1.1 percent of the library)
+Phase 6 EVL: PASS, three iterations (HALTED_SUCCESS, `results-m5-evl.tsv`). Iteration 3 at 4832e31 after the review-fix round (e4bf5b2 modes restored, 476b81c R1 to R4, 0d5c56b adopted brief survives rollback and zero-step receipt fix): 655 tests, literal G5 e and G6 exit 0, full fault matrix `ac_briefs` 19 and `ac_recovery` 14, `git diff --check` clean, classification CLEAN
 Phase 6 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md
-Phase 6 commits: 22a2c72 (code), bd616b9 (process, execute report), 5ba6888 (fix: brief resume after replace); the UPDATE PROCESS commit follows
 Phase 5 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md
-Next phase: none until Taylor clears the Product Phase 1 Gate
+Next phase: phase 7 of 8 (M6 TUI), then phase 8 of 8 (M7 OSS readiness; PRD Q11 must be decided before M7 starts)
 Completed phases: phase 0 (plan creation); phases 1 to 6 of 8 (M0 to M5), each VERIFIED (WITH_GAPS)
-Current loop step: none (M5 UPDATE-PROCESS complete; hard stop)
-Validate-contract status: written 2026-10-12 (inner-pvl: phase-6, Gate: PASS); M6 and M7 not written (held)
-Product Phase 1 Gate: AWAITING TAYLOR (the gate record in `## Product Phase 1 Gate` stays NOT CONFIRMED; only Taylor's explicit message clears it; no agent fills it)
+Current loop step: RESEARCH (M6 research is running)
+Validate-contract status: M0 to M5 written (Gate PASS) and closed; M6 not written; M7 not written
+Product Phase 1 Gate: CLEARED by Taylor on 2026-10-17 (record in `## Product Phase 1 Gate`). Daily use, D4, and S5 are deferred until all milestones are done
 Program Net Gate: PENDING
-Milestones M6 and M7: product Phase 2, held (no research, planning, or execution until Taylor clears the stop)
-Open items awaiting Taylor:
-- The gate itself: his explicit message that product Phase 1 is done (AC-1 to AC-43 and AC-53 pass, plus daily use) and M6 may start
-- The M5 report "For Taylor" block: M5-1 ancestor stop rule, M5-8 journal step ops, M5-9 and EX10 materialize default (absent means a brief is written), D1, D3, D5, D10, and the code-review findings R1 (a `.DS_Store` blocks a wanted brief, exit 6) and R2 (a hand-edited brief blocks the whole plan); R3 is D11, R4 is negligible
-- The 644 to 755 mode change of every tracked file in commit 4956007 (protected docs included; content identical; makes the literal diff gates exit 1)
-- The seven decision-sheet rows marked "Needs a real decision" in open-items-decision-sheet_REF_09-10-26.md
-- Daily use, the D4 real activation, and naming the first adopting project (backlog NOTE `m3-d4-first-real-activation_NOTE_05-10-26.md`)
+Open items for after M7 (all with Taylor unless noted):
+- Daily use, the D4 real activation, and naming the first adopting project (backlog NOTE `m3-d4-first-real-activation_NOTE_05-10-26.md`); then the S5 follow-up four weeks after daily use begins
 - Linux and CI never run (no remote)
 - The Cursor editor and Windsurf were never tested
-- The S5 follow-up four weeks after daily use begins
-Latest validator run: 2026-10-17, M5 UPDATE PROCESS (results in the M5 report closeout and the commit message)
+- The seven decision-sheet rows marked "Needs a real decision" in open-items-decision-sheet_REF_09-10-26.md
+- Whether `.claude/scheduled_tasks.lock` should be untracked (pending Taylor)
+- PRD Q11 (crates.io name and license): needed before M7 starts, not before M6
+Latest validator run: 2026-10-17, M5 review-fix round closeout (results in the commit message)
 
 Loop step values: RESEARCH | INNOVATE | PLAN-SUPPLEMENT | PVL | EXECUTE | EVL | UPDATE-PROCESS
 Orchestrator rule: read "Current loop step" and "Validate-contract status" before spawning any subagent. Never spawn execute-agent when loop step is RESEARCH, INNOVATE, PLAN-SUPPLEMENT, or PVL.
@@ -530,4 +528,4 @@ Note: The Stable Program Goal above is fixed. This section is the only part that
 
 ## Next Step
 
-M0 to M5 are VERIFIED (WITH_GAPS). The program is stopped at the Product Phase 1 Gate (AWAITING TAYLOR). M6 and M7 stay held until Taylor sends the explicit confirmation message.
+M0 to M5 are VERIFIED (WITH_GAPS) and Taylor cleared the Product Phase 1 Gate on 2026-10-17. Next: M6 (TUI) RESEARCH, then the normal loop; M7 follows once PRD Q11 is decided.

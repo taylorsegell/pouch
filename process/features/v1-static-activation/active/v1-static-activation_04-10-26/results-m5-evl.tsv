@@ -2,3 +2,4 @@ iteration	timestamp	gaps_found	fail_count	concern_count	applied	saturation_statu
 0	2026-10-17T00:00:00Z	0	0	0	0	n/a	baseline	EXECUTE reported G1 to G6 green, 642 tests, strided fault sample only
 1	2026-10-17T00:00:00Z	1	1	0	0	not_saturated	CONTINUE	vc-tester: G1 to G6 pass (G5e mode-only); full fault matrix fails 2 brief tests (replace, FailBefore(7), resume drops brief); fix cycle 1
 2	2026-10-17T00:00:00Z	0	0	0	1	saturated	HALTED_SUCCESS	vc-tester at 5ba6888: G1 to G6 green (643 tests; G5e and G6 mode-only), full fault matrix ac_briefs 13 and ac_recovery 14 pass
+3	2026-10-17T00:00:00Z	0	0	0	1	saturated	HALTED_SUCCESS	vc-tester at 4832e31 after review fixes R1 to R4, adopt rollback, mode restore: 655 tests, literal G5e and G6 exit 0, full matrix ac_briefs 19 and ac_recovery 14 pass

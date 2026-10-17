@@ -17,7 +17,7 @@ metadata:
 **Complexity**: COMPLEX
 **Phase:** Phase 7 of 8: milestone M6
 **Status**: PLANNED
-**Phase status:** PLANNED (BLOCKED by the product Phase 1 gate)
+**Phase status:** PLANNED (product Phase 1 gate cleared by Taylor 2026-10-17; RESEARCH next)
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 

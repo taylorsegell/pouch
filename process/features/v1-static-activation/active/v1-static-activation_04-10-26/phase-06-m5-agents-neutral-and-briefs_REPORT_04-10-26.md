@@ -192,6 +192,8 @@ EX1 to EX14 (all binding notes):
 
 ## For Taylor
 
+ANSWERED 2026-10-17: Taylor confirmed readings 1 to 3 (M5-1, M5-8, M5-9/EX10, see item 0 below), approved the review fixes (R1 to R4 plus the adopt-rollback and zero-step receipt gaps, `476b81c`, `0d5c56b`), had the D9 mode change reverted (`e4bf5b2`), and CLEARED the Product Phase 1 Gate ("Clear gate, continue M6+M7"; daily use, D4 and S5 deferred until all milestones are done: "Daily will begin once we finish all of the milestones"). Items 5 to 7 and 9 below are read and carried as open items after M7 where they were Taylor's (see the umbrella `## Current Execution State`).
+
 What is verified (execute run and the independent EVL run at `5ba6888`): everything under Product Phase 1 completeness above; the S1 and S6 numbers on your library; the new adapter and briefs behave as the plan says, including interruption at every sampled step. What is not: Linux/CI, the Cursor editor and Windsurf, and whether any agent reads a brief.
 
 To confirm product Phase 1 you still need to: use `unam` daily on a real project (D4, name the project), look at `unam doctor --evidence` once, and say explicitly that product Phase 1 is done and M6 may start. No agent fills the gate record.
@@ -290,3 +292,15 @@ Independent code review (vc-code-reviewer, static, no material bug; the four saf
 | R4 | negligible | The rollback scratch path `trash.join("rollback")` could collide with a removed skill literally named `rollback` |
 
 Closeout state: Ready for UPDATE PROCESS archival (EVL CLEAN). The plan stays in the program task folder like M0 to M4.
+
+## EVL iteration 3 (post-review fixes, 2026-10-17)
+
+Independent vc-tester run at HEAD `4832e31` after the review-fix round (`e4bf5b2` modes restored, `476b81c` R1 to R4, `0d5c56b` adopted brief survives rollback and zero-step plans drop stale brief rows; report commits `d9c357b`, `4832e31`). Report: `phase-06-m5-agents-neutral-and-briefs-evl-iteration-003_REPORT_17-10-26.md`; TSV row in `results-m5-evl.tsv`. Loop status HALTED_SUCCESS, classification CLEAN.
+
+- G1, G2 exit 0; G3 655 passed, 0 failed, 0 ignored.
+- G5 (a) to (d) pass (17 `brief_*` names); G5 (e) literal and G6 literal exit 0 (the D9 mode noise is gone).
+- Full fault matrix: `ac_briefs` 19 and `ac_recovery` 14 pass. `git diff --check` clean.
+
+Design note (not a bug): a zero-step plan releases stale brief receipt rows without a prompt, because there is no step to confirm. `release_stale_brief_rows` has one call site (`change.rs`), runs under the project lock, only on a zero-step plan, and only drops receipt rows for briefs already missing on disk. Read-only commands never reach it.
+
+The "Known gap carried forward" about D9 above is closed by this iteration. Product Phase 1 Gate: CLEARED by Taylor on 2026-10-17.

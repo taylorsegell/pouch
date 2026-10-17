@@ -19,7 +19,7 @@ Unambiguous is a Rust command-line tool, invoked as `unam`, that controls which 
 
 - **User:** Taylor, solo, on macOS and Linux, across Claude Code, Codex, Cursor, and Hermes.
 - **Standard:** personal tool built to open-source-ready standards: tests, docs, reproducible builds, no telemetry, no network.
-- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members), and M5 (`agents-neutral` adapter writing `.agents/skills`, ancestor-skill warnings, generated per-bundle instruction briefs with journaled `write_generated`/`remove_generated` steps) are done and VERIFIED with gaps. The program is now at the Product Phase 1 Gate (AWAITING TAYLOR): M6 and M7 are held until Taylor confirms product Phase 1 is done. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
+- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members), and M5 (`agents-neutral` adapter writing `.agents/skills`, ancestor-skill warnings, generated per-bundle instruction briefs with journaled `write_generated`/`remove_generated` steps) are done and VERIFIED with gaps. Taylor CLEARED the Product Phase 1 Gate on 2026-10-17: M6 (TUI) is next, then M7; daily use, the first adopting project (D4), and S5 are deferred until all milestones are done. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
 - **Not a harness.** It sits in front of existing agent harnesses (PRD D7).
 
 Full product and design context: `process/context/product/all-product.md`.
@@ -43,7 +43,7 @@ Confirmed by Taylor on 04-10-26: the skill library path `~/Developer/01-AI/skill
 Additional rules set for the harness-setup session (04-10-26), kept as standing practice:
 
 - The five design documents that existed at kickoff are protected: `docs/PROJECT-BRIEF.md`, `docs/KICKOFF-PROMPT.md`, `docs/spec/PRD-unambiguous.md`, `docs/spec/unam-technical-spec.md`, `docs/adr/ADR-0001-dynamic-skill-routing.md`. Never move, rename, or rewrite them; an edit needs Taylor's explicit permission for that specific edit. New files the spec calls for (for example `docs/adapters.md`, `docs/json.md`) may be created and maintained. Report contradictions between documents, or between them and the toolkit, to Taylor; do not resolve them.
-- Product Phase 1 is done when AC-1 to AC-43 and AC-53 pass (PRD 13.2: every criterion is Phase 1 unless under its "Phase 2" or "Phase 3" heading) and Taylor uses the tool daily. Milestones M6 and M7 are product Phase 2: not researched, planned further, or executed until Taylor clears the hard stop after M5.
+- Product Phase 1 is done when AC-1 to AC-43 and AC-53 pass (PRD 13.2: every criterion is Phase 1 unless under its "Phase 2" or "Phase 3" heading) and Taylor uses the tool daily. Milestones M6 and M7 are product Phase 2; Taylor cleared the hard stop after M5 on 2026-10-17, so they proceed (daily use is deferred until after M7).
 - Do not run any skill-management tool against this repository.
 - Do not add a license file without asking (PRD Q11 is open).
 - Commit on `main` (see CLAUDE.md commit policy); never push without explicit approval.
@@ -100,7 +100,7 @@ For most substantial tasks:
 | `process/context/all-context.md` | any substantial planning, research, review, or implementation task |
 | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M5 (643 tests); CI written, not yet run) |
+| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M5 (655 tests); CI written, not yet run) |
 
 ## Current Context Groups
 
@@ -108,7 +108,7 @@ For most substantial tasks:
 |---|---|---|
 | `planning/` | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `product/` | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M5 (643 tests); CI written, not yet run) |
+| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M5 (655 tests); CI written, not yet run) |
 <!-- /GENERATED:routing -->
 
 ## Task Routing Table
@@ -187,7 +187,7 @@ docs/adapters.md                      spec-called doc (M2): Hermes slugify diffe
                                       M7 regenerates the adapter-evidence part and keeps the M2 sections
 ```
 
-Still to come: `tui/` (M6, held behind the Product Phase 1 Gate); `docs/json.md` (M7). `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 regenerates the adapter-evidence part and must keep the two M2 sections).
+Still to come: `tui/` (M6, next; the Product Phase 1 Gate was cleared 2026-10-17); `docs/json.md` (M7). `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 regenerates the adapter-evidence part and must keep the two M2 sections).
 
 ## Technology Stack
 
