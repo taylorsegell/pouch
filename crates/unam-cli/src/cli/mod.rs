@@ -368,6 +368,14 @@ pub fn run(cli: Cli) -> i32 {
         json: cli.json,
     };
     let Some(command) = cli.command else {
+        // Bare `unam` opens the picker on a terminal (M6-10); anywhere else
+        // it prints the usage text and the status table, exit 0.
+        if !cli.json
+            && crate::tui::is_interactive()
+            && crate::tui::root_resolves(cli.project.as_deref())
+        {
+            return crate::tui::run(!cli.no_cache, cli.project.clone(), cli.target.clone());
+        }
         print!("{}", usage_text());
         if let Some(table) = status::bare(&flags) {
             print!("\n{table}");
