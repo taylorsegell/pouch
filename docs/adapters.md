@@ -55,7 +55,7 @@ TL;DR: every tested agent that scans a destination discovered a symlinked skill 
 | Adapter | Destination | Default strategy | Rests on |
 |---|---|---|---|
 | `claude-code` | `.claude/skills` | `symlink` | Claude Code 2.1.285 (run 2026-10-05): the symlinked probe was listed at start, and a symlink added mid-session appeared with no reload. The cursor-agent CLI, which reads `.claude/skills` for compatibility, found it too. |
-| `agents-neutral` | `.agents/skills` | `symlink` | Codex 0.160.0, the cursor-agent CLI, and Hermes (after `hermes skills trust`) all found the symlinked probe. The adapter itself arrives in milestone M5. |
+| `agents-neutral` | `.agents/skills` | `symlink` | Codex 0.160.0, the cursor-agent CLI, and Hermes (after `hermes skills trust`) all found the symlinked probe. The adapter arrived in milestone M5. |
 
 Refresh behavior observed: Claude Code needs nothing for an existing `.claude/skills` directory; Codex needs nothing; the cursor-agent CLI shows a mid-session addition only after a restart; Hermes needs `hermes skills trust <repo>` once and a restart for a mid-session addition. Claude Code does not scan `.agents/skills` at all (no discovery even after a restart, copy or symlink).
 
@@ -89,7 +89,49 @@ Notes:
 - `scan:enterprise` is the one assumption: the documentation says the enterprise location outranks personal and project scope, but the platform paths unam checks are not specified there. Override them with `UNAM_ENTERPRISE_SKILLS_DIRS`.
 - The `consumers:*` rows are why the plan header says "visible to" more than one agent. They say these tools read `.claude/skills`; the M0 run tested only the cursor-agent CLI among them.
 
+## Adapter evidence: the agents-neutral claims
+
+TL;DR: `agents-neutral` writes the shared `.agents/skills` directory that Codex, Cursor, Windsurf and Devin, and Hermes read. Every claim carries a source, and `unam doctor --evidence` prints this same list. The Cursor editor and Windsurf were never tested; the Cursor rows rest on the documentation, with the `cursor-agent` CLI spike as supporting evidence only.
+
+The table lists the 16 entries of `Adapter::evidence()` for `agents-neutral` (`crates/unam-core/src/adapter/agents_neutral.rs`), in source order. A unit test (`adapter_claims_have_evidence`) fails when a destination, scan location, strategy, refresh, or consumer claim has no entry, for either adapter.
+
+| Claim | Evidence | Status | What it says |
+|---|---|---|---|
+| `destination` | https://learn.chatgpt.com/docs/build-skills.md | verified | Project skills live in .agents/skills/<name>/SKILL.md (Codex and Cursor document it) |
+| `scan:project` | https://cursor.com/docs/skills | verified | <project>/.agents/skills is read by Codex and Cursor |
+| `scan:ancestor` | https://learn.chatgpt.com/docs/build-skills.md | verified | Codex reads every .agents/skills from the working directory up to the repository root |
+| `scan:user` | https://learn.chatgpt.com/docs/build-skills.md | verified | ~/.agents/skills is read as the user scope |
+| `precedence` | https://agentskills.io/client-implementation/adding-skills-support.md | verified | A project skill beats a user skill of the same name; the order between ancestor directories is not documented (an assumption, so a same-name skill there is a warning, not a shadow) |
+| `strategy:symlink` | spike/symlink-discovery.md | verified | A symlinked skill directory in .agents/skills was discovered by Codex 0.160.0, the cursor-agent CLI 2026.10.01, and Hermes v0.21.5 after trust (run 2026-10-05) |
+| `strategy:copy` | spike/symlink-discovery.md | verified | A copied skill directory in .agents/skills is discovered like any project skill |
+| `refresh:unknown` | spike/symlink-discovery.md | verified | Whether a running agent notices a skill added to .agents/skills differs per agent, so unam reports it per consumer and never claims a refresh is unnecessary |
+| `refresh:codex` | https://learn.chatgpt.com/docs/build-skills.md | verified | Codex detects skill changes automatically; restart it if the skill does not appear |
+| `refresh:cursor` | spike/symlink-discovery.md | verified | Cursor does not document refresh; the cursor-agent CLI showed a mid-session addition only after a restart (the Cursor editor was not tested) |
+| `refresh:windsurf-devin` | https://docs.devin.ai/desktop/cascade/skills | assumption | Windsurf and Devin do not document refresh (Windsurf was not tested); this is an assumption from the absence of documentation |
+| `refresh:hermes` | https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/skills.md | verified | Hermes lists project skills only after `hermes skills trust` is run once per repository, and needed a restart for a mid-session addition |
+| `consumers:codex` | https://learn.chatgpt.com/docs/build-skills.md | verified | Codex reads .agents/skills |
+| `consumers:cursor` | https://cursor.com/docs/skills | verified | Cursor reads .agents/skills (documented; the cursor-agent CLI spike is supporting evidence, the editor is untested) |
+| `consumers:windsurf-devin` | https://docs.devin.ai/desktop/cascade/skills | verified | Windsurf and Devin read .agents/skills and ~/.agents/skills |
+| `consumers:hermes` | https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/skills.md | verified | Hermes reads .agents/skills once the repository is trusted |
+
+Notes:
+
+- Scan locations and ranks (lower wins): the project's `.agents/skills` is rank 0 (Project), each ancestor's `.agents/skills` is rank 1 (Ancestor), `~/.agents/skills` is rank 2 (User). A same-name skill in a location that does not outrank the project one never marks unam's skill `shadowed`: the user location ranks below the project, and ancestors are reported as a warning (`ancestor-skills`), not a shadow, because the documentation does not state their precedence.
+- Ancestor stop rule (a reading, not in the spec): the ancestors are every parent directory of the project root up to and including the nearest one holding a `.git` entry. When the project root is itself the Git root there are none, and when no `.git` is found above the root there are none either; the walk never runs on to the filesystem root. Codex documents "from the working directory up to the repository root", so this matches it for projects inside a Git repository.
+- Refresh is always `unknown`. The refresh sentence has one clause per consumer, and unam never prints "no restart or reload required" for this destination. The Hermes followup `hermes skills trust <root>` is printed (when `~/.hermes` exists) and is never run.
+- Not tested: Windsurf (not installed) and the Cursor editor. The consumers list is documentation, not a test result for those two.
+- Cross-adapter duplicate: Cursor and Windsurf/Devin also read `.claude/skills`, so a skill placed for both targets is reported once per skill as `duplicate for cursor and windsurf-devin via compat read of .claude/skills`.
+
+## Generated bundle briefs
+
+TL;DR: a bundle with an `instruction` gets a small generated skill, `<slug>-brief`, next to the skills it activates. It is discoverable; unam cannot make an agent read it.
+
+- Written for each bundle named in the target selection, unless the bundle sets `metadata.unambiguous.materialize_instruction: false`. An absent value means on (PRD 5.3 "opt-out per bundle"); a bundle without an `instruction` has no brief. There is no config key.
+- Shape: the directory `<destination>/<slug>-brief/` holding only `SKILL.md`: a frontmatter block (`name`, a one-line `description`, built with a YAML serializer) and the trimmed instruction.
+- Ownership: the receipt records the brief (`kind: generated`, `generated: bundle-brief`, the bundle, the name, the destination, and the `content_hash` of the exact bytes written). An unchanged brief is left alone and its record carried verbatim. A brief whose content no longer matches the receipt is never overwritten or deleted: it blocks the change while the bundle still wants it, and is left and released from the receipt when it does not. A name already taken by something unam did not write is a conflict.
+- `unam status` and `unam reconcile` report a receipted brief that is missing or edited (`brief-missing`, `brief-modified`); `reconcile --repair` writes a missing one again.
+
 ## Maintenance
 
-- The two M2 sections (Hermes slugify parity and the bundle loader differences) and the two M4 evidence sections are all kept.
-- When an adapter changes its evidence entries, regenerate the claim table from `unam doctor --evidence` (run it only against a temporary `UNAM_CONFIG_DIR` and `HOME`, never against a real project) and keep the M0 outcome section in step with `spike/symlink-discovery.md`. Milestone M5 adds the `agents-neutral` claims.
+- The two M2 sections (Hermes slugify parity and the bundle loader differences), the two M4 evidence sections, and the M5 `agents-neutral` and brief sections are all kept.
+- When an adapter changes its evidence entries, regenerate the claim table from `unam doctor --evidence` (run it only against a temporary `UNAM_CONFIG_DIR` and `HOME`, never against a real project) and keep the M0 outcome section in step with `spike/symlink-discovery.md`. Milestone M5 added the `agents-neutral` claims and the brief section; milestone M7 regenerates the adapter-evidence part and must keep the two M2 sections.

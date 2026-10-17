@@ -468,6 +468,23 @@ impl FsOps for FailRemove {
     ) -> Result<crate::fsops::RestoreOutcome> {
         RealFs.restore_owned(d, e, t, s, tag)
     }
+
+    fn write_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        c: &[u8],
+        tag: &str,
+    ) -> crate::error::Result<()> {
+        RealFs.write_generated(d, c, tag)
+    }
+    fn remove_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        h: &crate::hash::Hash,
+        t: &crate::fsops::StatePath,
+    ) -> crate::error::Result<crate::fsops::RemoveOutcome> {
+        RealFs.remove_generated(d, h, t)
+    }
 }
 
 #[test]
@@ -772,4 +789,108 @@ fn journal_with_a_different_project_root_is_journal_invalid() {
     let e = read_journal(&s, ".claude/skills").unwrap_err();
     assert_eq!(e.code(), "journal-invalid");
     assert!(e.to_string().contains("move the project back"));
+}
+
+// ---- generated bundle briefs (M5-8) ----
+
+#[test]
+fn journal_round_trips_the_generated_step_ops_inside_the_begin_record() {
+    let t = tmp();
+    let root = canon(t.path());
+    let plan = vec![
+        JournalStep::RemoveGenerated {
+            n: 1,
+            bundle: "b".into(),
+            name: "b-brief".into(),
+            expect_hash: "blake3:aa".into(),
+        },
+        JournalStep::WriteGenerated {
+            n: 2,
+            bundle: "b".into(),
+            name: "b-brief".into(),
+            content: "---\nname: b-brief\n---\n\nText \u{e9}\n".into(),
+            content_hash: "blake3:bb".into(),
+        },
+    ];
+    let line = begin_line(begin_for(&root, plan.clone()));
+    // The new ops are step ops (tag `op`) inside `begin`, not record types.
+    assert!(line.contains("\"op\":\"write_generated\""), "{line}");
+    assert!(line.contains("\"op\":\"remove_generated\""), "{line}");
+    assert!(line.starts_with("{\"t\":\"begin\""), "{line}");
+    let s = write_journal(
+        &root,
+        &[
+            line,
+            Record::Started { n: 1 }.to_line(),
+            Record::Done {
+                n: 1,
+                how: "ran".into(),
+            }
+            .to_line(),
+        ],
+    );
+    let j = present(read_journal(&s, ".claude/skills").unwrap());
+    assert_eq!(j.begin.plan, plan);
+    assert_eq!(j.begin.plan[0].name(), Some("b-brief"));
+    assert_eq!(j.begin.plan[1].n(), 2);
+    assert_eq!(j.states[&1], StepState::Done { how: "ran".into() });
+    assert_eq!(j.states[&2], StepState::Pending);
+}
+
+#[test]
+fn journal_rejects_a_generated_step_with_an_invalid_name() {
+    let t = tmp();
+    let root = canon(t.path());
+    for name in ["..", "a/b", ""] {
+        let b = begin_for(
+            &root,
+            vec![JournalStep::WriteGenerated {
+                n: 1,
+                bundle: "b".into(),
+                name: name.into(),
+                content: "x".into(),
+                content_hash: "blake3:00".into(),
+            }],
+        );
+        assert_invalid(&root, &[begin_line(b)], "generated name");
+    }
+}
+
+#[test]
+fn generated_entry_is_a_typed_view_of_an_other_entry() {
+    let v = json!({
+        "kind": "generated",
+        "generated": "bundle-brief",
+        "bundle": "backend-dev",
+        "name": "backend-dev-brief",
+        "dest": ".claude/skills/backend-dev-brief",
+        "content_hash": "blake3:11",
+        "applied_at": "2026-10-02T21:40:00Z"
+    });
+    let g = GeneratedEntry::from_value(&v).unwrap();
+    assert_eq!(g.bundle, "backend-dev");
+    assert!(g.consistent(".claude/skills"));
+    assert!(!g.consistent(".agents/skills"));
+    assert_eq!(g.to_value(), v);
+    // Not a brief: another `generated` kind, or missing fields.
+    assert!(
+        GeneratedEntry::from_value(&json!({"kind": "generated", "path": "AGENTS.md"})).is_none()
+    );
+    assert!(
+        GeneratedEntry::from_value(&json!({"kind": "generated", "generated": "bundle-brief"}))
+            .is_none()
+    );
+    assert!(GeneratedEntry::from_value(&json!({"kind": "skill"})).is_none());
+    // A receipt exposes only the typed ones, and keeps the others verbatim.
+    let mut r = Receipt::parse(&sample_receipt_text(), Path::new("/x")).unwrap();
+    assert_eq!(r.generated_entries().count(), 0);
+    r.entries.push(Entry::Other(v));
+    assert_eq!(r.generated_entries().count(), 1);
+    let again = Receipt::parse(&r.to_text(), Path::new("/x")).unwrap();
+    assert_eq!(again, r);
+    // A name that cannot be a destination is not consistent.
+    let mut bad = g.clone();
+    bad.name = "..".into();
+    bad.dest = ".claude/skills/..".into();
+    assert!(!bad.consistent(".claude/skills"));
 }

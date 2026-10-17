@@ -370,6 +370,58 @@ impl SkillEntry {
     }
 }
 
+/// A generated bundle-brief entry of a receipt (spec 2.4; M5-8). It is kept
+/// in the receipt as `Entry::Other` so unknown fields survive; this is the
+/// typed view of the fields unam acts on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneratedEntry {
+    pub bundle: String,
+    pub name: String,
+    pub dest: String,
+    pub content_hash: String,
+    pub applied_at: String,
+}
+
+impl GeneratedEntry {
+    /// The typed view of an `Entry::Other` value, when it is a
+    /// `kind: generated`, `generated: bundle-brief` record with the string
+    /// fields unam needs.
+    pub fn from_value(v: &Value) -> Option<GeneratedEntry> {
+        let o = v.as_object()?;
+        if o.get("kind")?.as_str()? != "generated"
+            || o.get("generated")?.as_str()? != "bundle-brief"
+        {
+            return None;
+        }
+        let s = |k: &str| o.get(k).and_then(Value::as_str).map(str::to_string);
+        Some(GeneratedEntry {
+            bundle: s("bundle")?,
+            name: s("name")?,
+            dest: s("dest")?,
+            content_hash: s("content_hash")?,
+            applied_at: s("applied_at")?,
+        })
+    }
+
+    pub fn to_value(&self) -> Value {
+        json!({
+            "kind": "generated",
+            "generated": "bundle-brief",
+            "bundle": self.bundle,
+            "name": self.name,
+            "dest": self.dest,
+            "content_hash": self.content_hash,
+            "applied_at": self.applied_at,
+        })
+    }
+
+    /// `dest` is exactly `<dest_rel>/<name>` and `name` passes
+    /// `validate_dest_name` (the same rule as a skill entry).
+    pub fn consistent(&self, dest_rel: &str) -> bool {
+        validate_dest_name(&self.name).is_ok() && self.dest == format!("{dest_rel}/{}", self.name)
+    }
+}
+
 /// `"symlink"` or `"copy"`.
 pub fn strategy_text(s: Strategy) -> &'static str {
     match s {
@@ -582,6 +634,14 @@ impl Receipt {
             Entry::Other(_) => None,
         })
     }
+
+    /// The generated bundle-brief entries (typed views), in receipt order.
+    pub fn generated_entries(&self) -> impl Iterator<Item = GeneratedEntry> + '_ {
+        self.entries.iter().filter_map(|e| match e {
+            Entry::Other(v) => GeneratedEntry::from_value(v),
+            Entry::Skill(_) => None,
+        })
+    }
 }
 
 // ---- history ----
@@ -750,6 +810,21 @@ pub enum JournalStep {
         n: u32,
         dir: String,
     },
+    /// Write a bundle brief. The journal carries the content so a replay
+    /// can write it again (verified against `content_hash` first; M5-8).
+    WriteGenerated {
+        n: u32,
+        bundle: String,
+        name: String,
+        content: String,
+        content_hash: String,
+    },
+    RemoveGenerated {
+        n: u32,
+        bundle: String,
+        name: String,
+        expect_hash: String,
+    },
 }
 
 impl JournalStep {
@@ -759,7 +834,9 @@ impl JournalStep {
             | JournalStep::Remove { n, .. }
             | JournalStep::DropOrphan { n, .. }
             | JournalStep::UpdateProvenance { n, .. }
-            | JournalStep::RemoveDir { n, .. } => *n,
+            | JournalStep::RemoveDir { n, .. }
+            | JournalStep::WriteGenerated { n, .. }
+            | JournalStep::RemoveGenerated { n, .. } => *n,
         }
     }
 
@@ -768,7 +845,9 @@ impl JournalStep {
             JournalStep::Add { name, .. }
             | JournalStep::Remove { name, .. }
             | JournalStep::DropOrphan { name, .. }
-            | JournalStep::UpdateProvenance { name, .. } => Some(name),
+            | JournalStep::UpdateProvenance { name, .. }
+            | JournalStep::WriteGenerated { name, .. }
+            | JournalStep::RemoveGenerated { name, .. } => Some(name),
             JournalStep::RemoveDir { .. } => None,
         }
     }

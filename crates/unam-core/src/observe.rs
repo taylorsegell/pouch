@@ -136,13 +136,26 @@ pub fn observe(
             );
         }
     }
+    // A location shadows only when it outranks the Project location (lower
+    // rank wins; M5-2). With no Project location nothing shadows. For
+    // `claude-code` the enterprise and user locations rank 0 and 1 against
+    // the project's 2; for `agents-neutral` the user location ranks 2 against
+    // the project's 0, so it never shadows, and ancestors are warned about
+    // elsewhere, never shadows.
+    let project_rank = scan_locations
+        .iter()
+        .find(|l| l.scope == Scope::Project)
+        .map(|l| l.rank);
     let mut shadows = Vec::new();
     for name in names {
         if validate_dest_name(name).is_err() {
             continue;
         }
+        let Some(project_rank) = project_rank else {
+            continue;
+        };
         for loc in scan_locations {
-            if !matches!(loc.scope, Scope::Enterprise | Scope::User) {
+            if !matches!(loc.scope, Scope::Enterprise | Scope::User) || loc.rank >= project_rank {
                 continue;
             }
             let by = loc.path.join(name);
@@ -160,6 +173,27 @@ pub fn observe(
         entries,
         shadows,
     })
+}
+
+/// The parent directories of `root`, nearest first, up to and including the
+/// nearest one that holds a `.git` entry (the same test as
+/// `project::detect_root`). Empty when `root` itself holds `.git` or when no
+/// `.git` is found above it: the walk never runs on to the filesystem root
+/// (M5-1).
+pub fn ancestors_to_git_root(root: &Path) -> Vec<PathBuf> {
+    if std::fs::symlink_metadata(root.join(".git")).is_ok() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut dir = root.parent();
+    while let Some(d) = dir {
+        out.push(d.to_path_buf());
+        if std::fs::symlink_metadata(d.join(".git")).is_ok() {
+            return out;
+        }
+        dir = d.parent();
+    }
+    Vec::new()
 }
 
 /// The foreign entries of the destination root (M4-3): non-hidden
@@ -336,6 +370,68 @@ mod tests {
             list_foreign(empty.path(), REL, &set(&[]))
                 .unwrap()
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn user_location_never_shadows_under_agents_neutral() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path().join("proj");
+        let rel = ".agents/skills";
+        fs::create_dir_all(root.join(rel)).unwrap();
+        let user = t.path().join("home/.agents/skills");
+        let anc = t.path().join("above/.agents/skills");
+        for base in [&user, &anc] {
+            fs::create_dir_all(base.join("code-review")).unwrap();
+            fs::write(base.join("code-review/SKILL.md"), b"x").unwrap();
+        }
+        let locs = vec![
+            ScanLocation {
+                path: root.join(rel),
+                scope: Scope::Project,
+                rank: 0,
+            },
+            ScanLocation {
+                path: anc,
+                scope: Scope::Ancestor,
+                rank: 1,
+            },
+            ScanLocation {
+                path: user,
+                scope: Scope::User,
+                rank: 2,
+            },
+        ];
+        let o = observe(&root, rel, &set(&["code-review"]), &set(&[]), &locs).unwrap();
+        assert!(o.shadows.is_empty(), "{:?}", o.shadows);
+        // No Project location at all: nothing shadows.
+        let o = observe(&root, rel, &set(&["code-review"]), &set(&[]), &locs[1..]).unwrap();
+        assert!(o.shadows.is_empty());
+    }
+
+    #[test]
+    fn ancestor_walk_rows() {
+        let t = tempfile::tempdir().unwrap();
+        let repo = t.path().join("repo");
+        fs::create_dir_all(repo.join(".git")).unwrap();
+        // The Git root itself: none.
+        assert!(ancestors_to_git_root(&repo).is_empty());
+        // Below the Git root: nearest first, ending at the Git root.
+        let sub = repo.join("a/b");
+        fs::create_dir_all(&sub).unwrap();
+        assert_eq!(
+            ancestors_to_git_root(&sub),
+            vec![repo.join("a"), repo.clone()]
+        );
+        // No Git root anywhere above: none.
+        let loose = t.path().join("loose/x/y");
+        fs::create_dir_all(&loose).unwrap();
+        assert!(ancestors_to_git_root(&loose).is_empty());
+        // A `.git` file counts, as in root detection.
+        fs::write(t.path().join("loose/.git"), "gitdir: z\n").unwrap();
+        assert_eq!(
+            ancestors_to_git_root(&loose),
+            vec![t.path().join("loose/x"), t.path().join("loose")]
         );
     }
 

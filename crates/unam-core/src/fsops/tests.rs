@@ -1006,3 +1006,156 @@ fn fs_ops_is_object_safe() {
         .write_state(&StatePath::new(t.path().join("x")), b"1")
         .unwrap();
 }
+
+// ---- generated bundle briefs (M5-8, EX5, EX9) ----
+
+mod briefs {
+    use super::*;
+
+    fn dest_for(project: &Path, name: &str) -> DestPath {
+        root_in(project).join_child(name).unwrap()
+    }
+
+    #[test]
+    fn write_creates_a_directory_holding_only_skill_md_and_leaves_no_temp() {
+        let t = tmp();
+        let project = canon(t.path());
+        fs::create_dir_all(project.join(".claude/skills")).unwrap();
+        let d = dest_for(&project, "b-brief");
+        RealFs.write_generated(&d, b"hello\n", "op1").unwrap();
+        let names: Vec<String> = fs::read_dir(d.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec!["SKILL.md"]);
+        assert_eq!(fs::read(d.path().join("SKILL.md")).unwrap(), b"hello\n");
+        assert_eq!(
+            observe_brief(&d).unwrap(),
+            BriefObserved::Brief {
+                hash: Hash::of_bytes(b"hello\n")
+            }
+        );
+        let siblings: Vec<String> = fs::read_dir(project.join(".claude/skills"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(siblings, vec!["b-brief"]);
+    }
+
+    #[test]
+    fn write_refuses_an_occupied_destination_and_changes_nothing() {
+        let t = tmp();
+        let project = canon(t.path());
+        let d = dest_for(&project, "b-brief");
+        write(&d.path().join("SKILL.md"), "mine");
+        assert!(RealFs.write_generated(&d, b"new", "op1").is_err());
+        assert_eq!(fs::read(d.path().join("SKILL.md")).unwrap(), b"mine");
+        // A plain file at the destination too.
+        let f = dest_for(&project, "other-brief");
+        write(f.path(), "x");
+        assert!(RealFs.write_generated(&f, b"new", "op1").is_err());
+        // A stale temp directory of the same operation blocks and is not removed.
+        let g = dest_for(&project, "c-brief");
+        let temp = project.join(".claude/skills/.unam-tmp-op1-c-brief");
+        fs::create_dir_all(&temp).unwrap();
+        assert!(RealFs.write_generated(&g, b"new", "op1").is_err());
+        assert!(temp.is_dir());
+        assert!(!g.path().exists());
+    }
+
+    #[test]
+    fn observe_brief_rows() {
+        let t = tmp();
+        let project = canon(t.path());
+        assert_eq!(
+            observe_brief(&dest_for(&project, "none-brief")).unwrap(),
+            BriefObserved::Missing
+        );
+        let extra = dest_for(&project, "extra-brief");
+        write(&extra.path().join("SKILL.md"), "a");
+        write(&extra.path().join("notes.md"), "b");
+        assert_eq!(
+            observe_brief(&extra).unwrap(),
+            BriefObserved::Other { found: "directory" }
+        );
+        let empty = dest_for(&project, "empty-brief");
+        fs::create_dir_all(empty.path()).unwrap();
+        assert_eq!(
+            observe_brief(&empty).unwrap(),
+            BriefObserved::Other { found: "directory" }
+        );
+        let nested = dest_for(&project, "nested-brief");
+        write(&nested.path().join("SKILL.md/inner"), "a");
+        assert_eq!(
+            observe_brief(&nested).unwrap(),
+            BriefObserved::Other { found: "directory" }
+        );
+        let file = dest_for(&project, "file-brief");
+        write(file.path(), "x");
+        assert_eq!(
+            observe_brief(&file).unwrap(),
+            BriefObserved::Other { found: "file" }
+        );
+        #[cfg(unix)]
+        {
+            let link = dest_for(&project, "link-brief");
+            std::os::unix::fs::symlink(&project, link.path()).unwrap();
+            assert_eq!(
+                observe_brief(&link).unwrap(),
+                BriefObserved::Other { found: "symlink" }
+            );
+        }
+    }
+
+    #[test]
+    fn remove_moves_a_matching_brief_aside_and_skips_everything_else() {
+        let t = tmp();
+        let project = canon(t.path());
+        fs::create_dir_all(project.join(".claude/skills")).unwrap();
+        let trash = StatePath::new(project.join(".unam/claude-code/trash/op1"));
+        let d = dest_for(&project, "b-brief");
+        let h = Hash::of_bytes(b"text");
+        // Missing.
+        assert_eq!(
+            RealFs.remove_generated(&d, &h, &trash).unwrap(),
+            RemoveOutcome::Skipped(SkipReason::Missing)
+        );
+        // Matching: moved aside into the operation trash, exactly.
+        RealFs.write_generated(&d, b"text", "op1").unwrap();
+        assert_eq!(
+            RealFs.remove_generated(&d, &h, &trash).unwrap(),
+            RemoveOutcome::Removed
+        );
+        assert!(!d.path().exists());
+        assert_eq!(
+            fs::read(trash.path().join("b-brief/SKILL.md")).unwrap(),
+            b"text"
+        );
+        // A second brief of the same name cannot be moved onto the first copy.
+        RealFs.write_generated(&d, b"text", "op1").unwrap();
+        assert!(RealFs.remove_generated(&d, &h, &trash).is_err());
+        assert_eq!(fs::read(d.path().join("SKILL.md")).unwrap(), b"text");
+        fs::remove_dir_all(trash.path()).unwrap();
+        // Edited content, an extra file, a file, a link: left alone.
+        fs::write(d.path().join("SKILL.md"), b"edited").unwrap();
+        assert_eq!(
+            RealFs.remove_generated(&d, &h, &trash).unwrap(),
+            RemoveOutcome::Skipped(SkipReason::Modified)
+        );
+        fs::write(d.path().join("SKILL.md"), b"text").unwrap();
+        fs::write(d.path().join("extra.md"), b"x").unwrap();
+        assert_eq!(
+            RealFs.remove_generated(&d, &h, &trash).unwrap(),
+            RemoveOutcome::Skipped(SkipReason::Modified)
+        );
+        assert_eq!(fs::read(d.path().join("SKILL.md")).unwrap(), b"text");
+        let f = dest_for(&project, "f-brief");
+        write(f.path(), "x");
+        assert_eq!(
+            RealFs.remove_generated(&f, &h, &trash).unwrap(),
+            RemoveOutcome::Skipped(SkipReason::Foreign)
+        );
+        assert!(f.path().is_file());
+        assert!(!trash.path().exists(), "a skip creates no trash");
+    }
+}

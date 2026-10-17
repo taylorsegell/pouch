@@ -275,12 +275,12 @@ fn conflicts_exit_6_before_any_prompt() {
 }
 
 #[test]
-fn unsupported_agent_flag_value_exit_2() {
+fn agents_neutral_flag_value_is_a_supported_target() {
     let fx = Fx::new();
     let p = fx.project("p");
-    let start = snapshot_project(&p);
-    fails(
-        &fx,
+    // M5: `--target agents-neutral` is a registered target (it was
+    // `target-unsupported` before the adapter existed).
+    let (code, v) = fx.json(
         &p,
         &[
             "--target",
@@ -289,10 +289,12 @@ fn unsupported_agent_flag_value_exit_2() {
             "fx:sdlc/code-review",
             "--yes",
         ],
-        2,
-        "target-unsupported",
     );
-    assert_project_unchanged(&start, &p);
+    assert_eq!(code, 0, "{v}");
+    assert_eq!(v["data"]["target"], "agents-neutral");
+    assert_eq!(v["data"]["destination"], ".agents/skills");
+    assert!(p.join(".agents/skills/code-review").exists());
+    assert!(!p.join(".claude").exists());
     fx.done();
 }
 

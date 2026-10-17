@@ -7,7 +7,7 @@ use unam_core::adapter::RefreshNote;
 use unam_core::catalog::FlatDiagnostic;
 use unam_core::error::Severity;
 use unam_core::plan::{Plan, Step, StepOutcome, StepResult};
-use unam_core::project::RootDetection;
+use unam_core::project::{RootDetection, TargetId};
 use unam_core::resolve::Provenance;
 use unam_core::state::strategy_text;
 use unam_core::verify::{EntryState, Reason, Record};
@@ -184,6 +184,20 @@ impl ErrorInfo {
 /// The SES-2 sentence (spec 5), printed whenever a removal was applied.
 pub const REMOVAL_CAVEAT: &str = "Removed from future discovery. A conversation that already loaded these instructions keeps them until that conversation ends.";
 
+/// The honesty line printed when a plan writes a bundle brief (spec 11, PRD
+/// G12): a brief is discoverable, not guaranteed to be read.
+pub const BRIEF_NOTE: &str =
+    "A bundle brief is a skill the agent can discover; unam cannot make the agent read it.";
+
+/// Most instruction lines shown under a brief in a plan.
+const BRIEF_LINES_SHOWN: usize = 20;
+
+/// The shared-destination sentence of an `agents-neutral` plan or result
+/// (spec 4.7, AC-43).
+pub fn visible_to_line(consumers: &[String]) -> String {
+    format!("Visible to: {}.", consumers.join(", "))
+}
+
 /// The `.gitignore` offer heading (OWN-7).
 pub const GITIGNORE_HEADING: &str = "Add these lines to .gitignore (unam never edits it):";
 
@@ -220,6 +234,12 @@ pub fn render_plan(plan: &Plan, refresh: Option<&RefreshNote>) -> String {
     s.push_str(&format!("Strategy  {}\n", strategy_text(h.strategy)));
     if let Some(d) = &h.detection_text {
         s.push_str(&format!("Detected  {}\n", neutralize(d)));
+    }
+    if h.target == TargetId::AgentsNeutral {
+        s.push_str(&format!(
+            "Shared    {}\n",
+            neutralize(&visible_to_line(&h.consumers))
+        ));
     }
     s.push('\n');
     let mut body = String::new();
@@ -260,6 +280,34 @@ pub fn render_plan(plan: &Plan, refresh: Option<&RefreshNote>) -> String {
                 "  d {}/   (created by unam; removed only when empty)",
                 neutralize(dir)
             ),
+            Step::WriteGenerated {
+                bundle,
+                name,
+                content,
+                ..
+            } => {
+                let body = unam_core::generated::brief_body(content);
+                let mut lines: Vec<String> = body
+                    .lines()
+                    .take(BRIEF_LINES_SHOWN)
+                    .map(|l| format!("      {}", neutralize(l)))
+                    .collect();
+                let more = body.lines().count().saturating_sub(BRIEF_LINES_SHOWN);
+                if more > 0 {
+                    lines.push(format!("      ... ({more} more line(s))"));
+                }
+                format!(
+                    "  generated  {}  (instruction of bundle {})\n{}",
+                    neutralize(name),
+                    neutralize(bundle),
+                    lines.join("\n")
+                )
+            }
+            Step::RemoveGenerated { bundle, name, .. } => format!(
+                "  - generated  {}  (remove, instruction of bundle {})",
+                neutralize(name),
+                neutralize(bundle)
+            ),
         };
         body.push_str(&line);
         body.push('\n');
@@ -279,6 +327,13 @@ pub fn render_plan(plan: &Plan, refresh: Option<&RefreshNote>) -> String {
             neutralize(&rel),
             neutralize(&alias)
         ));
+    }
+    if plan
+        .steps
+        .iter()
+        .any(|st| matches!(st, Step::WriteGenerated { .. }))
+    {
+        body.push_str(&format!("  {BRIEF_NOTE}\n"));
     }
     if !body.is_empty() {
         s.push_str(&body);
@@ -318,6 +373,8 @@ pub struct ResultView<'a> {
     pub followups: &'a [String],
     pub removal_applied: bool,
     pub gitignore_lines: &'a [String],
+    /// The consumers of a shared destination (empty: print nothing).
+    pub visible_to: &'a [String],
 }
 
 /// The result block (spec 5): counts, failed and skipped lines, SES-1,
@@ -329,8 +386,8 @@ pub fn render_result(v: &ResultView<'_>) -> String {
             .filter(|r| r.op == op && r.outcome == StepOutcome::Done)
             .count()
     };
-    let adds = done("add");
-    let removes = done("remove") + done("drop_orphan");
+    let adds = done("add") + done("write_generated");
+    let removes = done("remove") + done("drop_orphan") + done("remove_generated");
     let updates = done("update_provenance");
     let total = adds + removes + updates;
     let mut s = String::new();
@@ -355,6 +412,9 @@ pub fn render_result(v: &ResultView<'_>) -> String {
     }
     if let Some(r) = v.refresh {
         s.push_str(&format!("After apply   {}\n", neutralize(&r.text)));
+    }
+    if !v.visible_to.is_empty() {
+        s.push_str(&format!("{}\n", neutralize(&visible_to_line(v.visible_to))));
     }
     for f in v.followups {
         s.push_str(&format!("Then          {}\n", neutralize(f)));
@@ -770,6 +830,87 @@ mod tests {
         }
 
         #[test]
+        fn render_plan_brief_lines_honesty_note_and_shared_sentence() {
+            let mut p = plan();
+            p.header.target = TargetId::AgentsNeutral;
+            p.header.consumers = ["codex", "cursor", "windsurf-devin", "hermes"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+            let long: String = (1..=25).map(|i| format!("Line {i}\n")).collect();
+            p.steps.push(Step::WriteGenerated {
+                n: 6,
+                bundle: "b".into(),
+                name: "b-brief".into(),
+                content: format!("---\nname: b-brief\n---\n\nFirst\u{1b}[31m\n{long}"),
+                content_hash: Hash::of_bytes(b"c"),
+            });
+            p.steps.push(Step::RemoveGenerated {
+                n: 7,
+                bundle: "old".into(),
+                name: "old-brief".into(),
+                expect_hash: Hash::of_bytes(b"o"),
+            });
+            let s = render_plan(&p, None);
+            for want in [
+                "Shared    Visible to: codex, cursor, windsurf-devin, hermes.",
+                "  generated  b-brief  (instruction of bundle b)",
+                "      First\\x1b[31m",
+                "      Line 18",
+                "      ... (6 more line(s))",
+                "  - generated  old-brief  (remove, instruction of bundle old)",
+                BRIEF_NOTE,
+            ] {
+                assert!(s.contains(want), "missing {want:?} in\n{s}");
+            }
+            assert!(!s.contains("Line 20"), "{s}");
+            assert!(!s.contains('\u{1b}'));
+            // The claude-code plan has neither the shared sentence nor a note
+            // unless a brief is written.
+            let cc = render_plan(&plan(), None);
+            assert!(!cc.contains("Shared") && !cc.contains(BRIEF_NOTE), "{cc}");
+        }
+
+        #[test]
+        fn render_result_counts_briefs_and_prints_followups_and_consumers() {
+            let results = vec![
+                StepResult {
+                    n: 1,
+                    op: "write_generated",
+                    id: None,
+                    name: Some("b-brief".into()),
+                    dest: None,
+                    outcome: StepOutcome::Done,
+                },
+                StepResult {
+                    n: 2,
+                    op: "remove_generated",
+                    id: None,
+                    name: Some("old-brief".into()),
+                    dest: None,
+                    outcome: StepOutcome::Done,
+                },
+            ];
+            let consumers = vec!["codex".to_string(), "hermes".to_string()];
+            let followups = vec!["hermes skills trust /p  (why)".to_string()];
+            let s = render_result(&ResultView {
+                results: &results,
+                refresh: None,
+                followups: &followups,
+                removal_applied: true,
+                gitignore_lines: &[],
+                visible_to: &consumers,
+            });
+            assert!(s.contains("Applied 2 change(s): +1 -1 ~0"), "{s}");
+            assert!(s.contains("Visible to: codex, hermes."), "{s}");
+            assert!(
+                s.contains("Then          hermes skills trust /p  (why)"),
+                "{s}"
+            );
+            assert!(s.contains("Removed from future discovery."), "{s}");
+        }
+
+        #[test]
         fn render_result_counts_ses2_and_gitignore() {
             let results = vec![
                 StepResult {
@@ -807,6 +948,7 @@ mod tests {
                 followups: &[],
                 removal_applied: true,
                 gitignore_lines: &lines,
+                visible_to: &[],
             });
             assert!(s.contains("Applied 1 change(s): +0 -1 ~0"), "{s}");
             assert!(s.contains("  failed  b: link leaves"));
@@ -821,6 +963,7 @@ mod tests {
                 followups: &[],
                 removal_applied: false,
                 gitignore_lines: &[],
+                visible_to: &[],
             });
             assert_eq!(
                 s,

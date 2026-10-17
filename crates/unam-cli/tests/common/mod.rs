@@ -351,6 +351,21 @@ pub fn copy_fixture_bundle(env: &TestEnv, name: &str) -> PathBuf {
     dest
 }
 
+/// Copy `hermes-only.yaml` into the bundles dir with the per-bundle brief
+/// opt-out appended (`materialize_instruction: false`). The suites that
+/// activate this bundle for `claude-code` use it so the default-on bundle
+/// brief (M5-9) does not add a `hermes-only-brief` entry to their plans and
+/// snapshots (EX1). The fixture file itself stays byte-identical.
+pub fn copy_fixture_bundle_no_brief(env: &TestEnv) -> PathBuf {
+    let dest = env.path("bundles").join("hermes-only.yaml");
+    fs::create_dir_all(env.path("bundles")).unwrap();
+    let mut text =
+        fs::read_to_string(fixtures_dir().join("bundles").join("hermes-only.yaml")).unwrap();
+    text.push_str("metadata:\n  unambiguous:\n    materialize_instruction: false\n");
+    fs::write(&dest, text).unwrap();
+    dest
+}
+
 /// Write the project index (string-list format) with the given roots.
 pub fn write_project_index(env: &TestEnv, roots: &[&Path]) {
     let index = env.project_index();
@@ -452,7 +467,7 @@ impl Fx {
             let (code, v) = run_json(&env, &["source", "add", alias, l.to_str().unwrap()]);
             assert_eq!(code, 0, "{v}");
         }
-        copy_fixture_bundle(&env, "hermes-only.yaml");
+        copy_fixture_bundle_no_brief(&env);
         Fx {
             env,
             lib,
@@ -556,6 +571,33 @@ impl Fx {
         let mut text = format!("name: {name}\nskills:\n");
         for s in skills {
             text.push_str(&format!("  - \"{s}\"\n"));
+        }
+        fs::write(self.env.path("bundles").join(format!("{name}.yaml")), text).unwrap();
+    }
+
+    /// Write bundle `<name>.yaml` with these skills, an optional
+    /// `instruction`, and an optional `materialize_instruction` value.
+    pub fn write_bundle_with(
+        &self,
+        name: &str,
+        skills: &[&str],
+        instruction: Option<&str>,
+        materialize: Option<bool>,
+    ) {
+        let mut text = format!("name: {name}\nskills:\n");
+        for s in skills {
+            text.push_str(&format!("  - \"{s}\"\n"));
+        }
+        if let Some(i) = instruction {
+            text.push_str("instruction: |\n");
+            for line in i.lines() {
+                text.push_str(&format!("  {line}\n"));
+            }
+        }
+        if let Some(m) = materialize {
+            text.push_str(&format!(
+                "metadata:\n  unambiguous:\n    materialize_instruction: {m}\n"
+            ));
         }
         fs::write(self.env.path("bundles").join(format!("{name}.yaml")), text).unwrap();
     }
