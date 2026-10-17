@@ -4,7 +4,7 @@
 use serde_json::{Value, json};
 use std::borrow::Cow;
 use unam_core::adapter::RefreshNote;
-use unam_core::catalog::FlatDiagnostic;
+use unam_core::catalog::{Catalog, FlatDiagnostic, SOURCE_AND_CONFIG};
 use unam_core::error::Severity;
 use unam_core::plan::{Plan, Step, StepOutcome, StepResult};
 use unam_core::project::{RootDetection, TargetId};
@@ -113,6 +113,17 @@ pub fn warnings_only(diags: &[FlatDiagnostic]) -> Vec<FlatDiagnostic> {
         .filter(|d| d.diagnostic.severity != Severity::Info)
         .cloned()
         .collect()
+}
+
+/// Config-level plus source-level warnings of a catalog load; the CLI and
+/// the picker both report exactly these.
+pub fn catalog_warning_set(
+    config_diags: &[FlatDiagnostic],
+    catalog: &Catalog,
+) -> Vec<FlatDiagnostic> {
+    let mut all = config_diags.to_vec();
+    all.extend(catalog.flat_diagnostics(None, SOURCE_AND_CONFIG));
+    warnings_only(&all)
 }
 
 /// A structured error for the envelope and the human renderer.

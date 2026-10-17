@@ -353,10 +353,39 @@ fn tui_state_esc_clears_filter_then_quits() {
 fn tui_state_ctrl_c_quits_from_every_mode() {
     let fx = Fx::new();
     let mut app = fx.app();
+    // Picker.
+    assert_eq!(app.mode, Mode::Picker);
     assert_eq!(app.handle_key(Key::Ctrl('c')), Effect::Quit);
+    // Help (opened from the results pane).
+    press(&mut app, &[Key::Right, Key::Char('?')]);
+    assert_eq!(app.mode, Mode::Help);
+    assert_eq!(app.handle_key(Key::Ctrl('c')), Effect::Quit);
+    // Bundle overlay and the name prompt.
+    let mut app = fx.app();
+    press(&mut app, &typed("refactor"));
+    press(&mut app, &[SPACE, Key::Right, Key::Char('b')]);
+    assert_eq!(app.mode, Mode::Bundles);
+    assert_eq!(app.handle_key(Key::Ctrl('c')), Effect::Quit);
+    press(&mut app, &[Key::Char('s')]);
+    assert_eq!(app.mode, Mode::Naming);
+    assert_eq!(app.handle_key(Key::Ctrl('c')), Effect::Quit);
+    // Plan view and result view.
+    let mut app = fx.app();
     press(&mut app, &typed("refactor"));
     press(&mut app, &[SPACE, ENTER]);
     assert_eq!(app.mode, Mode::Plan);
+    assert_eq!(app.handle_key(Key::Ctrl('c')), Effect::Quit);
+    press(&mut app, &[ENTER]);
+    assert_eq!(app.mode, Mode::Result);
+    assert_eq!(app.handle_key(Key::Ctrl('c')), Effect::Quit);
+    // Loading (before the first load) and the Interrupted modal.
+    let mut app = App::loading(fx.dirs.clone(), fx.config.clone(), fx.opts());
+    assert_eq!(app.mode, Mode::Loading);
+    assert_eq!(app.handle_key(Key::Ctrl('c')), Effect::Quit);
+    let fx2 = Fx::new();
+    interrupt(&fx2);
+    let mut app = fx2.app();
+    assert_eq!(app.mode, Mode::Interrupted);
     assert_eq!(app.handle_key(Key::Ctrl('c')), Effect::Quit);
 }
 
@@ -740,6 +769,186 @@ fn tui_state_interrupted_modal_rollback_and_esc() {
     assert!(fs::symlink_metadata(fx.dest("refactor")).is_err());
 }
 
+// ---- review fix round ----
+
+#[test]
+fn tui_state_unreachable_source_warning_shows_in_footer() {
+    let mut fx = Fx::new();
+    fx.config.sources.push(SourceEntry {
+        alias: "gone".into(),
+        path: fx
+            .tmp
+            .path()
+            .join("no-such-library")
+            .to_string_lossy()
+            .into_owned(),
+        precedence: 20,
+    });
+    let mut app = fx.app();
+    let frame = render(&mut app);
+    assert!(frame.contains("1 warning"), "{frame}");
+    assert!(frame.contains("source-unreachable"), "{frame}");
+    assert!(frame.contains("gone"), "{frame}");
+    // The warning survives a key press.
+    press(&mut app, &[Key::Char('x')]);
+    assert!(render(&mut app).contains("1 warning"));
+}
+
+#[test]
+fn tui_state_no_warning_text_without_diagnostics() {
+    let fx = Fx::new();
+    let mut app = fx.app();
+    assert!(!render(&mut app).contains("warning"));
+}
+
+#[test]
+fn tui_state_plan_changed_between_preview_and_apply_is_not_applied() {
+    let fx = Fx::new();
+    let mut app = fx.app();
+    press(&mut app, &typed("refactor"));
+    press(&mut app, &[SPACE, ENTER]);
+    assert_eq!(app.mode, Mode::Plan);
+    let shown = app.plan.as_ref().unwrap().text.clone();
+    // The destination appears after the preview, so the re-computed plan differs.
+    fs::create_dir_all(fx.project.join(".claude/skills")).unwrap();
+    press(&mut app, &[ENTER]);
+    assert!(
+        fs::symlink_metadata(fx.dest("refactor")).is_err(),
+        "nothing is applied for a plan the user never saw"
+    );
+    let message = app.message.clone().unwrap();
+    assert!(message.contains("the plan changed"), "{message}");
+    assert_eq!(app.mode, Mode::Plan, "the plan view is reopened");
+    let fresh = app.plan.as_ref().unwrap().text.clone();
+    assert_ne!(shown, fresh, "the view shows the new plan");
+    // The refreshed plan can now be confirmed.
+    press(&mut app, &[ENTER]);
+    assert_eq!(app.mode, Mode::Result);
+    assert!(fs::symlink_metadata(fx.dest("refactor")).is_ok());
+}
+
+fn long_lines(n: usize, width: usize) -> String {
+    let mut text = String::new();
+    for i in 0..n {
+        text.push_str(&format!("L{i:03} {}\n", "word ".repeat(width / 5)));
+    }
+    text.push_str("THE-LAST-LINE\n");
+    text
+}
+
+#[test]
+fn tui_state_plan_scroll_reaches_the_tail_of_wrapped_text() {
+    let fx = Fx::new();
+    let mut app = fx.app();
+    press(&mut app, &typed("refactor"));
+    press(&mut app, &[SPACE, ENTER]);
+    app.plan.as_mut().unwrap().text = long_lines(20, 300);
+    assert!(!render(&mut app).contains("THE-LAST-LINE"));
+    for _ in 0..400 {
+        app.handle_key(Key::Down);
+        render(&mut app);
+    }
+    let frame = render(&mut app);
+    assert!(frame.contains("THE-LAST-LINE"), "{frame}");
+    // Scrolling back up works from the clamped position (one row at a time).
+    let at_end = app.plan.as_ref().unwrap().scroll;
+    assert!(at_end > 0);
+    app.handle_key(Key::Up);
+    render(&mut app);
+    assert_eq!(app.plan.as_ref().unwrap().scroll, at_end - 1);
+}
+
+#[test]
+fn tui_state_result_scroll_cannot_pass_the_end() {
+    let fx = Fx::new();
+    let mut app = fx.app();
+    press(&mut app, &typed("refactor"));
+    press(&mut app, &[SPACE, ENTER, ENTER]);
+    assert_eq!(app.mode, Mode::Result);
+    app.result_text = long_lines(40, 60);
+    for _ in 0..120 {
+        app.handle_key(Key::Down);
+        render(&mut app);
+    }
+    let frame = render(&mut app);
+    assert!(frame.contains("THE-LAST-LINE"), "{frame}");
+    assert!(app.result_scroll < 120, "scroll {}", app.result_scroll);
+    let at_end = app.result_scroll;
+    app.handle_key(Key::Down);
+    render(&mut app);
+    assert_eq!(app.result_scroll, at_end);
+    app.handle_key(Key::Up);
+    render(&mut app);
+    assert_eq!(app.result_scroll, at_end - 1);
+}
+
+#[test]
+fn tui_state_ambiguous_initial_target_names_the_ambiguity() {
+    let fx = Fx::new();
+    // Apply to both targets so the selection names two.
+    let mut app = fx.app_for(TargetId::ClaudeCode);
+    press(&mut app, &typed("refactor"));
+    press(&mut app, &[SPACE, ENTER, ENTER, ENTER]);
+    press(&mut app, &[Key::Right, Key::Char('t')]);
+    assert_eq!(app.target, TargetId::AgentsNeutral);
+    press(&mut app, &[Key::Left]);
+    press(&mut app, &[Key::Right, SPACE, ENTER, ENTER]);
+    assert_eq!(app.mode, Mode::Result);
+    // A fresh picker without --target cannot choose.
+    let mut fresh = fx.app();
+    assert_eq!(
+        fresh.target,
+        TargetId::ClaudeCode,
+        "falls back to the first"
+    );
+    let frame = render(&mut fresh);
+    assert!(frame.contains("ambiguous"), "{frame}");
+    assert!(frame.contains("press t"), "{frame}");
+    // Switching target clears the note.
+    press(&mut fresh, &[Key::Right, Key::Char('t')]);
+    assert!(!render(&mut fresh).contains("ambiguous"));
+}
+
+#[test]
+fn tui_parity_comment_only_needle_fails() {
+    let actions_src = "// change::only_in_a_comment\nfn f() {}\n";
+    let cli = "fn g() { change::real(); }\n";
+    let raw_ok = check_parity(
+        actions_src,
+        cli,
+        &[("change::only_in_a_comment", "change::real")],
+    );
+    assert!(
+        raw_ok.is_ok(),
+        "the raw substring check is fooled by a comment"
+    );
+    let stripped = strip_comments(actions_src);
+    assert!(
+        check_parity(
+            &stripped,
+            cli,
+            &[("change::only_in_a_comment", "change::real")]
+        )
+        .is_err()
+    );
+    let cli_comment = "// change::real\nfn g() {}\n";
+    assert!(
+        check_parity(
+            "fn f() { change::real(); }",
+            &strip_comments(cli_comment),
+            &[("change::real", "change::real")]
+        )
+        .is_err()
+    );
+    // Code on a line before a trailing comment stays; `//!` and `///` go.
+    let kept =
+        strip_comments("//! doc change::a\n/// doc change::b\nlet x = change::c(); // change::d\n");
+    assert!(kept.contains("change::c"));
+    assert!(
+        !kept.contains("change::a") && !kept.contains("change::b") && !kept.contains("change::d")
+    );
+}
+
 // ---- parity ----
 
 fn src_dir() -> PathBuf {
@@ -761,6 +970,16 @@ fn read_all(dir: &Path, skip: &[&str]) -> Vec<(String, String)> {
     out
 }
 
+/// `text` without `//` comments (line, doc, and inner doc): everything
+/// from the first `//` on each line goes. A `//` inside a string literal
+/// also cuts the line, which can only make the parity check stricter.
+fn strip_comments(text: &str) -> String {
+    text.lines()
+        .map(|l| l.find("//").map_or(l, |i| &l[..i]))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// `actions.rs` without the parity table, which names every needle and so
 /// would match itself.
 fn actions_without_table() -> String {
@@ -768,7 +987,7 @@ fn actions_without_table() -> String {
     let begin = src.find("// BEGIN parity table").unwrap();
     let end = src.find("// END parity table").unwrap();
     assert!(begin < end);
-    format!("{}{}", &src[..begin], &src[end..])
+    strip_comments(&format!("{}{}", &src[..begin], &src[end..]))
 }
 
 fn check_parity(
@@ -790,7 +1009,7 @@ fn check_parity(
 fn cli_source() -> String {
     read_all(&src_dir().join("cli"), &[])
         .into_iter()
-        .map(|(_, t)| t)
+        .map(|(_, t)| strip_comments(&t))
         .collect()
 }
 

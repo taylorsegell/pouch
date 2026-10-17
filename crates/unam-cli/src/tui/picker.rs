@@ -29,9 +29,8 @@ pub fn footer(f: &mut Frame, app: &App, area: Rect) {
     let lines = vec![
         Line::from(app.footer_counts()),
         Line::from(
-            app.message
-                .as_deref()
-                .map(|m| neutralize(m).into_owned())
+            app.footer_message()
+                .map(|m| neutralize(&m).into_owned())
                 .unwrap_or_default(),
         ),
         Line::styled(HINTS, Style::default().add_modifier(Modifier::DIM)),

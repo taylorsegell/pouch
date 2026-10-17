@@ -5,14 +5,16 @@
 //! `views`. Core calls go through `actions`.
 
 use super::actions::{Session, error_text};
-use crate::output::{ResultView, render_plan, render_records, render_result};
+use crate::output::{
+    ResultView, catalog_warning_set, diag_line, render_plan, render_records, render_result,
+};
 use ratatui::termion::event::Key;
 use ratatui::widgets::ListState;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use unam_core::apply::ApplyStatus;
-use unam_core::catalog::LoadOptions;
 use unam_core::catalog::search::Hit;
+use unam_core::catalog::{FlatDiagnostic, LoadOptions};
 use unam_core::change::{Edit, Outcome, RecoverOutcome};
 use unam_core::config::Config;
 use unam_core::paths::Dirs;
@@ -112,6 +114,13 @@ pub struct App {
     /// Names of foreign entries in the destination.
     foreign: BTreeSet<String>,
     pub message: Option<String>,
+    /// Config-level diagnostics from startup (reported with the catalog's).
+    config_diags: Vec<FlatDiagnostic>,
+    /// The footer summary of catalog and config warnings; it stays until
+    /// the picker closes.
+    warning: Option<String>,
+    /// Set when the starting target was ambiguous; cleared by `t`.
+    ambiguity: Option<String>,
     pub plan: Option<PlanState>,
     run: Option<RunKind>,
     pub result_text: String,
@@ -119,6 +128,19 @@ pub struct App {
     pub interrupted: Option<TargetId>,
     pub bundle_ix: usize,
     pub name_input: String,
+}
+
+/// `N warnings: <first warning>` (the CLI's `warning[code] where: message`
+/// line, without its hint), or `None` when there are none.
+fn warning_summary(warnings: &[FlatDiagnostic]) -> Option<String> {
+    let first = warnings.first()?;
+    let line = diag_line(first);
+    let head = line.lines().next().unwrap_or_default();
+    let n = warnings.len();
+    Some(format!(
+        "{n} warning{}: {head}",
+        if n == 1 { "" } else { "s" }
+    ))
 }
 
 fn printable(c: char) -> bool {
@@ -159,6 +181,9 @@ impl App {
             states: BTreeMap::new(),
             foreign: BTreeSet::new(),
             message: None,
+            config_diags: Vec::new(),
+            warning: None,
+            ambiguity: None,
             plan: None,
             run: None,
             result_text: String::new(),
@@ -167,6 +192,11 @@ impl App {
             bundle_ix: 0,
             name_input: String::new(),
         }
+    }
+
+    /// Record the config-level diagnostics found at startup.
+    pub fn set_config_diags(&mut self, diags: Vec<unam_core::error::Diagnostic>) {
+        self.config_diags = diags.into_iter().map(FlatDiagnostic::global).collect();
     }
 
     /// Load the catalog (synchronously; a cold scan shows the static
@@ -181,7 +211,10 @@ impl App {
             &self.opts.cwd,
         )?;
         self.targets = Session::targets();
-        self.target = self.s.initial_target(self.opts.target);
+        let (target, ambiguity) = self.s.initial_target(self.opts.target);
+        self.target = target;
+        self.ambiguity = ambiguity;
+        self.warning = warning_summary(&catalog_warning_set(&self.config_diags, &self.s.catalog));
         self.reload_records();
         self.rebuild_categories();
         self.refilter();
@@ -325,6 +358,23 @@ impl App {
         self.hits
             .get(self.cursor)
             .and_then(|h| self.s.catalog.skill(&h.id))
+    }
+
+    /// The footer's message line: the transient message, else the standing
+    /// notes (target ambiguity, then the catalog warning summary).
+    pub fn footer_message(&self) -> Option<String> {
+        if let Some(m) = &self.message {
+            return Some(m.clone());
+        }
+        let notes: Vec<&str> = [self.ambiguity.as_deref(), self.warning.as_deref()]
+            .into_iter()
+            .flatten()
+            .collect();
+        if notes.is_empty() {
+            None
+        } else {
+            Some(notes.join(" | "))
+        }
     }
 
     /// The footer's counts (spec 6: pending change counts and catalog size).
@@ -534,11 +584,10 @@ impl App {
 
     fn scroll_plan(&mut self, delta: i32) {
         if let Some(p) = self.plan.as_mut() {
-            let lines = u16::try_from(p.text.lines().count()).unwrap_or(u16::MAX);
+            // The upper bound is the wrapped height, which only the drawing
+            // code knows; `views::draw` clamps the scroll to it.
             let next = i32::from(p.scroll) + delta;
-            p.scroll = u16::try_from(next.max(0))
-                .unwrap_or(0)
-                .min(lines.saturating_sub(1));
+            p.scroll = u16::try_from(next.max(0)).unwrap_or(u16::MAX);
         }
     }
 
@@ -660,6 +709,7 @@ impl App {
             .position(|t| *t == self.target)
             .unwrap_or(0);
         self.target = self.targets[(ix + 1) % self.targets.len()];
+        self.ambiguity = None;
         self.adds.clear();
         self.drops.clear();
         self.reload_records();
@@ -694,8 +744,10 @@ impl App {
             return;
         };
         let (edit, command) = (plan.edit.clone(), plan.command);
+        let confirmed = plan.text.clone();
         let target = self.target;
-        match self.s.apply(target, edit, command) {
+        let (result, plan_changed) = self.s.apply(target, edit.clone(), command, &confirmed);
+        match result {
             Ok(Outcome::Applied(prepared, report)) => {
                 let followups = self.s.followups(target);
                 let shared = self.s.shared_consumers(target);
@@ -739,6 +791,12 @@ impl App {
                 }
                 self.message = Some("the plan has conflicts and cannot be applied".to_string());
                 self.mode = Mode::Plan;
+            }
+            Ok(Outcome::Declined(_)) if plan_changed => {
+                // The plan the lock-holder computed is not the one the user
+                // confirmed: show the new one and ask again.
+                self.open_plan(edit, command);
+                self.message = Some("the plan changed; review it again".to_string());
             }
             Ok(Outcome::Declined(_) | Outcome::Refused(_)) => {
                 self.message = Some("cancelled: nothing was changed".to_string());

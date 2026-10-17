@@ -62,7 +62,7 @@ fn run_inner(
     let cwd = std::env::current_dir()
         .map_err(|e| unam_core::error::Error::io("cannot read the working directory", e))?;
     let dirs = Dirs::from_process_env()?;
-    let (config, _diags) = Config::load_or_create(&dirs)?;
+    let (config, diags) = Config::load_or_create(&dirs)?;
     let opts = Opts {
         use_cache,
         project,
@@ -70,5 +70,6 @@ fn run_inner(
         cwd,
     };
     let mut app = app::App::loading(dirs, config, opts);
+    app.set_config_diags(diags);
     term::run_terminal(&mut app)
 }
