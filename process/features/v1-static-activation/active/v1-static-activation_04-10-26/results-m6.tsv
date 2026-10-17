@@ -1,0 +1,3 @@
+iteration	timestamp	gaps_found	fail_count	concern_count	applied	saturation_status	loop_status	notes
+0	2026-10-17T00:00:00Z	2	2	0	0	n/a	baseline	M6 PVL cycle 1 (light lane): F1 compile order (A2/A3 call App and views defined in Step B), F2 AC-44 enter-twice vs plan view y/n only; 18 execute-time notes (EX1 to EX18); lockfile 141 to 180 verified in scratch, no_network tests green
+1	2026-10-17T00:00:00Z	0	0	0	3	saturated	HALTED_SUCCESS	Plan fixes P1 (order), P2 (enter applies in plan view), P3 (M6-12 key routing) plus lockfile count correction; cycle 2 re-trace 0 FAIL-class gaps; Gate PASS; contract written; EXECUTE legal; AC-44 manual run is a Hybrid residual

@@ -490,18 +490,20 @@ No criterion is carried by Known-Gap. If a milestone discovers an untestable beh
 
 ## Current Execution State
 
-Last updated: 2026-10-17 (M5 review-fix round closed; Product Phase 1 Gate cleared by Taylor)
+Last updated: 2026-10-17 (M6 EXECUTE done, code commit 37292c2; EVL is next)
 Current phase: 7 of 8 (milestone M6, TUI)
 Phase 7 name: M6 TUI
-Phase 7 status: PLANNED (gate cleared; RESEARCH is the next spawn)
+Phase 7 status: CODE DONE (EXECUTE 2026-10-17, code commit 37292c2 on main; EVL not yet run; Taylor's manual AC-44 terminal run outstanding, backlog stub, closeout will be CONDITIONAL)
+Phase 7 EXECUTE gates (agent run, not yet independently confirmed): G1 to G6 green; 692 tests (655 before); 39 existing snapshots unchanged; warm start median 42.4 ms (limit 50), peak RSS 8.8 MB (limit 50); lockfile 141 to 180 packages, none denied
+Phase 7 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_REPORT_17-10-26.md
 Phase 6 status: VERIFIED (WITH_GAPS) 2026-10-17
 Phase 6 EVL: PASS, three iterations (HALTED_SUCCESS, `results-m5-evl.tsv`). Iteration 3 at 4832e31 after the review-fix round (e4bf5b2 modes restored, 476b81c R1 to R4, 0d5c56b adopted brief survives rollback and zero-step receipt fix): 655 tests, literal G5 e and G6 exit 0, full fault matrix `ac_briefs` 19 and `ac_recovery` 14, `git diff --check` clean, classification CLEAN
 Phase 6 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md
 Phase 5 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md
 Next phase: phase 7 of 8 (M6 TUI), then phase 8 of 8 (M7 OSS readiness; PRD Q11 must be decided before M7 starts)
 Completed phases: phase 0 (plan creation); phases 1 to 6 of 8 (M0 to M5), each VERIFIED (WITH_GAPS)
-Current loop step: RESEARCH (M6 research is running)
-Validate-contract status: M0 to M5 written (Gate PASS) and closed; M6 not written; M7 not written
+Current loop step: EVL (M6 code done; spawn vc-tester to re-run the validate-contract gates G1 to G6)
+Validate-contract status: M0 to M5 written (Gate PASS) and closed; M6 written 2026-10-17 (Gate PASS, inner-pvl: phase-7); M7 not written
 Product Phase 1 Gate: CLEARED by Taylor on 2026-10-17 (record in `## Product Phase 1 Gate`). Daily use, D4, and S5 are deferred until all milestones are done
 Program Net Gate: PENDING
 Open items for after M7 (all with Taylor unless noted):
