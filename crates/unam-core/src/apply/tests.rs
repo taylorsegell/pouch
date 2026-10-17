@@ -1240,3 +1240,11 @@ fn journal_step_conversions_round_trip() {
         assert_eq!(&step_from_journal(&journal_step(s)), s);
     }
 }
+
+#[test]
+fn the_rollback_scratch_name_can_never_be_a_destination_name() {
+    // A removed skill named `rollback` must not share the scratch directory.
+    assert!(crate::fsops::validate_dest_name(ROLLBACK_SCRATCH).is_err());
+    assert!(crate::fsops::validate_dest_name("rollback").is_ok());
+    assert_ne!(ROLLBACK_SCRATCH, "rollback");
+}

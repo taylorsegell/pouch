@@ -348,9 +348,8 @@ fn a_brief_no_longer_wanted_is_removed_by_its_receipt_hash() {
     let s = spec_of("b", "Do it.");
     for obs in [
         brief_with(&s.content_hash),
-        // Missing, edited, or foreign: the step still exists; the executor
-        // skips it and the receipt releases the entry.
-        BriefObserved::Missing,
+        // Edited or foreign: the step still exists; the executor skips it
+        // and the receipt releases the entry.
         brief_with(&Hash::of_bytes(b"edited")),
     ] {
         let d = diff_generated(
@@ -371,10 +370,9 @@ fn a_brief_no_longer_wanted_is_removed_by_its_receipt_hash() {
 }
 
 #[test]
-fn an_edited_brief_that_is_still_wanted_blocks_with_a_conflict() {
+fn a_brief_of_another_shape_that_is_still_wanted_blocks_with_a_conflict() {
     let s = spec_of("b", "Do it.");
     for obs in [
-        brief_with(&Hash::of_bytes(b"edited")),
         BriefObserved::Other { found: "directory" },
         BriefObserved::Other { found: "symlink" },
     ] {
@@ -390,6 +388,57 @@ fn an_edited_brief_that_is_still_wanted_blocks_with_a_conflict() {
         assert!(d.conflicts[0].message().contains(".agents/skills/b-brief"));
         assert_eq!(d.staying, 1);
     }
+}
+
+#[test]
+fn an_edited_brief_that_is_still_wanted_warns_and_never_blocks() {
+    let s = spec_of("b", "Do it.");
+    let d = diff_generated(
+        REL,
+        &input(
+            vec![s.clone()],
+            &[("b-brief", brief_with(&Hash::of_bytes(b"edited")))],
+        ),
+        &receipt_of(&[entry_for(&s)]),
+        &none_skills(),
+    );
+    assert!(d.steps.is_empty());
+    assert!(d.conflicts.is_empty(), "{:?}", d.conflicts);
+    assert_eq!(d.staying, 1);
+    assert_eq!(d.warnings.len(), 1);
+    assert_eq!(d.warnings[0].code, "brief-modified");
+    assert!(d.warnings[0].message.contains(".agents/skills/b-brief"));
+}
+
+#[test]
+fn a_brief_hand_edited_to_the_desired_text_is_adopted_silently() {
+    let s = spec_of("b", "Do it.");
+    // The receipt hash is stale; the disk already holds the desired text.
+    let mut stale = entry_for(&s);
+    stale.content_hash = Hash::of_bytes(b"old").to_string();
+    let d = diff_generated(
+        REL,
+        &input(vec![s.clone()], &[("b-brief", brief_with(&s.content_hash))]),
+        &receipt_of(&[stale]),
+        &none_skills(),
+    );
+    assert!(d.conflicts.is_empty());
+    assert!(d.warnings.is_empty());
+    // One write step refreshes the receipt; the executor writes no file.
+    assert_eq!(ops(&d), vec![("write_generated", "b-brief".to_string())]);
+}
+
+#[test]
+fn an_unwanted_receipted_brief_already_missing_emits_no_step() {
+    let s = spec_of("b", "Do it.");
+    let d = diff_generated(
+        REL,
+        &input(vec![], &[("b-brief", BriefObserved::Missing)]),
+        &receipt_of(&[entry_for(&s)]),
+        &none_skills(),
+    );
+    assert!(d.steps.is_empty(), "{:?}", d.steps);
+    assert!(d.conflicts.is_empty() && d.warnings.is_empty());
 }
 
 #[test]
