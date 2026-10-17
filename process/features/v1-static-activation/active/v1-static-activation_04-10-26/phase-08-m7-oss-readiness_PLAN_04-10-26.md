@@ -16,8 +16,8 @@ metadata:
 **Date**: 04-10-26
 **Complexity**: COMPLEX
 **Phase:** Phase 8 of 8: milestone M7
-**Status**: PLANNED
-**Phase status:** PLANNED (BLOCKED by the product Phase 1 gate and PRD Q11)
+**Status**: PLANNED (product Phase 1 gate cleared 2026-10-17; M6 VERIFIED; next loop step RESEARCH, after PRD Q11)
+**Phase status:** PLANNED (product Phase 1 gate cleared; BLOCKED only by PRD Q11)
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 

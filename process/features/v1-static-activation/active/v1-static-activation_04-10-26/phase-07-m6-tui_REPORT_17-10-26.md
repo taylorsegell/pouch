@@ -8,7 +8,7 @@ plan: process/features/v1-static-activation/active/v1-static-activation_04-10-26
 
 # Milestone M6 (TUI): EXECUTE report
 
-**Bottom line:** the picker is built and green. Bare `unam` on a terminal opens a three-pane picker; the query, space, enter, enter path yields an active skill in the automated test (AC-44, Hybrid). G1 to G6 are green at EXECUTE (692 tests, 655 before). One residual stays open and makes the closeout CONDITIONAL: Taylor's manual real-terminal run of AC-44 (steps in "For Taylor" below, backlog stub filed). EVL (independent vc-tester re-run) is next.
+**Bottom line:** the picker is built and green. Bare `unam` on a terminal opens a three-pane picker; the query, space, enter, enter path yields an active skill in the automated test (AC-44, Hybrid). G1 to G6 are green at EXECUTE (692 tests, 655 before) and after the review-fix round (699 tests). EVL passed in 2 iterations (both HALTED_SUCCESS); the code review found no Critical or High issues. Status: VERIFIED (WITH_GAPS). One residual stays open: Taylor's manual real-terminal run of AC-44 (steps in "For Taylor" below, backlog stub filed). The thin warm-start margin (about 3 to 5 ms) is the other named gap.
 
 Code commit: see "Commits". Base for diffs: `9a4e9df`.
 
@@ -133,17 +133,34 @@ Mostly untested by design: Linux, other terminals, wide Unicode input, bracketed
 - Warm-start margin is thin (about 42 of 50 ms); stub filed.
 - Classification of the AC-44 real-terminal half: `test-breakage` does not apply; it is a named Hybrid residual (D-TEST).
 
+## EVL Outcome
+
+Independent vc-tester runs, bookkeeping in `results-m6-evl.tsv` (baseline plus two iterations, both `HALTED_SUCCESS`, classification WITH_GAPS). Iteration reports: `phase-07-m6-tui-evl-iteration-001_REPORT_17-10-26.md`, `phase-07-m6-tui-evl-iteration-002_REPORT_17-10-26.md`.
+
+| Iteration | HEAD | Result |
+|---|---|---|
+| 1 | `0425429` | G1 to G6 green; warm start 47.4 ms of 50; RSS 8.9 MB. Concerns: manual AC-44 run, thin perf margin, substring-based parity check. No gate failed. |
+| 2 | `9658536` (after the review-fix round, code `bd97432`) | G1, G2 exit 0; G3 699 passed, 0 failed, 0 ignored; G4a warm start medians 46.8, 46.7, 45.0 ms (limit 50); G4b peak RSS 9.1 MB; G5 (a) to (d) pass (39 CLI snapshots unchanged vs `9a4e9df`, 6 TUI snapshots unchanged vs `37292c2`); G6 pass (protected docs unchanged, no `crossterm`, `async_stdin`, `.spawn(`, no denied package in `Cargo.lock`); `git diff --check` clean; all six review-fix tests exist and pass; `Session::apply` declines on plan mismatch (`tui/actions.rs:222-226`). |
+
+EVL HANDOFF SUMMARY known gaps: Taylor's manual AC-44 real-terminal run (Hybrid residual, stub `m6-ac44-manual-terminal-run_NOTE_17-10-26.md`); warm-start headroom about 3 to 5 ms (stub `m6-warm-start-margin_NOTE_17-10-26.md`); Linux and CI never run. `context_partial` was `all-context.md` and `tests/all-tests.md` still describing M5; both updated in UPDATE PROCESS.
+
+## Code Review Summary
+
+Independent code review of the M6 diff: no Critical or High findings. Findings 1 to 6 were fixed in `bd97432` (see "Review fix round" below: footer warnings, plan-changed guard, wrapped scroll clamp, ambiguous-target note, ctrl-c coverage, comment-stripped parity). Three Low polish items were recorded as not fixed (see "Not fixed (Low, per instructions)"): pending work is cleared without a prompt, typeahead is replayed after an apply, and the panic-hook output staircases. None affects a gate or a safety property (the TUI still writes only through `change::run`/`resume`/`rollback` and `bundle::crud::save`).
+
 ## Closeout Packet
 
 - **Selected plan:** `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_PLAN_04-10-26.md`
-- **Classification:** Keep in active/testing until EVL (independent vc-tester run) is green; after that `Ready for UPDATE PROCESS archival` with the CONDITIONAL residual recorded.
+- **Classification (final, after EVL and UPDATE PROCESS):** VERIFIED (WITH_GAPS). The plan stays in `active/` with the rest of the program (the program task folder archives as a unit after M7); the AC-44 real-terminal half is a Hybrid residual, never counted as a Known-Gap pass.
 - **Finished:** A1 to C3, D2; code committed.
-- **Verified here (EXECUTE agent):** G1 to G6 (table above). **Not yet independently verified:** everything; EVL is next and counts only when a spawned vc-tester does it.
+- **Verified:** G1 to G6 by the EXECUTE agent and by two independent vc-tester runs (see "EVL Outcome"); 699 tests.
+- **SPEC achievement:** no per-milestone SPEC; the umbrella SPEC governs. AC-44 automated half met (`ac_44_*`); the real-terminal half is unmet pending Taylor's run (backlog stub). Performance targets (50 ms, 50 MB) met with a thin start margin.
 - **Unverified by design:** Taylor's manual run (D1); Linux; resize; external signals.
-- **Remaining:** EVL; UPDATE PROCESS (umbrella state, `all-context.md` stack line: ratatui termion, tests context count 692, registry `status: DONE`, validators); Taylor's manual run.
+- **Remaining:** Taylor's manual run (D1); warm-start margin; Linux and CI. UPDATE PROCESS is done (umbrella state, `all-context.md` stack line, `tests/all-tests.md` 699 tests, registry `status: DONE`, validators in the process commit message).
+- **Drift score:** MEDIUM (3 signals: 2 from 10 or more files touched, 1 from two backlog notes written; no harness, agent, or protocol files changed). Recommend UPDATE PROCESS -- significant changes detected. (UPDATE PROCESS has run.)
 - **Follow-up stubs created:** `process/features/v1-static-activation/backlog/m6-ac44-manual-terminal-run_NOTE_17-10-26.md`, `process/features/v1-static-activation/backlog/m6-warm-start-margin_NOTE_17-10-26.md`.
 - **CONTEXT_PARTIAL:** none.
-- **Single best next valid state:** EVL (spawn vc-tester with the validate-contract gates G1 to G6), then UPDATE PROCESS.
+- **Single best next valid state:** milestone M7 (phase 8 of 8), loop step 1 RESEARCH, in `phase-08-m7-oss-readiness_PLAN_04-10-26.md`. PRD Q11 (crate name and license) must be decided before M7 starts.
 
 ## Forward Preview
 
@@ -218,10 +235,33 @@ Cleanup: `cd $T/proj && $U deactivate --yes`, then `rm -rf $T` and `unset UNAM_C
 
 Record in the report (or tell me): whether the picker opened, whether the four-key path worked, and whether the terminal came back clean.
 
+### Decisions for Taylor to confirm
+
+These are the choices made without a protected-doc ruling. Each stands unless you say otherwise.
+
+1. **Mixed add and remove (M6-5):** a pending set that mixes additions and removals opens no plan; the footer says to apply them one at a time. A combined edit would need a new core entry.
+2. **Key routing (M6-12):** the search box has focus at start and every printable character except space types into the query; `b`, `t`, `?` act only when the category or results pane has focus (`tab` cycles). `esc` clears query, filter, and pending sets, then quits on the next press; `ctrl-c` quits from every mode.
+3. **Enter applies in the plan view:** `enter` or `y` applies (AC-44 says enter twice; spec 6 says `y`). `n` or `esc` returns.
+4. **The `b` overlay (M6-6):** lists bundles; enter uses one (replace), `a` adds, `s` prompts for a name and saves the pending-selected skills; no bundle editing.
+5. **`r` and `u` modal keys (M6-7):** on an interrupted apply, `r` resumes and `u` rolls back, `esc` quits; the key press is the confirmation.
+
+### Spec deviations to carry into the M7 docs
+
+See "Spec deviations and decisions for the M7 docs" above. In short: termion instead of crossterm; no `e` key (symlink-only v1); a static "Loading catalog..." frame instead of a spinner; no match highlighting (`nucleo-matcher` returns scores only); the project lock is held only during apply, never while the picker is open; D-R1 (ambiguous initial target falls back to the first adapter and the footer says so, while the CLI errors); D-R2 (the footer warning summary covers source and config warnings only, not skill-level diagnostics, same as `search` and `show`).
+
+### Thin warm-start margin
+
+Release `perf_warm_start_picker` medians are 45 to 47 ms against the 50 ms limit (42 ms on a quiet machine, 49.9 ms once under load). Cause: the warm `Catalog::load` stats every skill file. If the test flakes, re-run on an idle machine first. Fix, if wanted, lives in `unam-core` catalog cache validation (stub `m6-warm-start-margin_NOTE_17-10-26.md`).
+
 ## Commits
 
-- Code: `37292c2` feat: M6 interactive picker (ratatui termion backend), on `main`, not pushed. Includes `Cargo.toml`, `Cargo.lock`, the `tui/` modules and snapshots, the routing change, and the two test additions.
-- Process: a `process:` commit on `main` follows (plan ticks and Deviations, this report, umbrella state, the VERDICT, `results-m6.tsv`, two backlog notes); its hash is in the EXECUTE handoff.
+All on `main`, none pushed.
+
+- `37292c2` feat: M6 interactive picker (ratatui termion backend). Includes `Cargo.toml`, `Cargo.lock`, the `tui/` modules and snapshots, the routing change, and the two test additions.
+- `0425429` process: M6 EXECUTE report, plan ticks and deviations, umbrella state to EVL (the VERDICT, `results-m6.tsv`, two backlog notes).
+- `bd97432` fix: M6 picker review fixes (warnings, plan-changed guard, wrapped scroll, ambiguity note).
+- `9658536` process: M6 review fix round report, EVL iteration 001 report and results.
+- UPDATE PROCESS commit (this closeout): the `process:` commit that adds EVL iteration 002, this report completion, plan, umbrella, WAVES, registry, and context updates; hash in the closeout message.
 
 ## Review fix round
 

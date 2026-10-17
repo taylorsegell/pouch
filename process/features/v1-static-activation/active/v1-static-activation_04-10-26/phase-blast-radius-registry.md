@@ -42,6 +42,8 @@ Append-only. One section per toolkit phase (one milestone each). Phases run sequ
 
 ## Phase 7: milestone M6
 - `crates/unam-cli/src/tui/**`, `crates/unam-cli/src/main.rs`; `crates/unam-cli/tests/`
+- Actual (2026-10-17): created `crates/unam-cli/src/tui/{mod,app,actions,picker,views,term,tests}.rs` and `tui/snapshots/` (6 `.snap`); modified workspace `Cargo.toml`, `Cargo.lock` (141 to 180 packages), `crates/unam-cli/Cargo.toml`, `main.rs`, `cli/mod.rs` (bare routing; `catalog_warnings` delegates to the new `output::catalog_warning_set`), `output.rs`, `tests/usage.rs`, `tests/phase1_checks.rs` (`no_panic_abort_profile`); `unam-core` untouched; 39 CLI snapshots unchanged
+- status: DONE (2026-10-17; EVL PASS in 2 iterations, 699 tests; VERIFIED WITH_GAPS)
 
 ## Phase 8: milestone M7
 - `README.md`, `CHANGELOG.md`, license, release workflow, `docs/adapters.md` and `docs/json.md` (permission-gated), package metadata

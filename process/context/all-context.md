@@ -19,7 +19,7 @@ Unambiguous is a Rust command-line tool, invoked as `unam`, that controls which 
 
 - **User:** Taylor, solo, on macOS and Linux, across Claude Code, Codex, Cursor, and Hermes.
 - **Standard:** personal tool built to open-source-ready standards: tests, docs, reproducible builds, no telemetry, no network.
-- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members), and M5 (`agents-neutral` adapter writing `.agents/skills`, ancestor-skill warnings, generated per-bundle instruction briefs with journaled `write_generated`/`remove_generated` steps) are done and VERIFIED with gaps. Taylor CLEARED the Product Phase 1 Gate on 2026-10-17: M6 (TUI) is next, then M7; daily use, the first adopting project (D4), and S5 are deferred until all milestones are done. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
+- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members), M5 (`agents-neutral` adapter writing `.agents/skills`, ancestor-skill warnings, generated per-bundle instruction briefs with journaled `write_generated`/`remove_generated` steps), and M6 (interactive picker: bare `unam` on a terminal opens a three-pane `ratatui` picker over the termion backend; 699 tests) are done and VERIFIED with gaps (M6 gap: Taylor's manual real-terminal run of AC-44 is outstanding). Taylor CLEARED the Product Phase 1 Gate on 2026-10-17: M7 (OSS readiness) is next, and needs PRD Q11 (crate name and license) decided first; daily use, the first adopting project (D4), and S5 are deferred until all milestones are done. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
 - **Not a harness.** It sits in front of existing agent harnesses (PRD D7).
 
 Full product and design context: `process/context/product/all-product.md`.
@@ -100,7 +100,7 @@ For most substantial tasks:
 | `process/context/all-context.md` | any substantial planning, research, review, or implementation task |
 | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M5 (655 tests); CI written, not yet run) |
+| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M6 (699 tests); CI written, not yet run) |
 
 ## Current Context Groups
 
@@ -108,7 +108,7 @@ For most substantial tasks:
 |---|---|---|
 | `planning/` | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `product/` | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M5 (655 tests); CI written, not yet run) |
+| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M6 (699 tests); CI written, not yet run) |
 <!-- /GENERATED:routing -->
 
 ## Task Routing Table
@@ -127,7 +127,7 @@ For most substantial tasks:
 
 | Feature | Folder | Scope |
 |---|---|---|
-| v1: static activation | `process/features/v1-static-activation/` | Phase program for milestones M0 to M7 (product Phase 1, then the M6 and M7 part of product Phase 2, with a hard gate after M5) |
+| v1: static activation | `process/features/v1-static-activation/` | Phase program for milestones M0 to M7 (product Phase 1, then the M6 and M7 part of product Phase 2, with a hard gate after M5, cleared 2026-10-17) |
 
 Later work (product Phase 3, v2 items, out-of-scope pointers) is filed in `process/general-plans/backlog/`.
 
@@ -158,7 +158,7 @@ unambiguous/
   README.md START-HERE.md .gitignore
 ```
 
-Source layout as of milestone M5 (M1 created 2026-10-05, M2 added the desired-state side, M3 added plan and apply, M4 added verify, reconcile, and doctor, M5 added the agents-neutral adapter and generated briefs; the rest of spec section 1.3 arrives in later milestones):
+Source layout as of milestone M6 (M1 created 2026-10-05, M2 added the desired-state side, M3 added plan and apply, M4 added verify, reconcile, and doctor, M5 added the agents-neutral adapter and generated briefs, M6 added the interactive picker; the rest of spec section 1.3 arrives in later milestones):
 
 ```
 Cargo.toml Cargo.lock clippy.toml     virtual workspace, resolver = "3", unwrap denied
@@ -173,7 +173,8 @@ crates/
                                       bundle/{mod,crud,slug,edit},
                                       project/{mod,selection,index}
   unam-core/tests/                    perf_cold_scan.rs (500-skill fixture, 300 ms limit)
-  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle,change,status,doctor}
+  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle,change,status,doctor},
+                                      tui/{mod,app,actions,picker,views,term,tests}.rs + tui/snapshots/ (6 .snap)
   unam-cli/tests/                     ac_read_path, ac_bundles, ac_selection, ac_activation,
                                       ac_recovery, ac_verify, ac_reconcile, doctor_cli, activation_cli,
                                       ac_agents_neutral, ac_briefs, phase1_checks, phase1_exit,
@@ -187,14 +188,14 @@ docs/adapters.md                      spec-called doc (M2): Hermes slugify diffe
                                       M7 regenerates the adapter-evidence part and keeps the M2 sections
 ```
 
-Still to come: `tui/` (M6, next; the Product Phase 1 Gate was cleared 2026-10-17); `docs/json.md` (M7). `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 regenerates the adapter-evidence part and must keep the two M2 sections).
+Still to come: `docs/json.md` (M7). The M6 `tui/` modules exist: `actions.rs` is the only module that calls `unam-core` (a parity test proves no other write path), and the TUI tests are in-crate (`cargo test -p unam --bin unam tui::`) because `unam-cli` is bin-only. `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 regenerates the adapter-evidence part and must keep the two M2 sections).
 
 ## Technology Stack
 
 - **Language:** Rust, stable toolchain, edition 2024. Local toolchain at setup: rustc 1.99.0, cargo 1.99.0 (stable-aarch64-apple-darwin).
 - **Platforms:** macOS and Linux. Windows is not a v1 build target.
 - **Workspace:** Cargo virtual workspace, crates `unam-core` (library) and `unam-cli` (binary `unam`). Created in milestone M1; M2 added no crates (lockfile unchanged).
-- **Dependencies in use (M1; lockfile committed):** clap 4.6.7 (derive), serde 1.0.229, serde_json 1.0.151, serde_norway 0.9.42, toml 1.1.6, ignore 0.4.33, blake3 1.8.7, nucleo-matcher 0.3.1, jiff 0.2.37, thiserror 2.0.21 (core), anyhow 1.0.104 (binary), tracing 0.1.44 + tracing-subscriber 0.3.23. Test: assert_cmd 2.2.2, predicates 3.1.4, insta 1.49.0, tempfile 3.27.0, proptest 1.11.0. Departures from spec 1.4: `directories` dropped (paths resolved in `paths.rs`), `nucleo-matcher` instead of full `nucleo` (umbrella open items 15 and 20). Still planned: `ratatui` + `crossterm` (M6), `fs4` (M3).
+- **Dependencies in use (M1; lockfile committed):** clap 4.6.7 (derive), serde 1.0.229, serde_json 1.0.151, serde_norway 0.9.42, toml 1.1.6, ignore 0.4.33, blake3 1.8.7, nucleo-matcher 0.3.1, jiff 0.2.37, thiserror 2.0.21 (core), anyhow 1.0.104 (binary), tracing 0.1.44 + tracing-subscriber 0.3.23. Test: assert_cmd 2.2.2, predicates 3.1.4, insta 1.49.0, tempfile 3.27.0, proptest 1.11.0. M6 added `ratatui` 0.30.2 with `default-features = false, features = ["termion"]` (lockfile 141 to 180 packages). Departures from spec 1.4: `directories` dropped (paths resolved in `paths.rs`), `nucleo-matcher` instead of full `nucleo` (umbrella open items 15 and 20), and **termion instead of crossterm** as the TUI backend (Taylor decision 2026-10-17): ratatui's crossterm backend always enables crossterm `events`, which pulls `mio`, which the `no_network_dependencies` test denies (feasibility VERDICT `phase-07-m6-tui_FEASIBILITY_17-10-26.md`). Never add `crossterm`, `mio`, `socket2`, or `signal-hook`; `panic = "abort"` is banned by `no_panic_abort_profile`. Still planned: `fs4` (M3).
 - **Deliberately absent in v1:** any Git library (shell out to `git` when present).
 - **Release:** `cargo-dist` (milestone M7). `dist` and `cargo-insta` are not installed locally; `dist-workspace.toml` is parse-checked only.
 - **Harness:** vibecode-pro-max-kit 3.2.5; Node.js v24.11.1 runs its validators.
@@ -257,7 +258,7 @@ When durable project knowledge changes:
 
 ## Scan Metadata
 
-- Generated: 2026-10-04; delta update 2026-10-17 (milestone M5 closeout)
-- HEAD: commit 5ba6888 or later (the M5 process commit follows it)
-- Mode: delta (status, repository structure refreshed; no dependency change in M5, `Cargo.lock` unchanged)
+- Generated: 2026-10-04; delta update 2026-10-17 (milestone M6 closeout)
+- HEAD: commit 9658536 or later (the M6 process commit follows it)
+- Mode: delta (status, repository structure refreshed; M6 added ratatui (termion) and 38 transitive packages to `Cargo.lock`)
 - Package manager: cargo (workspace exists since milestone M1)

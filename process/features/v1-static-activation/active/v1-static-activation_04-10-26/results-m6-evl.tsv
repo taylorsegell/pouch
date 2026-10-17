@@ -1,3 +1,4 @@
 iteration	timestamp	gaps_found	fail_count	concern_count	applied	saturation_status	loop_status	notes
 0	2026-10-17T00:00:00Z	0	0	0	0	n/a	baseline	EXECUTE reported G1 to G6 green, 692 tests
 1	2026-10-17T00:00:00Z	0	0	3	0	saturated	HALTED_SUCCESS	vc-tester at 0425429: G1 to G6 green, warm start 47.4 ms of 50, RSS 8.9 MB; concerns: manual AC-44 run, thin perf margin, substring parity
+2	2026-10-17T00:00:00Z	0	0	2	1	saturated	HALTED_SUCCESS	vc-tester at 9658536 after review fixes: 699 tests, warm start 45.0 to 46.8 ms, RSS 9.1 MB; gaps: manual AC-44 run, thin perf margin

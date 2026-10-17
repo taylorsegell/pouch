@@ -16,8 +16,8 @@ metadata:
 **Date**: 04-10-26 (supplemented 2026-10-17; light lane per `v1-static-activation_WAVES_09-10-26.md`: plan about 400 lines, PVL at most 2 cycles, only FAIL-class gaps count)
 **Complexity**: COMPLEX
 **Phase:** Phase 7 of 8: milestone M6
-**Status**: CODE DONE (EXECUTE 2026-10-17; EVL next; Taylor's manual AC-44 run outstanding)
-**Phase status:** CODE DONE, EVL next (product Phase 1 gate cleared by Taylor 2026-10-17)
+**Status**: VERIFIED (WITH_GAPS) 2026-10-17 (EXECUTED 2026-10-17; EVL PASS in 2 iterations, 699 tests; UPDATE PROCESS done; Taylor's manual AC-44 real-terminal run outstanding)
+**Phase status:** VERIFIED (WITH_GAPS); manual AC-44 run by Taylor outstanding (backlog stub); product Phase 1 gate cleared by Taylor 2026-10-17
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none. Feasibility VERDICT (cited, read it): `phase-07-m6-tui_FEASIBILITY_17-10-26.md` (VIABLE with the termion backend).
 **Execution strategy:** sequential, one sonnet execute agent (Taylor 2026-10-09: all agents sonnet; this overrides the umbrella's "opus EXECUTE" line for M6). One compile chain (deps -> `tui` modules -> routing -> tests). INNOVATE skipped: Taylor and the feasibility probe resolved every design choice (Decisions D-TERM, D-EKEY, D-TEST, D-LANE below).
@@ -210,8 +210,8 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 - [x] 3. PLAN-SUPPLEMENT (2026-10-17): existing phase plan rewritten into an executable plan; Inner Loop Refresh Note written
 - [x] 4. PVL (2026-10-17, inner-pvl: phase-7, 2 cycles, Gate: PASS): vc-validate-agent: at most 2 cycles; only FAIL-class gaps (wrong requirement mapping, steps that cannot compile in order) trigger a cycle; nits go to execute time; validate-contract per `.claude/skills/vc-validate-findings/references/example-validate-output.md`
 - [x] 5. EXECUTE (2026-10-17): all checklist items done except D1 (Taylor's manual run, backlog stub); G1 to G6 green at EXECUTE; report `phase-07-m6-tui_REPORT_17-10-26.md`
-- [ ] 6. EVL: independent vc-tester re-run of the gate commands; follow-up stubs registered; EVL HANDOFF SUMMARY written
-- [ ] 7. UPDATE PROCESS: phase report written, umbrella state updated, all-context.md stack line updated (termion), commit done
+- [x] 6. EVL (2026-10-17): independent vc-tester re-run, 2 iterations, both HALTED_SUCCESS (0425429, then 9658536 after the review-fix round bd97432); G1 to G6 green, 699 tests, warm start 45.0 to 46.8 ms of 50, RSS 9.1 MB; follow-up stubs m6-ac44-manual-terminal-run and m6-warm-start-margin; EVL HANDOFF SUMMARY WITH_GAPS
+- [x] 7. UPDATE PROCESS (2026-10-17): phase report completed (EVL outcome, code-review summary, For Taylor decisions, commits), umbrella state and WAVES and registry updated, all-context.md (termion stack line, source layout) and tests/all-tests.md (699 tests, TUI test commands) updated, process commit done
 
 **Validate-contract required before execute.** If step 4 (PVL) is unchecked or `## Validate Contract` reads "(placeholder - vc-validate-agent writes this section before EXECUTE)", the orchestrator must spawn vc-validate-agent first. A partial contract missing Plan updates applied / Execute-agent instructions / Test gates is treated as a placeholder.
 

@@ -18,6 +18,8 @@ Lighter process for M4 and M5 (Taylor-approved recommendation, 2026-10-09):
 - [x] Wave 4 (23:37 MDT Oct 9, ran 2026-10-12): M4 evidence check and UPDATE PROCESS, commit M4. M5 research and plan (light lane) and PVL. Stop. PROGRESS 2026-10-12: M4 evidence PASS; UPDATE PROCESS done (report `phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md`, umbrella state, context); M4 committed (c3c9be7 code, 8d688e1 process); M5 plan supplemented (research folded into one sonnet plan agent) and PVL cycle 1 Gate: PASS with 0 FAIL-class gaps and execute-time notes EX1 to EX14 (EX1 first: keep hermes-only.yaml byte-identical, use a test-side opt-out copy). Wave 5 is next: M5 execute, EVL, UPDATE PROCESS, commit, then stop at the product Phase 1 gate.
 - [x] Wave 5 (ran 2026-10-17): M5 execute (22a2c72), EVL 2 cycles (fix 5ba6888), UPDATE PROCESS, process commit. Stopped at the product Phase 1 gate (hard stop for Taylor): AWAITING TAYLOR.
 
+- [x] Wave 6 (ran 2026-10-17, after Taylor cleared the Product Phase 1 Gate): M6 research, plan, PVL, EXECUTE (37292c2), review fixes (bd97432), EVL 2 iterations, UPDATE PROCESS. M7 (OSS readiness) is next: loop step RESEARCH, after PRD Q11 (crate name and license) is decided.
+
 Gate for waves 2 to 5: if M3 is still uncommitted because no review decision exists, the wave does nothing except re-check for the decision, report, and stop. M4 must not start on an uncommitted M3.
 
 If a wave cannot finish its work, it records where it stopped here and the next wave continues from that point before starting its own list.
