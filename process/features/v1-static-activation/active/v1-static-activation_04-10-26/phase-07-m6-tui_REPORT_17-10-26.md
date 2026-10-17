@@ -222,3 +222,55 @@ Record in the report (or tell me): whether the picker opened, whether the four-k
 
 - Code: `37292c2` feat: M6 interactive picker (ratatui termion backend), on `main`, not pushed. Includes `Cargo.toml`, `Cargo.lock`, the `tui/` modules and snapshots, the routing change, and the two test additions.
 - Process: a `process:` commit on `main` follows (plan ticks and Deviations, this report, umbrella state, the VERDICT, `results-m6.tsv`, two backlog notes); its hash is in the EXECUTE handoff.
+
+## Review fix round
+
+Scope: the six code-review findings only. Code commit: see "Commits" below. Base for diffs: `0425429`.
+
+| # | Severity | Fix | Test (red first) |
+|---|---|---|---|
+| 1 | Medium | Catalog and config warnings now show in the picker footer as `N warning(s): warning[code] where: message` (first warning plus a count). Text comes from the CLI's own `diag_line`; the set comes from a new `output::catalog_warning_set`, which `cli::catalog_warnings` now also calls (no duplicated logic). The summary is a standing note: it survives key presses and shows whenever no transient message is set. Skill-level diagnostics stay out, same as the CLI. | `tui_state_unreachable_source_warning_shows_in_footer` (red: no "1 warning"); `tui_state_no_warning_text_without_diagnostics` (guard, green from the start) |
+| 2 | Low | `Session::apply` takes the confirmed plan text. Inside `decide` the plan `change::run` re-prepared under the lock is rendered with `render_plan` and compared; a mismatch returns `Decision::Decline` and flags it. `do_apply` then reopens the plan view with the fresh plan and the footer says "the plan changed; review it again". No core change was needed. | `tui_state_plan_changed_between_preview_and_apply_is_not_applied` (red: skill linked anyway) |
+| 3 | Low | `views::draw` clamps plan and result scroll to the wrapped height. The wrapped row count comes from drawing the text into a scratch `Buffer` with the real `Paragraph` and `Wrap`, so it matches what is shown. The source-line clamp in `scroll_plan` is gone (draw is the bound). | `tui_state_plan_scroll_reaches_the_tail_of_wrapped_text`, `tui_state_result_scroll_cannot_pass_the_end` (red: tail never visible; scroll ran away) |
+| 4 | Low | `Session::initial_target` returns `(TargetId, Option<String>)`. On `resolve_target` error it keeps the first-adapter fallback and sets a standing footer note: `ambiguous target: using claude-code, press t to switch (<core message>)`. `t` clears it. | `tui_state_ambiguous_initial_target_names_the_ambiguity` (red: no note) |
+| 5 | Low | `tui_state_ctrl_c_quits_from_every_mode` now covers Picker, Help, Bundles, Naming, Plan, Result, Loading, Interrupted. | Green from the start (the quit check runs before mode dispatch); this is added coverage, not a behavior change. |
+| 6 | Parity | `strip_comments` (drops everything from `//` on each line, so `//`, `///`, `//!`) is applied to the TUI source (parity table block removed first) and to every CLI source before the substring search. Block comments are not handled; a `//` inside a string literal also cuts the line, which only makes the check stricter. | `tui_parity_comment_only_needle_fails` (red with a pass-through stub: raw check passes a comment-only needle; also covers the CLI side and code-before-trailing-comment). The write scan (`tui_parity_tui_never_writes_files`) is unchanged. |
+
+Red run (before the fixes, `cargo test -p unam --bin unam tui_`): 6 failed, 30 passed. Failed: `tui_parity_comment_only_needle_fails`, `tui_state_unreachable_source_warning_shows_in_footer`, `tui_state_plan_changed_between_preview_and_apply_is_not_applied`, `tui_state_ambiguous_initial_target_names_the_ambiguity`, `tui_state_result_scroll_cannot_pass_the_end`, `tui_state_plan_scroll_reaches_the_tail_of_wrapped_text`. After the fixes: `cargo test -p unam --bin unam` 54 passed, 0 failed.
+
+### Gates
+
+| Gate | Result |
+|---|---|
+| G1 `cargo fmt --all --check` | exit 0 |
+| G2 `cargo clippy --workspace --all-targets --locked -- -D warnings` | exit 0 |
+| G3 `cargo test --workspace --locked` | 699 passed, 0 failed, 0 ignored (692 before this round) |
+| `perf_warm_start_picker` (release), median of three runs | 47.4 ms (runs' medians 47.8, 47.4, 46.1); limit 50 ms. Same machine, same hour, HEAD `0425429` without my changes: 46.0 ms (47.1, 46.0, 45.4). The change is about 1 ms, inside run-to-run noise; the 42.4 ms in G4a above was a quieter machine. Headroom is thin (about 2.6 ms); a loaded machine can cross 50 ms. |
+| `perf_memory_picker` (release) | peak RSS 9.1 MB, ok |
+| 39 CLI snapshots | `git diff --diff-filter=MD --exit-code 9a4e9df -- crates/unam-cli/tests/snapshots` exit 0 |
+| 6 TUI snapshots | unchanged (no file modified; no footer warning appears in any of them) |
+| G6 greps | no `crossterm`, `async_stdin`, `.spawn(` in crates/*/src or Cargo files; no denied package in `Cargo.lock` (`Cargo.lock` untouched) |
+| Protected docs vs `8d688e1` | no diff |
+| `git diff --check` | exit 0 |
+| `#[ignore` | none |
+
+### Not fixed (Low, per instructions)
+
+- Pending work (`run`) is cleared without a prompt in some paths.
+- Typeahead replay (keys typed during `Applying` are replayed after).
+- Panic-hook staircase output (raw mode still on when the hook prints).
+
+### Deviations
+
+- D-R1 (finding 4, as instructed): the fallback to the first adapter is kept; the CLI errors in the same case. The picker now says so in the footer.
+- D-R2 (finding 1): the warning summary uses the CLI's class set (source and config), so skill-level diagnostics (malformed `SKILL.md`) still do not appear in the picker. `unam search` and `show` behave the same way.
+- Note: finding 2's comparison is rendered-text equality, so any change in the lines the user sees triggers a re-review, and a change that does not alter the text is not detected (it cannot matter to what the user confirmed).
+
+### Forward Preview
+
+- Test Infra Found: none new.
+- Blast Radius Changes: `crates/unam-cli/src/output.rs` (new `catalog_warning_set`), `cli/mod.rs` (delegates to it), `tui/{actions,app,mod,picker,views,tests}.rs`.
+- Commands to Stay Green: G1 to G3, release `perf_warm_start_picker` and `perf_memory_picker`, the snapshot diff.
+- Dependency Changes: none.
+
+CONTEXT_PARTIAL: none. Follow-up stubs created: none. The manual AC-44 run by Taylor remains the open residual.
