@@ -16,8 +16,8 @@ metadata:
 **Date**: 04-10-26 (supplemented 2026-10-12 in one combined research, design, and plan pass; lighter process per `v1-static-activation_WAVES_09-10-26.md`)
 **Complexity**: COMPLEX
 **Phase:** Phase 6 of 8: milestone M5
-**Status**: PLANNED (researched and supplemented 2026-10-12; PVL cycle 1 Gate PASS 2026-10-12; EXECUTE next)
-**Phase status:** PLANNED
+**Status**: CODE DONE (EXECUTE 2026-10-17; the independent EVL confirmation run by vc-tester is next)
+**Phase status:** CODE DONE
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 **Execution strategy:** sequential, one sonnet execute agent (Taylor, 2026-10-09: all agents sonnet). One compile chain (`adapter` -> `observe` -> `generated` -> `plan` -> `state` -> `fsops` -> `apply` -> `change` -> CLI -> tests); no disjoint file groups for a team.
@@ -161,9 +161,9 @@ Spec sections cited, not copied. Order is the compile order.
 
 ### Step A: Adapter, scope, registry (core)
 
-- [ ] A1. Add `Scope::Ancestor` and its `as_str` in `adapter/mod.rs`; fix every exhaustive `match` the compiler reports.
-- [ ] A2. Write `adapter/agents_neutral.rs` per spec 4.7 and decisions M5-1, M5-4 to M5-6, with the evidence table (below) and unit tests; register it in `adapters()`; update the M3 unit tests named in M5-3 and generalize `adapter_claims_have_evidence` (M5-13).
-- [ ] A3. `observe.rs`: apply the rank rule (M5-2); add the ancestor walk helper used by `scan_locations` (reuse the `.git` test of `project::detect_root`).
+- [x] A1. Add `Scope::Ancestor` and its `as_str` in `adapter/mod.rs`; fix every exhaustive `match` the compiler reports.
+- [x] A2. Write `adapter/agents_neutral.rs` per spec 4.7 and decisions M5-1, M5-4 to M5-6, with the evidence table (below) and unit tests; register it in `adapters()`; update the M3 unit tests named in M5-3 and generalize `adapter_claims_have_evidence` (M5-13).
+- [x] A3. `observe.rs`: apply the rank rule (M5-2); add the ancestor walk helper used by `scan_locations` (reuse the `.git` test of `project::detect_root`).
 
 Evidence table to implement (every claim keyed; source is a URL from PRD section 16 or the spike):
 
@@ -182,34 +182,34 @@ Evidence table to implement (every claim keyed; source is a URL from PRD section
 
 ### Step B: Warnings, followups, refresh (core and CLI)
 
-- [ ] B1. `change::prepare`: ancestor, cross-adapter duplicate, and isolated-policy warnings (M5-7). Cross-adapter reads the other adapter's receipt through `Receipt::load` and treats an unreadable receipt as no duplicate (diagnostic already exists in `project::index`).
-- [ ] B2. `cli/change.rs` and `output.rs`: pass `adapter.followups(...)` into result views and `--json`; keep `claude-code` output byte-identical (its followups are empty); render the shared-destination sentence.
-- [ ] B3. `cli/mod.rs`: bare `unam` with an ambiguous target (M5-3).
+- [x] B1. `change::prepare`: ancestor, cross-adapter duplicate, and isolated-policy warnings (M5-7). Cross-adapter reads the other adapter's receipt through `Receipt::load` and treats an unreadable receipt as no duplicate (diagnostic already exists in `project::index`).
+- [x] B2. `cli/change.rs` and `output.rs`: pass `adapter.followups(...)` into result views and `--json`; keep `claude-code` output byte-identical (its followups are empty); render the shared-destination sentence.
+- [x] B3. `cli/mod.rs`: bare `unam` with an ambiguous target (M5-3).
 
 ### Step C: Generated briefs (core and CLI)
 
-- [ ] C1. `generated.rs`: spec struct, content builder, hash, observation, and the diff helper that returns steps and conflicts for M5-10.
-- [ ] C2. `state.rs`: the two `JournalStep` ops and the receipt value builder; `plan.rs`: two `Step` variants (all `n`, `set_n`, `name`, `op`, `to_json` arms), `DiffInput.generated`, the `diff` hook after Adds, `build_receipt` adds and drops generated entries.
-- [ ] C3. `fsops.rs`: `write_generated` (create the brief directory, atomic write of `SKILL.md`, both under a `DestPath`) and `remove_generated` (only when the directory holds exactly `SKILL.md` with the expected hash; else a skip), with `RealFs` and the test `FsOps` wrapper in `common/faults.rs`.
-- [ ] C4. `apply.rs`: `journal_step`, `step_from_journal`, `exec_step`, `resume_step`, and `rollback` arms (rollback: written brief is removed; removed brief is restored from the journal's hash only if its content is in the receipt copy, otherwise the receipt's prior state is restored without the file and the result says so).
-- [ ] C5. `change.rs`: build the generated inputs from the target selection's bundles (M5-9); `verify.rs` and `reconcile.rs` diagnostics and `list_foreign` known set (M5-11); `output.rs` brief lines and honesty sentence (M5-12).
+- [x] C1. `generated.rs`: spec struct, content builder, hash, observation, and the diff helper that returns steps and conflicts for M5-10.
+- [x] C2. `state.rs`: the two `JournalStep` ops and the receipt value builder; `plan.rs`: two `Step` variants (all `n`, `set_n`, `name`, `op`, `to_json` arms), `DiffInput.generated`, the `diff` hook after Adds, `build_receipt` adds and drops generated entries.
+- [x] C3. `fsops.rs`: `write_generated` (create the brief directory, atomic write of `SKILL.md`, both under a `DestPath`) and `remove_generated` (only when the directory holds exactly `SKILL.md` with the expected hash; else a skip), with `RealFs` and the test `FsOps` wrapper in `common/faults.rs`.
+- [x] C4. `apply.rs`: `journal_step`, `step_from_journal`, `exec_step`, `resume_step`, and `rollback` arms (rollback: written brief is removed; removed brief is restored from the journal's hash only if its content is in the receipt copy, otherwise the receipt's prior state is restored without the file and the result says so).
+- [x] C5. `change.rs`: build the generated inputs from the target selection's bundles (M5-9); `verify.rs` and `reconcile.rs` diagnostics and `list_foreign` known set (M5-11); `output.rs` brief lines and honesty sentence (M5-12).
 
 ### Step D: Tests (after the code they exercise)
 
-- [ ] D1. Unit tests named in the Test Plan, then `ac_agents_neutral.rs` and `ac_briefs.rs` through the existing `Fx` fixture (temp HOME so `~/.hermes` and `~/.agents` are fixtures; never this repository).
-- [ ] D2. `phase1_checks.rs` and `phase1_exit.rs`; new snapshots; confirm the 36 existing snapshots are unchanged.
-- [ ] D3. Run the full M1 to M4 suites; fix only regressions this change caused.
+- [x] D1. Unit tests named in the Test Plan, then `ac_agents_neutral.rs` and `ac_briefs.rs` through the existing `Fx` fixture (temp HOME so `~/.hermes` and `~/.agents` are fixtures; never this repository).
+- [x] D2. `phase1_checks.rs` and `phase1_exit.rs`; new snapshots; confirm the 36 existing snapshots are unchanged.
+- [x] D3. Run the full M1 to M4 suites; fix only regressions this change caused.
 
 ### Step E: Docs and Phase 1 evidence
 
-- [ ] E1. `docs/adapters.md`: add the `agents-neutral` rows (claims, URLs, spike reference, "Cursor editor and Windsurf not tested", the M5-1 stop rule); keep the two M2 sections and the M4 sections.
-- [ ] E2. Run `s1_*` and `s6_*` once on Taylor's real library (`UNAM_REAL_LIBRARY=$HOME/Developer/01-AI/skillzone`, release build, `--nocapture`), read-only; record the five S1 times, the median, and both S6 numbers. If the library has fewer than 40 skills, still record the numbers and flag S6 as a library-size limit, not a failure of the mechanism.
-- [ ] E3. Read `cargo tree -p unam --edges normal` once and record that no HTTP or socket client appears.
-- [ ] E4. Write the phase report with the "Product Phase 1 completeness" section (below) and the S5 follow-up.
+- [x] E1. `docs/adapters.md`: add the `agents-neutral` rows (claims, URLs, spike reference, "Cursor editor and Windsurf not tested", the M5-1 stop rule); keep the two M2 sections and the M4 sections.
+- [x] E2. Run `s1_*` and `s6_*` once on Taylor's real library (`UNAM_REAL_LIBRARY=$HOME/Developer/01-AI/skillzone`, release build, `--nocapture`), read-only; record the five S1 times, the median, and both S6 numbers. If the library has fewer than 40 skills, still record the numbers and flag S6 as a library-size limit, not a failure of the mechanism.
+- [x] E3. Read `cargo tree -p unam --edges normal` once and record that no HTTP or socket client appears.
+- [x] E4. Write the phase report with the "Product Phase 1 completeness" section (below) and the S5 follow-up.
 
 ### Step F: Stop
 
-- [ ] F1. Commit execution changes on `main` (code first, then process); no push. Update the umbrella `## Current Execution State` to "Product Phase 1 Gate: AWAITING TAYLOR". Do NOT fill the gate record. Stop.
+- [x] F1. Commit execution changes on `main` (code first, then process); no push. Update the umbrella `## Current Execution State` to "Product Phase 1 Gate: AWAITING TAYLOR". Do NOT fill the gate record. Stop.
 
 ---
 
@@ -269,7 +269,7 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 - [x] 2. INNOVATE (2026-10-12): folded into this pass; design choices recorded as Decisions M5-1 to M5-15 (no separate Decision Summary)
 - [x] 3. PLAN-SUPPLEMENT (2026-10-12): existing phase plan rewritten into an executable plan; Inner Loop Refresh Note written
 - [x] 4. PVL (2026-10-12, cycle 1 of at most 2): Gate PASS, 0 FAIL-class gaps, execute-time notes EX1 to EX14 in the Validate Contract. Was: vc-validate-agent: at most 2 cycles; only FAIL-class gaps (wrong requirement mapping, steps that cannot compile in order) trigger a cycle; nits go to execute time; validate-contract written per `.claude/skills/vc-validate-findings/references/example-validate-output.md`
-- [ ] 5. EXECUTE: all checklist items done; per-section test gates run and green (or gaps documented)
+- [x] 5. EXECUTE (2026-10-17): checklist A1 to E4 done, F1 done at the commit step; G1 to G3 green (642 tests), G4 to G6 recorded (mode-only diff note in the report); phase report written; EVL (independent vc-tester) not yet run
 - [ ] 6. EVL: independent vc-tester re-run of the Exit Gate; follow-up stubs registered; EVL HANDOFF SUMMARY written
 - [ ] 7. UPDATE PROCESS: phase report written, umbrella state updated, commit done, then HARD STOP at the product Phase 1 gate
 
@@ -333,10 +333,10 @@ No Known-Gap rows. Residual gaps are named, not hidden: daily use, D4, Linux and
 ## Resume and Execution Handoff
 
 - Selected plan file path: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_PLAN_04-10-26.md`
-- Last completed step: 4 PVL (2026-10-12, cycle 1, Gate PASS)
+- Last completed step: 5 EXECUTE (2026-10-17, one sonnet execute agent; gates G1 to G3 green, 642 tests)
 - Validate-contract status: written 2026-10-12 (inner-pvl: phase-6, PASS, cycle 1; honor G5 presence checks and EX1 to EX14)
 - Supporting context files: `process/context/all-context.md` (Threat Model, standing rules), `process/context/product/all-product.md`, `process/context/tests/all-tests.md`, `phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md` (Forward Preview), `open-items-decision-sheet_REF_09-10-26.md`, `v1-static-activation_WAVES_09-10-26.md`, `spike/symlink-discovery.md`, `docs/adapters.md`
-- Next step: EXECUTE (one sonnet execute agent; do EX1 first), EVL (independent vc-tester), UPDATE PROCESS, then STOP at the product Phase 1 gate: no research, plan, or execution for M6 or M7 until Taylor clears it.
+- Next step: EVL (independent vc-tester re-runs G1 to G6), UPDATE PROCESS, then STOP at the product Phase 1 gate: no research, plan, or execution for M6 or M7 until Taylor clears it.
 - Items that stay with Taylor: D4 first real activation and naming the adopting project (row 54); the seven decision-sheet rows he has not marked; Linux and CI; the product Phase 1 gate and daily-use confirmation; the S5 four-week follow-up; the three REPORT TO TAYLOR interpretations (M5-1 stop rule, M5-8 journal step ops, M5-9 no config key).
 
 ---
@@ -449,6 +449,17 @@ Accepted by: not required (no CONCERN remains); the named residuals above are re
 
 ---
 
+## Deviations
+
+Written at EXECUTE (2026-10-17). All are within the validate-contract blast radius; none changes a public contract. Full list with reasons: the phase report, `## Plan Deviations`.
+
+- Edited receipted brief that is still wanted: the conflict is `modified-at-dest` (the skill rule), not `foreign-at-dest` as M5-10 words it; `foreign-at-dest` is kept for a name occupied by something unam never wrote. Both block with exit 6.
+- A changed brief is two steps (`remove_generated` then `write_generated`), per EX5, so a rollback can restore the old bytes exactly from the operation trash.
+- The new warnings (`ancestor-skills`, `cross-adapter-duplicate`, `destination-policy-isolated`) are in `plan.warnings` (the plan text and `data.plan.warnings`), not the envelope `warnings`; `brief-missing` and `brief-modified` are in the envelope `warnings` (severity warning) and, for `reconcile`, also `findings`.
+- `--json` `receipt.entries` now counts every receipt entry (skills and briefs); for `claude-code` without briefs the number is unchanged.
+
+---
+
 ## Next Step
 
-PVL is done (Gate PASS, 2026-10-12). Run EXECUTE (sonnet) with the plan path, then the independent EVL run, then UPDATE PROCESS. Stop at the product Phase 1 gate afterwards.
+EXECUTE is done (2026-10-17). Run the independent EVL confirmation run (vc-tester) with the validate-contract gates, then UPDATE PROCESS. Stop at the product Phase 1 gate afterwards.

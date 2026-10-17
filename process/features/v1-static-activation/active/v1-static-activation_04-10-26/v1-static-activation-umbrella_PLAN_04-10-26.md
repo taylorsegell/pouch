@@ -241,7 +241,7 @@ Program-level summary. The authoritative per-step checkboxes are in each milesto
 | M2 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-05. Report: `phase-03-m2-bundles-and-selection_REPORT_04-10-26.md`. G1 to G14, G12b, E1 green; 13 design departures awaiting Taylor: items 24 to 36 |
 | M3 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-09. Report: `phase-04-m3-plan-apply-claude-code_REPORT_04-10-26.md`. G1 to G19 green, 512 tests; review decision approved by Taylor; D4 real activation pending |
 | M4 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-12. Report: `phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md`. G1 to G6 green, 567 tests; commit pending in the same wave |
-| M5 | 1 RESEARCH (not started) | M4 entry dependency met; light lane |
+| M5 | 6 EVL (steps 1 to 5 done; EXECUTE 2026-10-17) | CODE DONE. Report: `phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md`. G1 to G3 green, 642 tests; the independent vc-tester EVL run, then UPDATE PROCESS, remain; then the hard stop |
 | M6, M7 | not started | Product Phase 2, held: no research, planning, or execution until Taylor clears the stop after M5 |
 
 ---
@@ -397,7 +397,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 
 ## Follow-ups (not gates)
 
-- S5 follow-up (PRD 13.1, observational): take the median active selection size four weeks after product Phase 1 is in daily use; target under 10. This is a record, not a gate for any milestone or for the product Phase 1 Gate. Also noted in the M5 plan exit notes.
+- S5 follow-up (PRD 13.1, observational): take the median active selection size four weeks after product Phase 1 is in daily use; target under 10. This is a record, not a gate for any milestone or for the product Phase 1 Gate. Also noted in the M5 plan exit notes and in the M5 phase report (`phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md`, "Product Phase 1 completeness").
 
 ---
 
@@ -411,8 +411,8 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 | 3 of 8: M2 Bundles and selection | VERIFIED (WITH_GAPS) 2026-10-05 (G1 to G14, G12b, E1 PASS; AC-10, 12, 35 desired side only; 13 design departures awaiting Taylor: items 24 to 36) |
 | 4 of 8: M3 Plan and apply for claude-code | VERIFIED (WITH_GAPS) 2026-10-09 (G1 to G19 PASS, 512 tests; review decision `approved` by Taylor; Linux/CI never run, D4 pending; residuals R1 to R10 accepted) |
 | 5 of 8: M4 Verify, status, reconcile, rollback | VERIFIED (WITH_GAPS) 2026-10-12 (G1 to G6 PASS, 567 tests, deletion-safety evidence check PASS; Linux/CI never run, D4 pending; three interpretations for Taylor in the M4 report) |
-| 6 of 8: M5 agents-neutral and generated briefs | PLANNED |
-| Product Phase 1 Gate | NOT CONFIRMED |
+| 6 of 8: M5 agents-neutral and generated briefs | CODE DONE 2026-10-17 (execute run: G1 to G3 PASS, 642 tests, S1 and S6 PASS on the real library; the independent EVL run is next; Linux/CI never run, D4 pending) |
+| Product Phase 1 Gate | AWAITING TAYLOR (record NOT CONFIRMED) |
 | 7 of 8: M6 TUI | PLANNED (product Phase 2, held behind the gate) |
 | 8 of 8: M7 OSS readiness | PLANNED (product Phase 2, held behind the gate) |
 
@@ -489,22 +489,22 @@ No criterion is carried by Known-Gap. If a milestone discovers an untestable beh
 
 ## Current Execution State
 
-Last updated: 2026-10-12 (M4 UPDATE PROCESS closeout)
+Last updated: 2026-10-17 (M5 EXECUTE complete)
 Current phase: 6 of 8 (milestone M5)
 Phase 6 name: M5 agents-neutral and generated briefs
-Phase 6 status: PLANNED (loop step 1 RESEARCH not started; light lane)
-Phase 5 EVL: PASS (gates G1 to G6, 567 tests, full fault matrix passes, deletion-safety evidence check PASS; M4 DONE, commit pending in the same wave)
+Phase 6 status: CODE DONE (EXECUTE 2026-10-17; the independent EVL confirmation run by vc-tester is next)
+Phase 6 EXECUTE run: G1 to G3 PASS (642 tests, 0 failed), G5 and G6 PASS by content (the literal `8d688e1` diff commands report mode-only differences from commit 4956007; see the M5 report, D9), S1 and S6 PASS on the real library (median 0.648 s; four skills 1.1 percent of the library), network none and background none PASS
+Phase 6 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md
 Phase 5 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md
-Phase 4 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-04-m3-plan-apply-claude-code_REPORT_04-10-26.md
-Next phase: 6 of 8 (milestone M5), entry gate met (M4 VERIFIED WITH_GAPS); lighter process per v1-static-activation_WAVES_09-10-26.md; M5 ends at the Product Phase 1 Gate
-Completed phases: phase 0 (plan creation); phase 1 of 8 (M0), phase 2 of 8 (M1), phase 3 of 8 (M2), phase 4 of 8 (M3), phase 5 of 8 (M4), each VERIFIED (WITH_GAPS)
-Current loop step: RESEARCH (step 1 of milestone M5; not started)
-Validate-contract status: M5 not written
-Open items awaiting Taylor: the seven rows marked "Needs a real decision" in open-items-decision-sheet_REF_09-10-26.md (defaults apply unless rows are marked); D4 real activation and the first adopting project (backlog NOTE); M4 interpretations in the M4 report (exit 8 and 9 give ok false, repoint is a printed remedy, rollback after a repair is a no-op); Linux and CI never run (no remote)
+Next phase: none until Taylor clears the Product Phase 1 Gate; the next step inside M5 is EVL (independent vc-tester re-run of G1 to G6), then UPDATE PROCESS
+Completed phases: phase 0 (plan creation); phase 1 of 8 (M0), phase 2 of 8 (M1), phase 3 of 8 (M2), phase 4 of 8 (M3), phase 5 of 8 (M4), each VERIFIED (WITH_GAPS); phase 6 of 8 (M5) CODE DONE
+Current loop step: EVL (step 6 of milestone M5; independent vc-tester confirmation run pending)
+Validate-contract status: written 2026-10-12 (inner-pvl: phase-6, Gate: PASS)
+Open items awaiting Taylor: the product Phase 1 gate itself (his explicit message that product Phase 1 is done and M6 may start); daily use; D4 real activation and the first adopting project (backlog NOTE); the seven rows marked "Needs a real decision" in open-items-decision-sheet_REF_09-10-26.md; the M4 and M5 interpretations (M5 report, "For Taylor"); the mode change 644 to 755 of every tracked file in commit 4956007; Linux and CI never run (no remote); the S5 follow-up four weeks after daily use begins
 Program Net Gate: PENDING
-Product Phase 1 Gate: NOT CONFIRMED
+Product Phase 1 Gate: AWAITING TAYLOR (the gate record in `## Product Phase 1 Gate` stays NOT CONFIRMED; only Taylor's explicit message clears it; no agent fills it)
 Milestones M6 and M7: product Phase 2, held (no research, planning, or execution until Taylor clears the stop)
-Latest validator run: 2026-10-12, M4 UPDATE PROCESS (see the M4 phase report)
+Latest validator run: 2026-10-12, M4 UPDATE PROCESS (the M5 UPDATE PROCESS has not run)
 
 Loop step values: RESEARCH | INNOVATE | PLAN-SUPPLEMENT | PVL | EXECUTE | EVL | UPDATE-PROCESS
 Orchestrator rule: read "Current loop step" and "Validate-contract status" before spawning any subagent. Never spawn execute-agent when loop step is RESEARCH, INNOVATE, PLAN-SUPPLEMENT, or PVL.
