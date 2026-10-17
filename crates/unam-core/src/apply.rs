@@ -1035,6 +1035,14 @@ pub fn resume(ctx: &ApplyCtx<'_>, fs: &dyn FsOps) -> Result<RecoverReport> {
     let mut outcomes: BTreeMap<u32, StepOutcome> = BTreeMap::new();
     let mut results = Vec::new();
     let mut removal_applied = false;
+    // (step number, name) of every RemoveGenerated, for the replace check.
+    let steps_snapshot: Vec<(u32, String)> = steps
+        .iter()
+        .filter_map(|st| match st {
+            Step::RemoveGenerated { n, name, .. } => Some((*n, name.clone())),
+            _ => None,
+        })
+        .collect();
     for step in steps.iter_mut() {
         let n = step.n();
         let state = j.states.get(&n).cloned().unwrap_or(StepState::Pending);
@@ -1050,7 +1058,21 @@ pub fn resume(ctx: &ApplyCtx<'_>, fs: &dyn FsOps) -> Result<RecoverReport> {
             }
             _ => false,
         };
-        if state.terminal() && !retry_dir {
+        // A replacement writes a brief under the name its own remove step
+        // frees. When that remove failed, the write was skipped only because
+        // the old brief was still there; the resumed remove clears it, so the
+        // write is re-evaluated against the disk instead of staying skipped.
+        let retry_write = match (&*step, &state) {
+            (Step::WriteGenerated { name, .. }, StepState::Skipped { reason })
+                if reason == SkipReason::DestOccupied.code() =>
+            {
+                steps_snapshot.iter().any(|(sn, sname)| {
+                    sname == name && j.states.get(sn).is_some_and(|st| !st.terminal())
+                })
+            }
+            _ => false,
+        };
+        if state.terminal() && !retry_dir && !retry_write {
             if let Some(o) = outcome_of_state(&state) {
                 outcomes.insert(n, o);
             }
@@ -1251,6 +1273,18 @@ fn resume_step(
                     }
                 }
                 Ok(_) => {
+                    // The old brief was already moved aside and the
+                    // replacement written before the interruption: the
+                    // destination now holds the new content, not the one
+                    // this step removes.
+                    let in_trash = runner.trash()?.join(name);
+                    if matches!(
+                        observe_brief(&child),
+                        Ok(BriefObserved::Brief { hash }) if hash != *expect_hash
+                    ) && std::fs::symlink_metadata(in_trash.path()).is_ok()
+                    {
+                        return Ok((StepOutcome::Done, "observed"));
+                    }
                     let h = expect_hash.clone();
                     Ok((runner.remove_brief(name, &h)?, "ran"))
                 }
