@@ -126,6 +126,55 @@ fn no_network_symbols() {
     assert!(hits.is_empty(), "{hits:?}");
 }
 
+/// True when `text` sets panic to abort: `panic = "abort"` with any spacing
+/// or quotes, or `-C panic=abort` (comments after `#` are ignored).
+fn sets_panic_abort(text: &str) -> bool {
+    text.lines().any(|line| {
+        let code = line.split('#').next().unwrap_or("");
+        let compact: String = code
+            .chars()
+            .filter(|c| !c.is_whitespace() && *c != '"' && *c != '\'')
+            .collect();
+        compact.contains("panic=abort")
+    })
+}
+
+#[test]
+fn no_panic_abort_profile() {
+    // The picker restores the terminal through drop guards; abort would skip
+    // them (milestone M6, D-TERM).
+    let root = repo_root();
+    let mut files = vec![root.join("Cargo.toml"), root.join("dist-workspace.toml")];
+    for c in crate_dirs() {
+        files.push(c.join("Cargo.toml"));
+    }
+    for name in ["config.toml", "config"] {
+        let p = root.join(".cargo").join(name);
+        if p.exists() {
+            files.push(p);
+        }
+    }
+    // Not vacuous: the root manifest and the dist file are read.
+    assert!(root.join("Cargo.toml").is_file() && root.join("dist-workspace.toml").is_file());
+    assert!(files.len() >= 4, "{files:?}");
+    for f in &files {
+        let text = fs::read_to_string(f).unwrap();
+        assert!(!text.is_empty(), "{}", f.display());
+        assert!(
+            !sets_panic_abort(&text),
+            "{} sets panic = abort",
+            f.display()
+        );
+    }
+    // The matcher sees every spelling it must reject and passes the rest.
+    assert!(sets_panic_abort("[profile.release]\npanic = \"abort\"\n"));
+    assert!(sets_panic_abort("panic=\"abort\""));
+    assert!(sets_panic_abort("rustflags = [\"-C\", \"panic=abort\"]"));
+    assert!(sets_panic_abort("  panic   =   'abort'  # why"));
+    assert!(!sets_panic_abort("[profile.release]\npanic = \"unwind\"\n"));
+    assert!(!sets_panic_abort("# panic = \"abort\" is banned\n"));
+}
+
 /// `pgrep -f <needle>`: `Some(true)` when something matches, `None` when
 /// `pgrep` is unavailable here.
 fn pgrep_matches(needle: &str) -> Option<bool> {

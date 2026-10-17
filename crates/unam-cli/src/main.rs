@@ -2,6 +2,7 @@
 
 mod cli;
 mod output;
+mod tui;
 
 use clap::Parser;
 use std::process::ExitCode;

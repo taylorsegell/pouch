@@ -57,6 +57,31 @@ fn bare_unam_prints_status_for_a_project() {
 }
 
 #[test]
+fn bare_unam_non_tty_prints_usage_and_status_exit_0() {
+    // assert_cmd gives the child no terminal, so bare `unam` must not open
+    // the picker (milestone M6): usage, then the status table, exit 0.
+    let fx = Fx::new();
+    let p = fx.project("non-tty-p");
+    let (code, v) = fx.json_raw(&p, &["add", "fx:sdlc/code-review", "--yes"]);
+    assert_eq!(code, 0, "{v}");
+    let (code, out, _) = fx.run(&p, &[]);
+    assert_eq!(code, 0);
+    assert!(out.contains("Usage:"), "{out}");
+    assert!(out.contains("STATE") && out.contains("active"), "{out}");
+    assert!(!out.contains("\u{1b}[?1049h"), "alternate screen entered");
+    fx.done();
+    // No project and no config: still usage only, no config file written.
+    let env = TestEnv::new();
+    let (code, out, _) = env.run(&[]);
+    assert_eq!(code, 0);
+    assert!(
+        out.contains("Usage:") && !out.contains("\u{1b}[?1049h"),
+        "{out}"
+    );
+    assert!(!env.config_file().exists());
+}
+
+#[test]
 fn help_and_version_exit_0() {
     let env = TestEnv::new();
     let (code, out, _) = env.run(&["--help"]);
