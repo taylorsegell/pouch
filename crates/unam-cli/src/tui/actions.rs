@@ -3,6 +3,7 @@
 //! `unam-core`; it never touches the filesystem itself. Writes happen inside
 //! `change::run`, `change::resume`, `change::rollback`, and `bundle::crud::save`.
 
+use crate::output::render_plan;
 use unam_core::adapter::{ApplyContext, RefreshNote, adapter_for, adapters};
 use unam_core::bundle::{self, BundleSet};
 use unam_core::catalog::search::{self, Hit};
@@ -129,14 +130,22 @@ impl Session {
 
     /// The starting target: the flag, else the selection's, else the first
     /// detected adapter (ambiguity falls back to the first adapter).
-    pub fn initial_target(&self, flag: Option<TargetId>) -> TargetId {
+    pub fn initial_target(&self, flag: Option<TargetId>) -> (TargetId, Option<String>) {
         let selection = project::load_selection(&self.root.path).ok().flatten();
         match change::resolve_target(flag, selection.as_ref(), &self.root.path, &self.dirs) {
-            Ok((t, _)) => t,
-            Err(_) => Session::targets()
-                .first()
-                .copied()
-                .unwrap_or(TargetId::ClaudeCode),
+            Ok((t, _)) => (t, None),
+            Err(e) => {
+                let first = Session::targets()
+                    .first()
+                    .copied()
+                    .unwrap_or(TargetId::ClaudeCode);
+                let note = format!(
+                    "ambiguous target: using {}, press t to switch ({})",
+                    first.as_str(),
+                    crate::output::neutralize(&e.to_string())
+                );
+                (first, Some(note))
+            }
         }
     }
 
@@ -194,17 +203,31 @@ impl Session {
     }
 
     /// Apply an edit through the journaled executor. The key press in the
-    /// plan view is the confirmation, so the decision is `Proceed`.
+    /// plan view confirms the plan the user saw (`confirmed`, the rendered
+    /// text). `change::run` prepares the plan again under the project lock;
+    /// when that plan renders differently the decision is `Decline`, and the
+    /// bool is true so the caller can say why.
     pub fn apply(
         &self,
         target: TargetId,
         edit: Edit,
         command: &str,
-    ) -> std::result::Result<Outcome, ChangeFailure> {
+        confirmed: &str,
+    ) -> (std::result::Result<Outcome, ChangeFailure>, bool) {
         let clock = SystemClock;
         let req = self.request(target, edit, command, &clock);
-        let mut decide = |_: &Plan| Decision::Proceed;
-        change::run(&req, &RealFs, &mut decide)
+        let changed = std::cell::Cell::new(false);
+        let mut decide = |plan: &Plan| {
+            let note = self.refresh_note(target, plan);
+            if render_plan(plan, note.as_ref()) == confirmed {
+                Decision::Proceed
+            } else {
+                changed.set(true);
+                Decision::Decline
+            }
+        };
+        let result = change::run(&req, &RealFs, &mut decide);
+        (result, changed.get())
     }
 
     /// Finish (`resume`) or undo (`rollback`) an interrupted apply.

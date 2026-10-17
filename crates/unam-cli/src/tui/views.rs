@@ -7,10 +7,11 @@ use super::app::{App, Mode};
 use super::picker;
 use crate::output::{head, neutralize};
 use ratatui::Frame;
+use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Widget, Wrap};
 
 pub const HELP_LINES: &[&str] = &[
     "type          filter the results (search box has focus at start)",
@@ -112,7 +113,42 @@ fn text_view(f: &mut Frame, app: &App, area: Rect, title: &str, text: &str, scro
     f.render_widget(Paragraph::new(message_line(app)), rows[1]);
 }
 
-fn plan(f: &mut Frame, app: &App, area: Rect) {
+/// The rows `text` takes when wrapped to `width` columns: it is drawn into
+/// a scratch buffer, so the count is the one the real paragraph produces.
+fn wrapped_rows(text: &str, width: u16) -> u16 {
+    if width == 0 {
+        return 0;
+    }
+    let w = usize::from(width);
+    let upper: usize = text
+        .lines()
+        .map(|l| 2 * (l.chars().count() / w + 1))
+        .sum::<usize>()
+        + 1;
+    let height = u16::try_from(upper).unwrap_or(u16::MAX);
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    Paragraph::new(text.to_string())
+        .wrap(Wrap { trim: false })
+        .render(area, &mut buf);
+    (0..height)
+        .rev()
+        .find(|y| (0..width).any(|x| buf[(x, *y)].symbol() != " "))
+        .map_or(0, |y| y + 1)
+}
+
+/// The largest scroll that still fills the text pane (bordered, one row
+/// below it for the message line).
+fn max_scroll(text: &str, area: Rect) -> u16 {
+    let inner_w = area.width.saturating_sub(2);
+    let inner_h = area.height.saturating_sub(1).saturating_sub(2);
+    wrapped_rows(text, inner_w).saturating_sub(inner_h)
+}
+
+fn plan(f: &mut Frame, app: &mut App, area: Rect) {
+    if let Some(p) = app.plan.as_mut() {
+        p.scroll = p.scroll.min(max_scroll(&p.text, area));
+    }
     let (text, scroll) = app
         .plan
         .as_ref()
@@ -127,7 +163,8 @@ fn plan(f: &mut Frame, app: &App, area: Rect) {
     );
 }
 
-fn result(f: &mut Frame, app: &App, area: Rect) {
+fn result(f: &mut Frame, app: &mut App, area: Rect) {
+    app.result_scroll = app.result_scroll.min(max_scroll(&app.result_text, area));
     text_view(
         f,
         app,

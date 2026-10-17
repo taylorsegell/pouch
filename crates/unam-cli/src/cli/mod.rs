@@ -9,12 +9,12 @@ mod show;
 mod source;
 mod status;
 
-use crate::output::{self, ErrorInfo, warnings_only};
+use crate::output::{self, ErrorInfo};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use serde_json::Value;
 use std::io::IsTerminal;
 use std::path::PathBuf;
-use unam_core::catalog::{Catalog, FlatDiagnostic, LoadOptions, SOURCE_AND_CONFIG};
+use unam_core::catalog::{Catalog, FlatDiagnostic, LoadOptions};
 use unam_core::config::Config;
 use unam_core::paths::Dirs;
 use unam_core::project::{ProjectRoot, TargetId};
@@ -274,9 +274,7 @@ impl Ctx {
 
 /// Config-level plus source-level warnings of a catalog load.
 pub(super) fn catalog_warnings(ctx: &Ctx, catalog: &Catalog) -> Vec<FlatDiagnostic> {
-    let mut all = ctx.config_diags.clone();
-    all.extend(catalog.flat_diagnostics(None, SOURCE_AND_CONFIG));
-    warnings_only(&all)
+    output::catalog_warning_set(&ctx.config_diags, catalog)
 }
 
 /// A successful command.
