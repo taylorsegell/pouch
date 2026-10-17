@@ -489,6 +489,70 @@ fn observe_path(path: &Path, want_hash: bool) -> Result<ObservedKind> {
     Ok(ObservedKind::Other)
 }
 
+/// The file a bundle brief directory holds (M5-8).
+pub const BRIEF_FILE: &str = "SKILL.md";
+
+/// What sits at a bundle-brief destination (lstat only; never followed).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BriefObserved {
+    Missing,
+    /// A real directory holding exactly one regular file, `SKILL.md`; the
+    /// hash of its bytes.
+    Brief {
+        hash: Hash,
+    },
+    /// Anything else (`directory` for a directory of another shape).
+    Other {
+        found: &'static str,
+    },
+}
+
+fn brief_at(path: &Path) -> Result<BriefObserved> {
+    match observe_path(path, false)? {
+        ObservedKind::Missing => Ok(BriefObserved::Missing),
+        ObservedKind::Symlink { .. } => Ok(BriefObserved::Other { found: "symlink" }),
+        ObservedKind::File => Ok(BriefObserved::Other { found: "file" }),
+        ObservedKind::Other => Ok(BriefObserved::Other { found: "other" }),
+        ObservedKind::Dir { .. } => {
+            let rd = std::fs::read_dir(path)
+                .map_err(io_err(format!("cannot read {}", path.display())))?;
+            let mut names: Vec<std::ffi::OsString> = Vec::new();
+            for e in rd {
+                let e = e.map_err(io_err(format!("cannot read {}", path.display())))?;
+                names.push(e.file_name());
+                if names.len() > 1 {
+                    break;
+                }
+            }
+            let file = path.join(BRIEF_FILE);
+            let shaped = names.len() == 1
+                && names[0] == BRIEF_FILE
+                && std::fs::symlink_metadata(&file)
+                    .map(|m| m.file_type().is_file())
+                    .unwrap_or(false);
+            if !shaped {
+                return Ok(BriefObserved::Other { found: "directory" });
+            }
+            let bytes =
+                std::fs::read(&file).map_err(io_err(format!("cannot read {}", file.display())))?;
+            Ok(BriefObserved::Brief {
+                hash: Hash::of_bytes(&bytes),
+            })
+        }
+    }
+}
+
+/// `observe_brief` for an arbitrary path (a trash copy); read-only.
+pub fn observe_brief_at(path: &Path) -> Result<BriefObserved> {
+    brief_at(path)
+}
+
+/// Observe a bundle-brief destination: absent, a directory holding exactly
+/// `SKILL.md` (with the hash of its bytes), or something else.
+pub fn observe_brief(dst: &DestPath) -> Result<BriefObserved> {
+    brief_at(dst.path())
+}
+
 /// Observe one destination path with `symlink_metadata` (never followed);
 /// the tree hash (with `SKILL_SKIP_NAMES`) only when `want_hash` and the
 /// entry is a real directory.
@@ -522,6 +586,19 @@ pub trait FsOps {
         source: Option<&SourcePath>,
         tag: &str,
     ) -> Result<RestoreOutcome>;
+    /// Create the bundle-brief directory `dst` holding only `SKILL.md` with
+    /// `content`, atomically (a temp directory renamed into place). `dst`
+    /// must be absent.
+    fn write_generated(&self, dst: &DestPath, content: &[u8], tag: &str) -> Result<()>;
+    /// Move the bundle-brief directory `dst` into `trash` when it still is a
+    /// directory holding exactly `SKILL.md` whose bytes hash to `expect`;
+    /// otherwise skip and leave it.
+    fn remove_generated(
+        &self,
+        dst: &DestPath,
+        expect: &Hash,
+        trash: &StatePath,
+    ) -> Result<RemoveOutcome>;
 }
 
 /// The real filesystem.
@@ -620,6 +697,19 @@ impl FsOps for RealFs {
         make_symlink(src.as_path(), dst.path())
     }
 
+    fn write_generated(&self, dst: &DestPath, content: &[u8], tag: &str) -> Result<()> {
+        write_generated_at(dst.path(), content, tag)
+    }
+
+    fn remove_generated(
+        &self,
+        dst: &DestPath,
+        expect: &Hash,
+        trash: &StatePath,
+    ) -> Result<RemoveOutcome> {
+        remove_generated_at(dst.path(), expect, trash.path())
+    }
+
     fn copy_tree(
         &self,
         src: &SourcePath,
@@ -688,6 +778,102 @@ impl FsOps for RealFs {
                     "source-unavailable".to_string(),
                 )),
             },
+        }
+    }
+}
+
+fn write_generated_at(dst: &Path, content: &[u8], tag: &str) -> Result<()> {
+    if brief_at(dst)? != BriefObserved::Missing {
+        return Err(Error::io(
+            format!("destination {} already exists", dst.display()),
+            std::io::Error::from(ErrorKind::AlreadyExists),
+        ));
+    }
+    let name = file_name_text(dst)?;
+    let temp = parent_of(dst).join(format!("{TEMP_PREFIX}{tag}-{name}"));
+    if observe_path(&temp, false)? != ObservedKind::Missing {
+        return Err(Error::io(
+            format!("temp path {} already exists", temp.display()),
+            std::io::Error::from(ErrorKind::AlreadyExists),
+        ));
+    }
+    let result = (|| -> Result<()> {
+        std::fs::create_dir(&temp).map_err(io_err(format!("cannot create {}", temp.display())))?;
+        let file = temp.join(BRIEF_FILE);
+        let mut f =
+            File::create(&file).map_err(io_err(format!("cannot create {}", file.display())))?;
+        f.write_all(content)
+            .map_err(io_err(format!("cannot write {}", file.display())))?;
+        f.sync_all()
+            .map_err(io_err(format!("cannot sync {}", file.display())))?;
+        sync_dir(&temp)?;
+        if observe_path(dst, false)? != ObservedKind::Missing {
+            return Err(Error::io(
+                format!("destination {} appeared during the write", dst.display()),
+                std::io::Error::from(ErrorKind::AlreadyExists),
+            ));
+        }
+        std::fs::rename(&temp, dst).map_err(io_err(format!(
+            "cannot move the brief to {}",
+            dst.display()
+        )))?;
+        Ok(())
+    })();
+    match result {
+        Ok(()) => {
+            let _ = sync_dir(parent_of(dst));
+            Ok(())
+        }
+        Err(e) => {
+            let _ = remove_own_temp_dir(&temp);
+            Err(e)
+        }
+    }
+}
+
+fn remove_generated_at(dst: &Path, expect: &Hash, trash: &Path) -> Result<RemoveOutcome> {
+    match brief_at(dst)? {
+        BriefObserved::Missing => Ok(RemoveOutcome::Skipped(SkipReason::Missing)),
+        BriefObserved::Other { found: "directory" } => {
+            Ok(RemoveOutcome::Skipped(SkipReason::Modified))
+        }
+        BriefObserved::Other { .. } => Ok(RemoveOutcome::Skipped(SkipReason::Foreign)),
+        BriefObserved::Brief { hash } if hash != *expect => {
+            Ok(RemoveOutcome::Skipped(SkipReason::Modified))
+        }
+        BriefObserved::Brief { .. } => {
+            std::fs::create_dir_all(trash)
+                .map_err(io_err(format!("cannot create {}", trash.display())))?;
+            let item = trash.join(file_name_text(dst)?);
+            if observe_path(&item, false)? != ObservedKind::Missing {
+                return Err(Error::io(
+                    format!("trash path {} already exists", item.display()),
+                    std::io::Error::from(ErrorKind::AlreadyExists),
+                ));
+            }
+            match std::fs::rename(dst, &item) {
+                Ok(()) => {}
+                Err(e) if rename_aside_skip(e.kind()).is_some() => {
+                    let _ = std::fs::remove_dir(trash);
+                    return Ok(RemoveOutcome::Skipped(SkipReason::CrossDevice));
+                }
+                Err(e) => {
+                    return Err(Error::io(format!("cannot move {} aside", dst.display()), e));
+                }
+            }
+            match brief_at(&item)? {
+                BriefObserved::Brief { hash } if hash == *expect => {}
+                _ => {
+                    if observe_path(dst, false)? == ObservedKind::Missing {
+                        std::fs::rename(&item, dst)
+                            .map_err(io_err(format!("cannot move {} back", dst.display())))?;
+                        let _ = std::fs::remove_dir(trash);
+                    }
+                    return Ok(RemoveOutcome::Skipped(SkipReason::Modified));
+                }
+            }
+            let _ = sync_dir(parent_of(dst));
+            Ok(RemoveOutcome::Removed)
         }
     }
 }

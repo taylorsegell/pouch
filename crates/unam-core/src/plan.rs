@@ -7,11 +7,12 @@ use crate::catalog::{Catalog, SkillId};
 use crate::config::Strategy;
 use crate::error::Diagnostic;
 use crate::fsops::{ObservedKind, OwnedExpectation, SkipReason, dest_prefixes, validate_dest_name};
+use crate::generated::{GeneratedInput, diff_generated};
 use crate::hash::Hash;
 use crate::observe::{DestRootState, Observed};
 use crate::project::{RootDetection, TargetId};
 use crate::resolve::{DesiredEntry, Provenance, canonical_provenance};
-use crate::state::{Entry, Receipt, SkillEntry, strategy_text};
+use crate::state::{Entry, GeneratedEntry, Receipt, SkillEntry, strategy_text};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
@@ -78,6 +79,22 @@ pub enum Step {
     },
     /// Remove a directory this tool created, only when empty (G3).
     RemoveDir { n: u32, dir: String },
+    /// Write a generated bundle brief `<dest>/<name>/SKILL.md` (spec 4.8
+    /// step 7; M5-8). `content` is the exact bytes; `content_hash` their hash.
+    WriteGenerated {
+        n: u32,
+        bundle: String,
+        name: String,
+        content: String,
+        content_hash: Hash,
+    },
+    /// Remove a generated bundle brief that still holds `expect_hash`.
+    RemoveGenerated {
+        n: u32,
+        bundle: String,
+        name: String,
+        expect_hash: Hash,
+    },
 }
 
 impl Step {
@@ -87,7 +104,9 @@ impl Step {
             | Step::Remove { n, .. }
             | Step::DropOrphan { n, .. }
             | Step::UpdateProvenance { n, .. }
-            | Step::RemoveDir { n, .. } => *n,
+            | Step::RemoveDir { n, .. }
+            | Step::WriteGenerated { n, .. }
+            | Step::RemoveGenerated { n, .. } => *n,
         }
     }
 
@@ -97,7 +116,9 @@ impl Step {
             | Step::Remove { n, .. }
             | Step::DropOrphan { n, .. }
             | Step::UpdateProvenance { n, .. }
-            | Step::RemoveDir { n, .. } => *n = value,
+            | Step::RemoveDir { n, .. }
+            | Step::WriteGenerated { n, .. }
+            | Step::RemoveGenerated { n, .. } => *n = value,
         }
     }
 
@@ -106,7 +127,9 @@ impl Step {
             Step::Add { name, .. }
             | Step::Remove { name, .. }
             | Step::DropOrphan { name, .. }
-            | Step::UpdateProvenance { name, .. } => Some(name),
+            | Step::UpdateProvenance { name, .. }
+            | Step::WriteGenerated { name, .. }
+            | Step::RemoveGenerated { name, .. } => Some(name),
             Step::RemoveDir { .. } => None,
         }
     }
@@ -117,7 +140,9 @@ impl Step {
             | Step::Remove { id, .. }
             | Step::DropOrphan { id, .. }
             | Step::UpdateProvenance { id, .. } => Some(id),
-            Step::RemoveDir { .. } => None,
+            Step::RemoveDir { .. } | Step::WriteGenerated { .. } | Step::RemoveGenerated { .. } => {
+                None
+            }
         }
     }
 
@@ -128,6 +153,8 @@ impl Step {
             Step::DropOrphan { .. } => "drop_orphan",
             Step::UpdateProvenance { .. } => "update_provenance",
             Step::RemoveDir { .. } => "remove_dir",
+            Step::WriteGenerated { .. } => "write_generated",
+            Step::RemoveGenerated { .. } => "remove_generated",
         }
     }
 
@@ -177,6 +204,25 @@ impl Step {
                 "provenance": provenance,
             }),
             Step::RemoveDir { n, dir } => json!({"n": n, "op": "remove_dir", "dir": dir}),
+            Step::WriteGenerated {
+                n,
+                bundle,
+                name,
+                content_hash,
+                ..
+            } => json!({
+                "n": n, "op": "write_generated", "bundle": bundle, "name": name,
+                "dest": dest(name), "content_hash": content_hash.to_string(),
+            }),
+            Step::RemoveGenerated {
+                n,
+                bundle,
+                name,
+                expect_hash,
+            } => json!({
+                "n": n, "op": "remove_generated", "bundle": bundle, "name": name,
+                "dest": dest(name), "content_hash": expect_hash.to_string(),
+            }),
         }
     }
 }
@@ -370,11 +416,15 @@ impl Plan {
         !self.conflicts.is_empty()
     }
 
-    /// Any Remove or DropOrphan (a RemoveDir does not count).
+    /// Any Remove, DropOrphan, or RemoveGenerated (a RemoveDir does not
+    /// count).
     pub fn removes_something(&self) -> bool {
-        self.steps
-            .iter()
-            .any(|s| matches!(s, Step::Remove { .. } | Step::DropOrphan { .. }))
+        self.steps.iter().any(|s| {
+            matches!(
+                s,
+                Step::Remove { .. } | Step::DropOrphan { .. } | Step::RemoveGenerated { .. }
+            )
+        })
     }
 
     /// The `plan` object of the CLI Contract.
@@ -409,6 +459,9 @@ pub struct DiffInput<'a> {
     /// owned symlink whose live source path differs from the receipt
     /// `source_path` is replaced instead of left "unchanged".
     pub repoint_moved: bool,
+    /// The wanted bundle briefs and what the destination holds for them
+    /// (spec 4.8 step 7; M5-8).
+    pub generated: &'a GeneratedInput,
 }
 
 fn found_text(k: &ObservedKind) -> &'static str {
@@ -728,6 +781,16 @@ pub fn diff(input: &DiffInput<'_>) -> Plan {
     steps.extend(adds);
     steps.extend(updates);
 
+    // Generated briefs (spec 4.8 steps 7 and 8): last, removes first.
+    let skill_ids: BTreeMap<String, String> = remaining
+        .iter()
+        .map(|d| (d.name.clone(), d.id.to_string()))
+        .collect();
+    let gd = diff_generated(dest_rel, input.generated, input.receipt, &skill_ids);
+    conflicts.extend(gd.conflicts);
+    steps.extend(gd.steps);
+    remaining_valid += gd.staying;
+
     // 10. Created directories (deactivate only).
     if input.release_created_dirs {
         let prefixes = dest_prefixes(dest_rel);
@@ -804,7 +867,9 @@ pub fn diff(input: &DiffInput<'_>) -> Plan {
     }
 
     // 9. Directories to create.
-    let has_add = steps.iter().any(|s| matches!(s, Step::Add { .. }));
+    let has_add = steps
+        .iter()
+        .any(|s| matches!(s, Step::Add { .. } | Step::WriteGenerated { .. }));
     let dest_dirs_to_create = match &input.observed.dest_root {
         DestRootState::Missing { to_create } if has_add => to_create.clone(),
         _ => Vec::new(),
@@ -836,6 +901,15 @@ pub struct ReceiptUpdate<'a> {
     pub selection_hash: &'a Hash,
     pub dirs_created: &'a [String],
     pub dirs_removed: &'a [String],
+}
+
+fn find_generated(entries: &[Entry], name: &str, dest_rel: &str) -> Option<usize> {
+    entries.iter().position(|e| match e {
+        Entry::Other(v) => {
+            GeneratedEntry::from_value(v).is_some_and(|g| g.name == name && g.consistent(dest_rel))
+        }
+        Entry::Skill(_) => false,
+    })
 }
 
 /// Build the next receipt from `before` and the step outcomes (pure).
@@ -922,6 +996,41 @@ pub fn build_receipt(u: &ReceiptUpdate<'_>) -> Receipt {
                 }
             }
             Step::RemoveDir { .. } => {}
+            Step::WriteGenerated {
+                bundle,
+                name,
+                content_hash,
+                ..
+            } => {
+                if *outcome == StepOutcome::Done {
+                    if let Some(i) = find_generated(&entries, name, dest_rel) {
+                        entries.remove(i);
+                    }
+                    entries.push(Entry::Other(
+                        GeneratedEntry {
+                            bundle: bundle.clone(),
+                            name: name.clone(),
+                            dest: format!("{dest_rel}/{name}"),
+                            content_hash: content_hash.to_string(),
+                            applied_at: now.to_string(),
+                        }
+                        .to_value(),
+                    ));
+                }
+            }
+            Step::RemoveGenerated { name, .. } => {
+                let release = match outcome {
+                    StepOutcome::Done => true,
+                    StepOutcome::Skipped(r) => matches!(
+                        r,
+                        SkipReason::Missing | SkipReason::Modified | SkipReason::Foreign
+                    ),
+                    StepOutcome::Failed { .. } => false,
+                };
+                if release && let Some(i) = find_generated(&entries, name, dest_rel) {
+                    entries.remove(i);
+                }
+            }
         }
     }
     let (mut skills, others): (Vec<Entry>, Vec<Entry>) = entries

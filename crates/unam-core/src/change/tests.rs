@@ -262,8 +262,9 @@ fn resolve_target_branches() {
     let (t, det) = resolve_target(Some(TargetId::ClaudeCode), None, &root.path, d).unwrap();
     assert_eq!(t, TargetId::ClaudeCode);
     assert_eq!(det, Detection::Absent);
-    let e = resolve_target(Some(TargetId::AgentsNeutral), None, &root.path, d).unwrap_err();
-    assert_eq!(e.code(), "target-unsupported");
+    let (t, det) = resolve_target(Some(TargetId::AgentsNeutral), None, &root.path, d).unwrap();
+    assert_eq!(t, TargetId::AgentsNeutral);
+    assert_eq!(det, Detection::Absent);
     let mut sel = Selection::default();
     sel.targets
         .insert(TargetId::ClaudeCode, TargetSelection::default());
@@ -281,10 +282,21 @@ fn resolve_target_branches() {
         .insert(TargetId::AgentsNeutral, TargetSelection::default());
     assert_eq!(
         resolve_target(None, Some(&only_an), &root.path, d)
-            .unwrap_err()
-            .code(),
-        "target-unsupported"
+            .unwrap()
+            .0,
+        TargetId::AgentsNeutral
     );
+    // Nothing detected defaults to claude-code (M3 decision 44, M5-3).
+    assert_eq!(
+        resolve_target(None, None, &root.path, d).unwrap().0,
+        TargetId::ClaudeCode
+    );
+    // `.agents/` alone selects agents-neutral.
+    fs::create_dir_all(root.path.join(".agents")).unwrap();
+    let (t, det) = resolve_target(None, None, &root.path, d).unwrap();
+    assert_eq!(t, TargetId::AgentsNeutral);
+    assert!(det.is_present());
+    // Registry order: claude-code wins when both are present.
     fs::create_dir_all(root.path.join(".claude")).unwrap();
     let (t, det) = resolve_target(None, None, &root.path, d).unwrap();
     assert_eq!(t, TargetId::ClaudeCode);
@@ -499,6 +511,23 @@ impl FsOps for LogFs {
     ) -> Result<RestoreOutcome> {
         self.note("restore_owned", d.path());
         RealFs.restore_owned(d, e, t, src, tag)
+    }
+
+    fn write_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        c: &[u8],
+        tag: &str,
+    ) -> crate::error::Result<()> {
+        RealFs.write_generated(d, c, tag)
+    }
+    fn remove_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        h: &crate::hash::Hash,
+        t: &crate::fsops::StatePath,
+    ) -> crate::error::Result<crate::fsops::RemoveOutcome> {
+        RealFs.remove_generated(d, h, t)
     }
 }
 
@@ -738,6 +767,23 @@ fn unchanged_selection_has_after_text_and_hash_equal_to_before() {
             tag: &str,
         ) -> Result<RestoreOutcome> {
             RealFs.restore_owned(d, e, t, s, tag)
+        }
+
+        fn write_generated(
+            &self,
+            d: &crate::fsops::DestPath,
+            c: &[u8],
+            tag: &str,
+        ) -> crate::error::Result<()> {
+            RealFs.write_generated(d, c, tag)
+        }
+        fn remove_generated(
+            &self,
+            d: &crate::fsops::DestPath,
+            h: &crate::hash::Hash,
+            t: &crate::fsops::StatePath,
+        ) -> crate::error::Result<crate::fsops::RemoveOutcome> {
+            RealFs.remove_generated(d, h, t)
         }
     }
     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(&req, &Crash, &mut yes)));

@@ -13,6 +13,7 @@ pub mod config;
 pub mod doctor;
 pub mod error;
 pub mod fsops;
+pub mod generated;
 pub mod hash;
 pub mod observe;
 pub mod paths;

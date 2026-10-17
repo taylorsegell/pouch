@@ -91,6 +91,7 @@ fn run(
         budget_tokens: 100_000,
         release_created_dirs: deactivate,
         repoint_moved: false,
+        generated: &GeneratedInput::default(),
     })
 }
 
@@ -403,6 +404,7 @@ fn estimate_formula_and_over_budget() {
         budget_tokens: 10,
         release_created_dirs: false,
         repoint_moved: false,
+        generated: &GeneratedInput::default(),
     });
     assert!(p2.warnings.iter().any(|w| w.code == "catalog-over-budget"));
     assert!(!p.warnings.iter().any(|w| w.code == "catalog-over-budget"));
@@ -813,7 +815,9 @@ proptest! {
                     );
                     prop_assert!(!(name == &fname && !receipted.contains(&fname)));
                 }
-                Step::RemoveDir { .. } => {}
+                Step::RemoveDir { .. }
+                | Step::WriteGenerated { .. }
+                | Step::RemoveGenerated { .. } => {}
             }
         }
     }
@@ -838,7 +842,9 @@ proptest! {
             Step::DropOrphan { .. } => 1,
             Step::Add { .. } => 2,
             Step::UpdateProvenance { .. } => 3,
-            Step::RemoveDir { .. } => 4,
+            Step::RemoveGenerated { .. } => 4,
+            Step::WriteGenerated { .. } => 5,
+            Step::RemoveDir { .. } => 6,
         };
         let ranks: Vec<u8> = p2.steps.iter().map(rank).collect();
         let mut sorted = ranks.clone();
@@ -871,6 +877,7 @@ fn run_repoint(
         budget_tokens: 100_000,
         release_created_dirs: false,
         repoint_moved,
+        generated: &GeneratedInput::default(),
     })
 }
 
@@ -939,4 +946,149 @@ fn repoint_leaves_an_unmoved_symlink_alone() {
     let p = run_repoint(&c, &d, &receipt, &observed_from(&receipt), true);
     assert!(p.steps.is_empty());
     assert_eq!(p.unchanged.len(), 1);
+}
+
+// ---- generated steps in build_receipt (M5-8) ----
+
+mod generated_receipt {
+    use super::*;
+
+    fn write_step(n: u32, bundle: &str, name: &str, body: &str) -> Step {
+        Step::WriteGenerated {
+            n,
+            bundle: bundle.into(),
+            name: name.into(),
+            content: body.into(),
+            content_hash: Hash::of_bytes(body.as_bytes()),
+        }
+    }
+
+    fn remove_step(n: u32, bundle: &str, name: &str, body: &str) -> Step {
+        Step::RemoveGenerated {
+            n,
+            bundle: bundle.into(),
+            name: name.into(),
+            expect_hash: Hash::of_bytes(body.as_bytes()),
+        }
+    }
+
+    fn update(before: &Receipt, steps: &[Step], outcomes: &BTreeMap<u32, StepOutcome>) -> Receipt {
+        build_receipt(&ReceiptUpdate {
+            before,
+            dest_rel: REL,
+            steps,
+            outcomes,
+            now: "T9",
+            op_id: OP,
+            selection_hash: &Hash::of_bytes(b"s"),
+            dirs_created: &[],
+            dirs_removed: &[],
+        })
+    }
+
+    fn done(steps: &[Step]) -> BTreeMap<u32, StepOutcome> {
+        steps.iter().map(|s| (s.n(), StepOutcome::Done)).collect()
+    }
+
+    #[test]
+    fn a_done_write_adds_the_spec_2_4_entry_and_a_failed_one_does_not() {
+        let steps = vec![write_step(1, "b", "b-brief", "text")];
+        let r = update(&empty_receipt(), &steps, &done(&steps));
+        let g: Vec<_> = r.generated_entries().collect();
+        assert_eq!(g.len(), 1);
+        assert_eq!(g[0].bundle, "b");
+        assert_eq!(g[0].dest, ".claude/skills/b-brief");
+        assert_eq!(g[0].content_hash, Hash::of_bytes(b"text").to_string());
+        assert_eq!(g[0].applied_at, "T9");
+        let mut failed = BTreeMap::new();
+        failed.insert(
+            1,
+            StepOutcome::Failed {
+                code: "io".into(),
+                message: "m".into(),
+            },
+        );
+        let r = update(&empty_receipt(), &steps, &failed);
+        assert_eq!(r.generated_entries().count(), 0);
+    }
+
+    #[test]
+    fn remove_then_write_replaces_the_entry_and_unrelated_records_are_verbatim() {
+        let first = vec![write_step(1, "b", "b-brief", "old")];
+        let base = update(&empty_receipt(), &first, &done(&first));
+        let keep = json!({"kind": "generated", "path": "AGENTS.md", "zeta": 1});
+        let mut before = base.clone();
+        before.entries.push(Entry::Other(keep.clone()));
+        let steps = vec![
+            remove_step(1, "b", "b-brief", "old"),
+            write_step(2, "b", "b-brief", "new"),
+        ];
+        let after = update(&before, &steps, &done(&steps));
+        let g: Vec<_> = after.generated_entries().collect();
+        assert_eq!(g.len(), 1);
+        assert_eq!(g[0].content_hash, Hash::of_bytes(b"new").to_string());
+        assert!(after.entries.contains(&Entry::Other(keep)));
+    }
+
+    #[test]
+    fn a_remove_releases_the_entry_when_done_or_skipped_but_not_when_failed() {
+        let first = vec![write_step(1, "b", "b-brief", "t")];
+        let base = update(&empty_receipt(), &first, &done(&first));
+        let rm = vec![remove_step(1, "b", "b-brief", "t")];
+        for (outcome, released) in [
+            (StepOutcome::Done, true),
+            (StepOutcome::Skipped(SkipReason::Missing), true),
+            (StepOutcome::Skipped(SkipReason::Modified), true),
+            (StepOutcome::Skipped(SkipReason::Foreign), true),
+            (StepOutcome::Skipped(SkipReason::CrossDevice), false),
+            (
+                StepOutcome::Failed {
+                    code: "x".into(),
+                    message: "m".into(),
+                },
+                false,
+            ),
+        ] {
+            let mut o = BTreeMap::new();
+            o.insert(1, outcome.clone());
+            let r = update(&base, &rm, &o);
+            assert_eq!(r.generated_entries().count() == 0, released, "{outcome:?}");
+        }
+    }
+
+    #[test]
+    fn step_json_carries_hash_not_text_and_ids_are_none() {
+        let w = write_step(3, "b", "b-brief", "secret body");
+        let j = w.to_json(REL);
+        assert_eq!(j["op"], "write_generated");
+        assert_eq!(j["dest"], ".claude/skills/b-brief");
+        assert_eq!(j["bundle"], "b");
+        assert!(j.get("content").is_none());
+        assert_eq!(
+            j["content_hash"],
+            Hash::of_bytes(b"secret body").to_string()
+        );
+        assert!(!j.to_string().contains("secret body"));
+        assert_eq!(w.id(), None);
+        assert_eq!(w.name(), Some("b-brief"));
+        let r = remove_step(4, "b", "b-brief", "t");
+        assert_eq!(r.to_json(REL)["op"], "remove_generated");
+        assert_eq!(r.id(), None);
+    }
+
+    #[test]
+    fn a_plan_with_only_a_brief_removal_removes_something() {
+        let mut p = run(
+            &cat(),
+            &[],
+            &empty_receipt(),
+            &observed(&[]),
+            &none(),
+            false,
+        );
+        assert!(!p.removes_something());
+        p.steps.push(remove_step(1, "b", "b-brief", "t"));
+        assert!(p.removes_something());
+        assert!(!p.is_empty());
+    }
 }

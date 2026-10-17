@@ -9,7 +9,8 @@ use crate::catalog::frontmatter::parse_skill_md;
 use crate::catalog::{Catalog, SkillId};
 use crate::config::{Config, Strategy};
 use crate::error::{Diagnostic, Error, Result};
-use crate::fsops::ObservedKind;
+use crate::fsops::{BriefObserved, ObservedKind};
+use crate::generated::observe_briefs;
 use crate::observe::{DestRootState, list_foreign, observe};
 use crate::paths::Dirs;
 use crate::plan::is_owned;
@@ -288,6 +289,15 @@ pub fn verify(req: &VerifyRequest<'_>) -> Result<VerifyReport> {
         }
     }
 
+    // Receipted bundle briefs are known names (never `foreign`) and are
+    // checked below (M5-11).
+    let briefs: Vec<_> = receipt
+        .generated_entries()
+        .filter(|g| g.consistent(rel))
+        .collect();
+    for g in &briefs {
+        known_names.insert(g.name.clone());
+    }
     let mut names: BTreeSet<String> = resolution.resolved.iter().map(|d| d.name.clone()).collect();
     let mut hash_names: BTreeSet<String> = BTreeSet::new();
     for e in &view {
@@ -303,6 +313,34 @@ pub fn verify(req: &VerifyRequest<'_>) -> Result<VerifyReport> {
         &hash_names,
         &adapter.scan_locations(root, req.dirs),
     )?;
+    let brief_names: BTreeSet<String> = briefs.iter().map(|g| g.name.clone()).collect();
+    let brief_obs = observe_briefs(root, rel, &observed.dest_root, &brief_names)?;
+    for g in &briefs {
+        match brief_obs.get(&g.name) {
+            None | Some(BriefObserved::Missing) => diagnostics.push(
+                Diagnostic::warning(
+                    "brief-missing",
+                    format!(
+                        "{} (the brief of bundle {}) is gone from the destination",
+                        g.dest, g.bundle
+                    ),
+                )
+                .with_path(g.dest.clone())
+                .with_remedy("Run `unam reconcile --repair` to write it again."),
+            ),
+            Some(BriefObserved::Brief { hash }) if hash.as_str() == g.content_hash => {}
+            Some(_) => diagnostics.push(
+                Diagnostic::warning(
+                    "brief-modified",
+                    format!(
+                        "{} (the brief of bundle {}) was changed after unam wrote it; it is left as it is",
+                        g.dest, g.bundle
+                    ),
+                )
+                .with_path(g.dest.clone()),
+            ),
+        }
+    }
     match &observed.dest_root {
         DestRootState::Outside { resolved } => diagnostics.push(Diagnostic::warning(
             "dest-outside-project",

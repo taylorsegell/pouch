@@ -11,7 +11,7 @@ use crate::output::{
 };
 use serde_json::{Value, json};
 use std::io::{BufRead, Write};
-use unam_core::adapter::{ApplyContext, Detection, RefreshNote, adapter_for};
+use unam_core::adapter::{Adapter, ApplyContext, Detection, RefreshNote, adapter_for};
 use unam_core::apply::{ApplyStatus, JournalSummary, StepResult};
 use unam_core::catalog::{Catalog, FlatDiagnostic};
 use unam_core::change::{
@@ -141,7 +141,7 @@ fn render_summary(s: &JournalSummary) -> String {
 fn receipt_json(root: &std::path::Path, target: TargetId, r: &Receipt) -> Value {
     json!({
         "path": path_str(StateDir::new(root, target).applied().path()),
-        "entries": r.skill_entries().count(),
+        "entries": r.entries.len(),
         "last_op_id": r.last_op_id,
     })
 }
@@ -177,6 +177,37 @@ struct Run {
     command: &'static str,
     root: ProjectRoot,
     target: TargetId,
+    /// `Then ...` lines of the adapter (printed and in `--json` once the
+    /// change is applied; unam never runs them).
+    followups: Vec<String>,
+}
+
+/// The adapter's followups as one line each: `command  (reason)`.
+fn followup_lines(
+    adapter: Option<&dyn Adapter>,
+    root: &std::path::Path,
+    dirs: &unam_core::paths::Dirs,
+) -> Vec<String> {
+    adapter
+        .map(|a| {
+            a.followups(root, dirs)
+                .into_iter()
+                .map(|f| format!("{}  ({})", f.command, f.reason))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The consumers of a shared destination, for the "Visible to" line of a
+/// result: only `agents-neutral` (the `claude-code` output is unchanged).
+fn shared_consumers(target: TargetId) -> Vec<String> {
+    if target == TargetId::AgentsNeutral {
+        adapter_for(target)
+            .map(|a| a.consumers().iter().map(|c| c.to_string()).collect())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    }
 }
 
 impl Run {
@@ -209,7 +240,11 @@ impl Run {
                     receipt_json(&self.root.path, self.target, a.receipt)
                 }),
                 refresh: applied.map(|a| a.refresh),
-                followups: &[],
+                followups: if applied.is_some() {
+                    self.followups.as_slice()
+                } else {
+                    &[]
+                },
                 removal_applied: applied.is_some_and(|a| a.removal_applied),
                 gitignore_lines: &p.gitignore_lines,
                 visible_to: &consumers,
@@ -275,7 +310,9 @@ fn edit_run(ctx: &Ctx, command: &'static str, edit: Edit) -> CmdResult {
         command,
         root: root.clone(),
         target,
+        followups: followup_lines(adapter, &root.path, &ctx.dirs),
     };
+    let shared = shared_consumers(target);
     match outcome {
         Outcome::Interrupted(summary) => Err(interrupted(&summary, ctx.json, warnings)),
         Outcome::Blocked(p) => {
@@ -319,6 +356,7 @@ fn edit_run(ctx: &Ctx, command: &'static str, edit: Edit) -> CmdResult {
                 followups: &[],
                 removal_applied: false,
                 gitignore_lines: &p.gitignore_lines,
+                visible_to: &shared,
             }));
             Ok(Done {
                 data: run.data(&p, "no-changes", None),
@@ -339,9 +377,10 @@ fn edit_run(ctx: &Ctx, command: &'static str, edit: Edit) -> CmdResult {
             let human = render_result(&ResultView {
                 results: &report.results,
                 refresh: Some(&report.refresh),
-                followups: &[],
+                followups: &run.followups,
                 removal_applied: report.removal_applied,
                 gitignore_lines: &p.gitignore_lines,
+                visible_to: &shared,
             });
             if report.status == ApplyStatus::Applied {
                 Ok(Done {
@@ -472,7 +511,14 @@ fn recover_run(ctx: &Ctx, action: &'static str) -> CmdResult {
                 "refresh".into(),
                 json!(report.and_then(|r| r.refresh.as_ref())),
             );
-            o.insert("followups".into(), json!([]));
+            o.insert(
+                "followups".into(),
+                json!(if report.is_some() {
+                    followup_lines(adapter_for(t), &root.path, &ctx.dirs)
+                } else {
+                    Vec::new()
+                }),
+            );
             o.insert(
                 "removal_caveat".into(),
                 if report.is_some_and(|r| r.removal_applied) {
@@ -511,12 +557,16 @@ fn recover_run(ctx: &Ctx, action: &'static str) -> CmdResult {
         }),
         RecoverOutcome::Recovered(report, s) => {
             warnings.extend(global(&report.warnings));
+            let recovered_target = TargetId::parse(&s.target).unwrap_or(TargetId::ClaudeCode);
+            let followups = followup_lines(adapter_for(recovered_target), &root.path, &ctx.dirs);
+            let shared = shared_consumers(recovered_target);
             let mut human = render_result(&ResultView {
                 results: &report.results,
                 refresh: report.refresh.as_ref(),
-                followups: &[],
+                followups: &followups,
                 removal_applied: report.removal_applied,
                 gitignore_lines: &[],
+                visible_to: &shared,
             });
             human.insert_str(
                 0,

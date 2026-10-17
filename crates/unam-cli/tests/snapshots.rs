@@ -561,3 +561,62 @@ fn source_relocate_json() {
     insta::assert_json_snapshot!("source_relocate_json", v);
     fx.done_at(&new_lib);
 }
+
+// ---- milestone M5: agents-neutral and generated briefs ----
+
+#[test]
+fn plan_agents_neutral_json() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    // Refused without `--yes`: the plan, its consumers, and nothing applied.
+    let (code, v) = fx.json(
+        &p,
+        &["--target", "agents-neutral", "add", "fx:sdlc/code-review"],
+    );
+    assert_eq!(code, 2);
+    insta::assert_json_snapshot!("plan_agents_neutral_json", v);
+    fx.done();
+}
+
+#[test]
+fn status_agents_neutral_json() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    fx.json(
+        &p,
+        &[
+            "--target",
+            "agents-neutral",
+            "add",
+            "fx:sdlc/code-review",
+            "fx:testing/pytest-fixtures",
+            "--yes",
+        ],
+    );
+    let (code, v) = fx.json(&p, &["--target", "agents-neutral", "status"]);
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("status_agents_neutral_json", v);
+    fx.done();
+}
+
+#[test]
+fn add_brief_json() {
+    let fx = Fx::new();
+    // The unmodified fixture: an instruction and no opt-out (EX1).
+    copy_fixture_bundle(&fx.env, "hermes-only.yaml");
+    let p = fx.project("p");
+    let (code, v) = fx.json(
+        &p,
+        &[
+            "--target",
+            "agents-neutral",
+            "use",
+            "hermes-only",
+            "--replace",
+            "--yes",
+        ],
+    );
+    assert_eq!(code, 0);
+    insta::assert_json_snapshot!("add_brief_json", v);
+    fx.done();
+}

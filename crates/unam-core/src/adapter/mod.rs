@@ -2,9 +2,10 @@
 //! are discovered, which strategies work, and what to tell the user after
 //! an apply. Every claim carries evidence (PRD S9).
 //!
-//! Milestone M3 registers `claude-code` only; milestone M5 adds
+//! Milestone M3 registered `claude-code`; milestone M5 adds
 //! `agents-neutral` without changing this trait.
 
+pub mod agents_neutral;
 pub mod claude_code;
 
 use crate::config::Strategy;
@@ -35,6 +36,9 @@ pub enum Scope {
     User,
     Project,
     Nested,
+    /// A parent directory's skills directory, read by agents that walk
+    /// upward to the repository root (`agents-neutral`).
+    Ancestor,
 }
 
 impl Scope {
@@ -44,6 +48,7 @@ impl Scope {
             Scope::User => "user",
             Scope::Project => "project",
             Scope::Nested => "nested",
+            Scope::Ancestor => "ancestor",
         }
     }
 }
@@ -128,9 +133,10 @@ pub trait Adapter: Send + Sync {
     fn evidence(&self) -> &'static [Evidence];
 }
 
-/// Every registered adapter (milestone M3: claude-code only).
+/// Every registered adapter. The order decides the default target when no
+/// adapter is detected (M3 decision 44; M5-3): `claude-code` first.
 pub fn adapters() -> Vec<&'static dyn Adapter> {
-    vec![&claude_code::ClaudeCode]
+    vec![&claude_code::ClaudeCode, &agents_neutral::AgentsNeutral]
 }
 
 /// The adapter of a target, when one is registered.
@@ -165,13 +171,15 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let dirs = crate::project::index::tests_support::dirs_in(t.path());
         for a in adapters() {
-            let mut keys: Vec<String> = vec![
-                "destination".into(),
-                "precedence".into(),
-                "refresh:none".into(),
-                "refresh:command".into(),
-                "scan:nested".into(),
-            ];
+            // Required keys generalize over every adapter (M5-13): the
+            // destination, the precedence rule when two or more locations
+            // compete, and one claim per strategy, scan location, and
+            // consumer; a refresh claim is checked separately below.
+            let mut keys: Vec<String> = vec!["destination".into()];
+            let locations = a.scan_locations(t.path(), &dirs);
+            if locations.len() >= 2 {
+                keys.push("precedence".into());
+            }
             for s in a.strategies() {
                 let name = match s {
                     Strategy::Symlink => "symlink",
@@ -179,7 +187,7 @@ mod tests {
                 };
                 keys.push(format!("strategy:{name}"));
             }
-            for loc in a.scan_locations(t.path(), &dirs) {
+            for loc in &locations {
                 keys.push(format!("scan:{}", loc.scope.as_str()));
             }
             for c in a.consumers() {
@@ -187,6 +195,16 @@ mod tests {
                 keys.push(format!("consumers:{first}"));
             }
             for k in &keys {
+                assert!(has_evidence(a, k), "{}: no evidence for {k}", a.id());
+            }
+            let refresh_keys: Vec<&str> = a
+                .evidence()
+                .iter()
+                .map(|e| e.claim_key)
+                .filter(|k| k.starts_with("refresh:"))
+                .collect();
+            assert!(!refresh_keys.is_empty(), "{}: no refresh claim", a.id());
+            for k in refresh_keys {
                 assert!(has_evidence(a, k), "{}: no evidence for {k}", a.id());
             }
             for e in a.evidence() {
@@ -203,6 +221,11 @@ mod tests {
             adapter_for(TargetId::ClaudeCode).map(|a| a.id()),
             Some(TargetId::ClaudeCode)
         );
-        assert!(adapter_for(TargetId::AgentsNeutral).is_none());
+        assert_eq!(
+            adapter_for(TargetId::AgentsNeutral).map(|a| a.id()),
+            Some(TargetId::AgentsNeutral)
+        );
+        let ids: Vec<TargetId> = adapters().iter().map(|a| a.id()).collect();
+        assert_eq!(ids, vec![TargetId::ClaudeCode, TargetId::AgentsNeutral]);
     }
 }

@@ -126,7 +126,21 @@ pub fn bare(flags: &Flags) -> Option<String> {
         return None;
     }
     let ctx = Ctx::load(flags).ok()?;
-    let v = view(&ctx).ok()?;
+    let v = match view(&ctx) {
+        Ok(v) => v,
+        // Two targets and no `--target`: the usage text is already printed;
+        // add the one-line hint, still exit 0 (M5-3).
+        Err(f) => {
+            return match f.error.downcast_ref::<Error>() {
+                Some(Error::TargetAmbiguous { targets }) => Some(format!(
+                    "This project uses more than one target ({}); pass --target <id> to choose one, for example `unam --target {} status`.\n",
+                    targets.join(", "),
+                    targets.first().map_or("claude-code", String::as_str)
+                )),
+                _ => None,
+            };
+        }
+    };
     let report = verify::verify(&v.request(&ctx)).ok()?;
     Some(status_human(&v, &report))
 }

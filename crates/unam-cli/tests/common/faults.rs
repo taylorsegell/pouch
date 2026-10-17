@@ -168,6 +168,16 @@ impl FsOps for FailingFs {
             RealFs.restore_owned(d, e, t, s, tag)
         })
     }
+    fn write_generated(&self, d: &DestPath, c: &[u8], tag: &str) -> Result<()> {
+        self.call("write_generated", d.path(), || {
+            RealFs.write_generated(d, c, tag)
+        })
+    }
+    fn remove_generated(&self, d: &DestPath, h: &Hash, t: &StatePath) -> Result<RemoveOutcome> {
+        self.call("remove_generated", d.path(), || {
+            RealFs.remove_generated(d, h, t)
+        })
+    }
 }
 
 /// A clock with a fixed start that steps one millisecond per call.
@@ -253,13 +263,24 @@ impl CoreCtx {
         command: &'a str,
         clock: &'a dyn Clock,
     ) -> ChangeRequest<'a> {
+        self.request_for(TargetId::ClaudeCode, edit, command, clock)
+    }
+
+    /// A `ChangeRequest` for any target.
+    pub fn request_for<'a>(
+        &'a self,
+        target: TargetId,
+        edit: Edit,
+        command: &'a str,
+        clock: &'a dyn Clock,
+    ) -> ChangeRequest<'a> {
         ChangeRequest {
             dirs: &self.dirs,
             config: &self.config,
             catalog: &self.catalog,
             bundles: &self.bundles,
             root: &self.root,
-            target: TargetId::ClaudeCode,
+            target,
             edit,
             command,
             clock,
@@ -288,6 +309,8 @@ pub struct Scenario {
     pub command: &'static str,
     /// Run with `defaults.strategy = copy` (scenario C has no selection).
     pub copy_default: bool,
+    /// The target the change runs against (scenarios A to C: claude-code).
+    pub target: TargetId,
 }
 
 impl Scenario {
@@ -308,12 +331,17 @@ impl Scenario {
         clock: &dyn Clock,
     ) -> std::result::Result<unam_core::change::Outcome, unam_core::change::ChangeFailure> {
         let c = self.ctx(env);
-        let req = c.request(self.edit.clone(), self.command, clock);
+        let req = c.request_for(self.target, self.edit.clone(), self.command, clock);
         unam_core::change::run(&req, fs, &mut |_| unam_core::change::Decision::Proceed)
     }
 }
 
 fn core_apply(env: &TestEnv, project: &Path, edit: Edit, copy: bool) {
+    core_apply_for(env, project, TargetId::ClaudeCode, edit, copy);
+}
+
+/// Apply `edit` to `target` through the core API (a scenario's start state).
+pub fn core_apply_for(env: &TestEnv, project: &Path, target: TargetId, edit: Edit, copy: bool) {
     let mut c = core_ctx(env, project);
     if copy {
         c.config.defaults.strategy = unam_core::config::Strategy::Copy;
@@ -321,7 +349,7 @@ fn core_apply(env: &TestEnv, project: &Path, edit: Edit, copy: bool) {
     // An earlier instant than the change under test, so the start state
     // and the change never share an operation id.
     let clock = StepClock::starting_at(1_700_000_000_000);
-    let req = c.request(edit, "add", &clock);
+    let req = c.request_for(target, edit, "add", &clock);
     let out = unam_core::change::run(&req, &RealFs, &mut |_| unam_core::change::Decision::Proceed)
         .map_err(|f| f.error)
         .unwrap();
@@ -349,6 +377,7 @@ pub fn scenario_a(fx: &super::Fx, name: &str) -> Scenario {
         edit: Edit::UseReplace("swap".into()),
         command: "use",
         copy_default: false,
+        target: TargetId::ClaudeCode,
     }
 }
 
@@ -367,6 +396,7 @@ pub fn scenario_b(fx: &super::Fx, name: &str) -> Scenario {
         edit: Edit::Deactivate,
         command: "deactivate",
         copy_default: false,
+        target: TargetId::ClaudeCode,
     }
 }
 
@@ -379,19 +409,25 @@ pub fn scenario_c(fx: &super::Fx, name: &str) -> Scenario {
         edit: Edit::Add(refs(&["fx:sdlc/code-review", "fx:testing/pytest-fixtures"])),
         command: "add",
         copy_default: true,
+        target: TargetId::ClaudeCode,
     }
 }
 
 /// Assert `reconcile` reports zero divergence and no leftover journal for
 /// the project of `c` (spec 8, PRD S7).
 pub fn assert_zero_divergence(c: &CoreCtx, context: &str) {
+    assert_zero_divergence_for(c, TargetId::ClaudeCode, context);
+}
+
+/// `assert_zero_divergence` for any target (EX8).
+pub fn assert_zero_divergence_for(c: &CoreCtx, target: TargetId, context: &str) {
     let req = unam_core::verify::VerifyRequest {
         dirs: &c.dirs,
         config: &c.config,
         catalog: &c.catalog,
         bundles: &c.bundles,
         root: &c.root,
-        target: TargetId::ClaudeCode,
+        target,
     };
     let report = unam_core::reconcile::report(&req, &StepClock::new()).unwrap();
     assert!(
@@ -405,10 +441,24 @@ pub fn assert_zero_divergence(c: &CoreCtx, context: &str) {
     );
 }
 
+/// `assert_zero_divergence_for` on a project of `env`, loading the core
+/// context itself (the check after an apply in a CLI-level test).
+pub fn assert_zero_divergence_in(env: &TestEnv, project: &Path, target: TargetId, context: &str) {
+    let c = core_ctx(env, project);
+    assert_zero_divergence_for(&c, target, context);
+}
+
 /// The three-part ordering invariant of the AC-31 row, checked after an
 /// injection and before any recovery.
 pub fn assert_ordering_invariant(project: &Path, context: &str) {
-    let state = project.join(".unam/claude-code");
+    assert_ordering_invariant_for(project, TargetId::ClaudeCode, context);
+}
+
+/// `assert_ordering_invariant` for any target (EX8). Generated bundle
+/// briefs count like skills: a receipt `generated` entry or a journal
+/// `write_generated` step accounts for a directory on disk.
+pub fn assert_ordering_invariant_for(project: &Path, target: TargetId, context: &str) {
+    let state = project.join(".unam").join(target.as_str());
     let journal = state.join("journal.jsonl");
     let journal_present = journal.exists();
     let receipt: Vec<String> = match std::fs::read(state.join("applied.json")) {
@@ -418,7 +468,7 @@ pub fn assert_ordering_invariant(project: &Path, context: &str) {
                 .as_array()
                 .unwrap()
                 .iter()
-                .filter(|e| e["kind"] == "skill")
+                .filter(|e| e["kind"] == "skill" || e["kind"] == "generated")
                 .map(|e| e["name"].as_str().unwrap().to_string())
                 .collect()
         }
@@ -432,13 +482,16 @@ pub fn assert_ordering_invariant(project: &Path, context: &str) {
             && let Some(plan) = v["plan"].as_array()
         {
             for s in plan {
-                if s["op"] == "add" {
+                if s["op"] == "add" || s["op"] == "write_generated" {
                     journal_adds.push(s["name"].as_str().unwrap().to_string());
                 }
             }
         }
     }
-    let dest = project.join(".claude/skills");
+    let dest = project.join(match target {
+        TargetId::ClaudeCode => ".claude/skills",
+        TargetId::AgentsNeutral => ".agents/skills",
+    });
     let on_disk: Vec<String> = match std::fs::read_dir(&dest) {
         Ok(rd) => rd
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())

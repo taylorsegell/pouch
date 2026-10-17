@@ -9,9 +9,10 @@ use crate::apply::{
 };
 use crate::bundle::{BundleSet, slugify};
 use crate::catalog::{Catalog, canonical_ref_text};
-use crate::config::{Config, Strategy};
+use crate::config::{Config, DestinationPolicy, Strategy};
 use crate::error::{Diagnostic, Error, Result};
 use crate::fsops::{FsOps, StatePath};
+use crate::generated::{self, GeneratedInput};
 use crate::hash::Hash;
 use crate::observe::observe;
 use crate::paths::Dirs;
@@ -20,7 +21,7 @@ use crate::project::selection::{gitignore_lines, parse_selection, render_selecti
 use crate::project::{
     ProjectRoot, RootDetection, Selection, TargetId, TargetSelection, detect_root, selection_path,
 };
-use crate::resolve::{ProblemKind, resolve_selection};
+use crate::resolve::{DesiredEntry, ProblemKind, resolve_selection};
 use crate::state::{
     Clock, ProjectLock, Receipt, SelectionBefore, StateDir, check_state_layout, new_op_id,
     read_latest_history, selection_hash, strategy_text,
@@ -333,6 +334,82 @@ fn bundle_slug(text: &str) -> String {
 
 // ---- prepare ----
 
+/// Skills a scan location holds: child directories with a `SKILL.md`
+/// (a symlink to such a directory counts).
+fn skills_in(dir: &Path) -> usize {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    rd.filter_map(std::result::Result::ok)
+        .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+        .filter(|e| e.path().join("SKILL.md").is_file())
+        .count()
+}
+
+/// Warnings about a destination other agents also read (M5-7, EX11): an
+/// ancestor `.agents/skills` that contributes skills (EDG-11), a skill that
+/// is also placed for the other adapter (spec 4.7, reported once per skill),
+/// and the unimplemented `isolated` destination policy (PRD D3).
+fn shared_destination_warnings(
+    req: &ChangeRequest<'_>,
+    adapter: &dyn Adapter,
+    root: &Path,
+    desired: &[DesiredEntry],
+) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    for loc in adapter.scan_locations(root, req.dirs) {
+        if loc.scope != crate::adapter::Scope::Ancestor {
+            continue;
+        }
+        let n = skills_in(&loc.path);
+        if n > 0 {
+            out.push(
+                Diagnostic::warning(
+                    "ancestor-skills",
+                    format!(
+                        "ancestor {} contributes {n} skill(s) to this project (codex walks upward)",
+                        loc.path.display()
+                    ),
+                )
+                .with_path(loc.path.to_string_lossy().into_owned()),
+            );
+        }
+    }
+    let mut dup: BTreeSet<String> = BTreeSet::new();
+    for other in adapters() {
+        if other.id() == req.target {
+            continue;
+        }
+        let state = StateDir::new(root, other.id());
+        let Ok(r) = Receipt::load(&state, root, other.id()) else {
+            continue;
+        };
+        let theirs: BTreeSet<&str> = r.skill_entries().map(|e| e.name.as_str()).collect();
+        for d in desired {
+            if theirs.contains(d.name.as_str()) {
+                dup.insert(d.name.clone());
+            }
+        }
+    }
+    for name in dup {
+        out.push(Diagnostic::warning(
+            "cross-adapter-duplicate",
+            format!(
+                "{name} is placed for both targets: duplicate for cursor and windsurf-devin via compat read of .claude/skills"
+            ),
+        ));
+    }
+    if req.target == TargetId::AgentsNeutral
+        && req.config.defaults.destination_policy == DestinationPolicy::Isolated
+    {
+        out.push(Diagnostic::warning(
+            "destination-policy-isolated",
+            "destination_policy = isolated is not implemented in v1; using shared (PRD D3)",
+        ));
+    }
+    out
+}
+
 fn read_selection_text(root: &Path) -> Result<(bool, String)> {
     let path = selection_path(root);
     match std::fs::read_to_string(&path) {
@@ -435,7 +512,23 @@ pub fn prepare(req: &ChangeRequest<'_>) -> CResult<Prepared> {
         consumers: adapter.consumers().iter().map(|c| c.to_string()).collect(),
     };
     let plan_tsel = tsel_after.clone().unwrap_or_default();
-    let plan = diff(&DiffInput {
+    // Generated bundle briefs (spec 4.8 step 7): wanted for the bundles the
+    // target selection names; observed together with the receipted ones.
+    let wanted = tsel_after
+        .as_ref()
+        .map(|t| generated::wanted(t, req.bundles))
+        .unwrap_or_default();
+    let mut brief_names: BTreeSet<String> = wanted.iter().map(|w| w.name.clone()).collect();
+    for g in receipt.generated_entries() {
+        if g.consistent(rel) {
+            brief_names.insert(g.name);
+        }
+    }
+    let generated_input = GeneratedInput {
+        observed: generated::observe_briefs(root, rel, &observed.dest_root, &brief_names)?,
+        wanted,
+    };
+    let mut plan = diff(&DiffInput {
         header,
         op_id: new_op_id(req.clock),
         desired: &desired,
@@ -447,7 +540,10 @@ pub fn prepare(req: &ChangeRequest<'_>) -> CResult<Prepared> {
         budget_tokens: req.config.defaults.catalog_budget_tokens,
         release_created_dirs: deactivate,
         repoint_moved: edit == Edit::Reconcile,
+        generated: &generated_input,
     });
+    plan.warnings
+        .extend(shared_destination_warnings(req, adapter, root, &desired));
     let (selection_after_text, selection_after_hash) = if changed {
         let rendered = render_selection(&selection)?;
         let h = Hash::of_bytes(rendered.as_bytes()).to_string();

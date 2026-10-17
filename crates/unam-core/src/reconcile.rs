@@ -64,7 +64,7 @@ impl Divergence {
 /// An informational finding that is not a divergence (exit 0).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Finding {
-    /// `shadowed` or `foreign`.
+    /// `shadowed`, `foreign`, `brief-missing`, or `brief-modified`.
     pub kind: &'static str,
     pub name: String,
     pub dest: String,
@@ -196,6 +196,20 @@ pub fn report(req: &VerifyRequest<'_>, clock: &dyn Clock) -> crate::error::Resul
             }),
             _ => {}
         }
+    }
+    for d in &verify_report.diagnostics {
+        let kind = match d.code.as_str() {
+            "brief-missing" => "brief-missing",
+            "brief-modified" => "brief-modified",
+            _ => continue,
+        };
+        let dest = d.path.clone().unwrap_or_default();
+        findings.push(Finding {
+            kind,
+            name: dest.rsplit('/').next().unwrap_or("").to_string(),
+            dest,
+            detail: d.message.clone(),
+        });
     }
     let change_req = ChangeRequest {
         dirs: req.dirs,

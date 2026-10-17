@@ -150,6 +150,23 @@ impl FsOps for Faulty {
         self.note("restore_owned");
         RealFs.restore_owned(d, e, t, s, tag)
     }
+
+    fn write_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        c: &[u8],
+        tag: &str,
+    ) -> crate::error::Result<()> {
+        RealFs.write_generated(d, c, tag)
+    }
+    fn remove_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        h: &crate::hash::Hash,
+        t: &crate::fsops::StatePath,
+    ) -> crate::error::Result<crate::fsops::RemoveOutcome> {
+        RealFs.remove_generated(d, h, t)
+    }
 }
 
 // ---- fixture ----
@@ -269,6 +286,7 @@ impl Fx {
             budget_tokens: 100_000,
             release_created_dirs: deactivate,
             repoint_moved: false,
+            generated: &crate::generated::GeneratedInput::default(),
         })
     }
 
@@ -457,6 +475,23 @@ impl FsOps for RecordingFs {
         tag: &str,
     ) -> Result<RestoreOutcome> {
         RealFs.restore_owned(d, e, t, s, tag)
+    }
+
+    fn write_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        c: &[u8],
+        tag: &str,
+    ) -> crate::error::Result<()> {
+        RealFs.write_generated(d, c, tag)
+    }
+    fn remove_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        h: &crate::hash::Hash,
+        t: &crate::fsops::StatePath,
+    ) -> crate::error::Result<crate::fsops::RemoveOutcome> {
+        RealFs.remove_generated(d, h, t)
     }
 }
 
@@ -710,6 +745,23 @@ impl FsOps for FinalCrash {
     ) -> Result<RestoreOutcome> {
         RealFs.restore_owned(d, e, t, s, tag)
     }
+
+    fn write_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        c: &[u8],
+        tag: &str,
+    ) -> crate::error::Result<()> {
+        RealFs.write_generated(d, c, tag)
+    }
+    fn remove_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        h: &crate::hash::Hash,
+        t: &crate::fsops::StatePath,
+    ) -> crate::error::Result<crate::fsops::RemoveOutcome> {
+        RealFs.remove_generated(d, h, t)
+    }
 }
 
 // ---- resume ----
@@ -894,6 +946,23 @@ impl FsOps for CrashOnRmdir {
         tag: &str,
     ) -> Result<RestoreOutcome> {
         RealFs.restore_owned(d, e, t, s, tag)
+    }
+
+    fn write_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        c: &[u8],
+        tag: &str,
+    ) -> crate::error::Result<()> {
+        RealFs.write_generated(d, c, tag)
+    }
+    fn remove_generated(
+        &self,
+        d: &crate::fsops::DestPath,
+        h: &crate::hash::Hash,
+        t: &crate::fsops::StatePath,
+    ) -> crate::error::Result<crate::fsops::RemoveOutcome> {
+        RealFs.remove_generated(d, h, t)
     }
 }
 

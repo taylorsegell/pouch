@@ -1,0 +1,153 @@
+---
+source: crates/unam-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "use",
+  "data": {
+    "command": "use",
+    "project_root": "[TMP]/work/p",
+    "root_detection": "git",
+    "target": "agents-neutral",
+    "destination": ".agents/skills",
+    "strategy": "symlink",
+    "detection": "absent",
+    "status": "applied",
+    "op_id": "[OP_ID]",
+    "selection": {
+      "written": true,
+      "path": "[TMP]/work/p/.unam/selection.yaml",
+      "bundles": [
+        "hermes-only"
+      ],
+      "add": [],
+      "remove": []
+    },
+    "plan": {
+      "steps": [
+        {
+          "n": 1,
+          "op": "add",
+          "id": "fx:sdlc/code-review",
+          "name": "code-review",
+          "dest": ".agents/skills/code-review",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib/sdlc/code-review",
+          "provenance": [
+            {
+              "bundle": "hermes-only"
+            }
+          ]
+        },
+        {
+          "n": 2,
+          "op": "add",
+          "id": "fx:testing/pytest-fixtures",
+          "name": "pytest-fixtures",
+          "dest": ".agents/skills/pytest-fixtures",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib/testing/pytest-fixtures",
+          "provenance": [
+            {
+              "bundle": "hermes-only"
+            }
+          ]
+        },
+        {
+          "n": 3,
+          "op": "add",
+          "id": "fx:alpha-root-skill",
+          "name": "alpha-root-skill",
+          "dest": ".agents/skills/alpha-root-skill",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib/alpha-root-skill",
+          "provenance": [
+            {
+              "bundle": "hermes-only"
+            }
+          ]
+        },
+        {
+          "n": 4,
+          "op": "write_generated",
+          "bundle": "hermes-only",
+          "name": "hermes-only-brief",
+          "dest": ".agents/skills/hermes-only-brief",
+          "content_hash": "blake3:fc3f406bc67b93a3c1af2c40fe8ba8c6af796aa29baea7f20b4b38b45872dca1"
+        }
+      ],
+      "unchanged": [],
+      "carried": [],
+      "conflicts": [],
+      "warnings": [],
+      "estimate": {
+        "skills": 3,
+        "tokens": 103,
+        "estimate": true
+      }
+    },
+    "results": [
+      {
+        "n": 1,
+        "op": "add",
+        "name": "code-review",
+        "result": "done",
+        "code": null,
+        "message": null
+      },
+      {
+        "n": 2,
+        "op": "add",
+        "name": "pytest-fixtures",
+        "result": "done",
+        "code": null,
+        "message": null
+      },
+      {
+        "n": 3,
+        "op": "add",
+        "name": "alpha-root-skill",
+        "result": "done",
+        "code": null,
+        "message": null
+      },
+      {
+        "n": 4,
+        "op": "write_generated",
+        "name": "hermes-only-brief",
+        "result": "done",
+        "code": null,
+        "message": null
+      }
+    ],
+    "receipt": {
+      "path": "[TMP]/work/p/.unam/agents-neutral/applied.json",
+      "entries": 4,
+      "last_op_id": "[OP_ID]"
+    },
+    "refresh": {
+      "kind": "unknown",
+      "command": null,
+      "text": "refresh is not documented for this shared directory. Codex: detects changes automatically; restart it if the skill does not appear. Cursor: not documented (the cursor-agent CLI needed a restart in testing). Windsurf and Devin: not documented. Hermes: run `hermes skills trust` once per repository, and restart it for skills added mid-session (evidence: https://learn.chatgpt.com/docs/build-skills.md, https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/skills.md, spike/symlink-discovery.md)",
+      "evidence": "https://learn.chatgpt.com/docs/build-skills.md https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/skills.md spike/symlink-discovery.md"
+    },
+    "followups": [],
+    "removal_caveat": null,
+    "gitignore_lines": [
+      ".unam/lock",
+      ".unam/*/applied.json",
+      ".unam/*/journal.jsonl",
+      ".unam/*/history/",
+      ".unam/*/trash/"
+    ],
+    "visible_to": [
+      "codex",
+      "cursor",
+      "windsurf-devin",
+      "hermes"
+    ]
+  },
+  "warnings": [],
+  "errors": []
+}

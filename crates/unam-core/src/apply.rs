@@ -8,13 +8,14 @@
 pub use crate::plan::{StepOutcome, StepResult};
 
 use crate::adapter::{Adapter, ApplyContext, RefreshNote};
+use crate::catalog::SKILL_SKIP_NAMES;
 use crate::catalog::{Catalog, SkillId};
 use crate::error::{DestRootProblem, Diagnostic, Error, Result};
 use crate::fsops::{
-    DestPath, FsOps, ObservedKind, OwnedExpectation, RemoveOutcome, RestoreOutcome, SkipReason,
-    StatePath, observe_one, remove_stale_temp_dirs,
+    BriefObserved, DestPath, FsOps, ObservedKind, OwnedExpectation, RemoveOutcome, RestoreOutcome,
+    SkipReason, StatePath, observe_brief, observe_brief_at, observe_one, remove_stale_temp_dirs,
 };
-use crate::hash::Hash;
+use crate::hash::{Hash, tree_hash};
 use crate::observe::{DestRootState, classify_dest_root};
 use crate::plan::{OrphanReason, Plan, ReceiptUpdate, Step, build_receipt, hash_from_text};
 use crate::project::selection_path;
@@ -210,6 +211,30 @@ pub fn journal_step(step: &Step) -> JournalStep {
             n: *n,
             dir: dir.clone(),
         },
+        Step::WriteGenerated {
+            n,
+            bundle,
+            name,
+            content,
+            content_hash,
+        } => JournalStep::WriteGenerated {
+            n: *n,
+            bundle: bundle.clone(),
+            name: name.clone(),
+            content: content.clone(),
+            content_hash: content_hash.to_string(),
+        },
+        Step::RemoveGenerated {
+            n,
+            bundle,
+            name,
+            expect_hash,
+        } => JournalStep::RemoveGenerated {
+            n: *n,
+            bundle: bundle.clone(),
+            name: name.clone(),
+            expect_hash: expect_hash.to_string(),
+        },
     }
 }
 
@@ -273,6 +298,30 @@ pub fn step_from_journal(step: &JournalStep) -> Step {
         JournalStep::RemoveDir { n, dir } => Step::RemoveDir {
             n: *n,
             dir: dir.clone(),
+        },
+        JournalStep::WriteGenerated {
+            n,
+            bundle,
+            name,
+            content,
+            content_hash,
+        } => Step::WriteGenerated {
+            n: *n,
+            bundle: bundle.clone(),
+            name: name.clone(),
+            content: content.clone(),
+            content_hash: hash_from_text(content_hash),
+        },
+        JournalStep::RemoveGenerated {
+            n,
+            bundle,
+            name,
+            expect_hash,
+        } => Step::RemoveGenerated {
+            n: *n,
+            bundle: bundle.clone(),
+            name: name.clone(),
+            expect_hash: hash_from_text(expect_hash),
         },
     }
 }
@@ -372,7 +421,10 @@ fn result_of(step: &Step, dest_rel: &str, outcome: StepOutcome) -> StepResult {
 }
 
 fn is_removal(step: &Step) -> bool {
-    matches!(step, Step::Remove { .. } | Step::DropOrphan { .. })
+    matches!(
+        step,
+        Step::Remove { .. } | Step::DropOrphan { .. } | Step::RemoveGenerated { .. }
+    )
 }
 
 /// Shared step runner of `execute` and `resume`.
@@ -503,6 +555,54 @@ impl Runner<'_, '_> {
         })
     }
 
+    /// Write a bundle brief at an absent destination (M5-8, EX9). The
+    /// content is hash-checked first: a journal is untrusted input.
+    fn write_brief(&mut self, name: &str, content: &str, hash: &Hash) -> Result<StepOutcome> {
+        if Hash::of_bytes(content.as_bytes()) != *hash {
+            return Ok(StepOutcome::Failed {
+                code: "journal-invalid".into(),
+                message: format!("the content of {name} does not match its recorded hash"),
+            });
+        }
+        if let Err(e) = self.ensure_dirs()? {
+            return Ok(failed_outcome(&e));
+        }
+        let child = match self.child(name) {
+            Ok(c) => c,
+            Err(e) => return Ok(failed_outcome(&e)),
+        };
+        match observe_brief(&child) {
+            Ok(BriefObserved::Missing) => {}
+            Ok(_) => return Ok(StepOutcome::Skipped(SkipReason::DestOccupied)),
+            Err(e) => return Ok(failed_outcome(&e)),
+        }
+        Ok(
+            match self
+                .fs
+                .write_generated(&child, content.as_bytes(), &self.op_id)
+            {
+                Ok(()) => StepOutcome::Done,
+                Err(e) => failed_outcome(&e),
+            },
+        )
+    }
+
+    /// Move a bundle brief aside when it still holds `expect` (EX5).
+    fn remove_brief(&mut self, name: &str, expect: &Hash) -> Result<StepOutcome> {
+        let child = match self.child(name) {
+            Ok(c) => c,
+            Err(e) => return Ok(failed_outcome(&e)),
+        };
+        let trash = self.trash()?;
+        Ok(match self.fs.remove_generated(&child, expect, &trash) {
+            Ok(RemoveOutcome::Removed | RemoveOutcome::RemovedWithResidue { .. }) => {
+                StepOutcome::Done
+            }
+            Ok(RemoveOutcome::Skipped(r)) => StepOutcome::Skipped(r),
+            Err(e) => failed_outcome(&e),
+        })
+    }
+
     fn remove_dir(&mut self, dir: &str) -> Result<StepOutcome> {
         let Some(p) = self.ancestor(dir) else {
             return Ok(StepOutcome::Failed {
@@ -549,8 +649,67 @@ impl Runner<'_, '_> {
             Step::Remove { name, expect, .. } => self.remove(name, expect),
             Step::DropOrphan { .. } | Step::UpdateProvenance { .. } => Ok(StepOutcome::Done),
             Step::RemoveDir { dir, .. } => self.remove_dir(dir),
+            Step::WriteGenerated {
+                name,
+                content,
+                content_hash,
+                ..
+            } => self.write_brief(name, content, content_hash),
+            Step::RemoveGenerated {
+                name, expect_hash, ..
+            } => self.remove_brief(name, expect_hash),
         }
     }
+}
+
+/// Delete the trash copies of removed briefs once the apply is final (the
+/// copies exist only so a rollback can restore them exactly). Failures are
+/// warnings: the operation itself is complete.
+fn purge_removed_briefs(
+    ctx: &ApplyCtx<'_>,
+    fs: &dyn FsOps,
+    op_id: &str,
+    steps: &[Step],
+    outcomes: &BTreeMap<u32, StepOutcome>,
+    warnings: &mut Vec<Diagnostic>,
+) {
+    let Ok(trash) = ctx.state.trash_dir(op_id) else {
+        return;
+    };
+    let mut any = false;
+    for step in steps {
+        let Step::RemoveGenerated { name, .. } = step else {
+            continue;
+        };
+        if outcomes.get(&step.n()) != Some(&StepOutcome::Done) {
+            continue;
+        }
+        any = true;
+        if let Err(e) = purge_brief_copy(fs, &trash, name) {
+            warnings.push(Diagnostic::warning(
+                "trash-residue",
+                format!("cannot delete the moved-aside copy of {name}: {e}"),
+            ));
+        }
+    }
+    if any {
+        let _ = fs.remove_state_dir_if_empty(&trash);
+    }
+}
+
+/// Delete `<trash>/<name>/SKILL.md` and the directory (a brief holds
+/// nothing else).
+fn purge_brief_copy(fs: &dyn FsOps, trash: &StatePath, name: &str) -> Result<()> {
+    let item = trash.join(name);
+    if std::fs::symlink_metadata(item.path()).is_err() {
+        return Ok(());
+    }
+    let file = item.join(crate::fsops::BRIEF_FILE);
+    if std::fs::symlink_metadata(file.path()).is_ok() {
+        fs.remove_state(&file)?;
+    }
+    fs.remove_state_dir_if_empty(&item)?;
+    Ok(())
 }
 
 /// History, receipt, marker, journal removal, prune (or the partial form).
@@ -612,6 +771,7 @@ fn finish(
                 },
             })?;
             fs.remove_state(&ctx.state.journal())?;
+            purge_removed_briefs(ctx, fs, &begin.op_id, steps, outcomes, &mut runner.warnings);
             if let Err(e) = prune_history(fs, &ctx.state, HISTORY_KEEP) {
                 runner.warnings.push(Diagnostic::warning(
                     "history-prune-failed",
@@ -1055,6 +1215,48 @@ fn resume_step(
             }
             Ok((runner.remove_dir(&dir)?, "ran"))
         }
+        Step::WriteGenerated {
+            name,
+            content,
+            content_hash,
+            ..
+        } => {
+            let child = match runner.child(name) {
+                Ok(c) => c,
+                Err(e) => return Ok((failed_outcome(&e), "ran")),
+            };
+            if let Ok(BriefObserved::Brief { hash }) = observe_brief(&child)
+                && hash == *content_hash
+                && Hash::of_bytes(content.as_bytes()) == *content_hash
+            {
+                return Ok((StepOutcome::Done, "observed"));
+            }
+            let (c, h) = (content.clone(), content_hash.clone());
+            Ok((runner.write_brief(name, &c, &h)?, "ran"))
+        }
+        Step::RemoveGenerated {
+            name, expect_hash, ..
+        } => {
+            let child = match runner.child(name) {
+                Ok(c) => c,
+                Err(e) => return Ok((failed_outcome(&e), "ran")),
+            };
+            match observe_one(&child, false) {
+                Ok(ObservedKind::Missing) => {
+                    let in_trash = runner.trash()?.join(name);
+                    if std::fs::symlink_metadata(in_trash.path()).is_ok() {
+                        Ok((StepOutcome::Done, "observed"))
+                    } else {
+                        Ok((StepOutcome::Skipped(SkipReason::Missing), "observed"))
+                    }
+                }
+                Ok(_) => {
+                    let h = expect_hash.clone();
+                    Ok((runner.remove_brief(name, &h)?, "ran"))
+                }
+                Err(e) => Ok((failed_outcome(&e), "ran")),
+            }
+        }
     }
 }
 
@@ -1185,6 +1387,100 @@ pub fn rollback(ctx: &ApplyCtx<'_>, fs: &dyn FsOps) -> Result<RecoverReport> {
                 }
             }
             Step::DropOrphan { .. } | Step::UpdateProvenance { .. } => {}
+            Step::WriteGenerated {
+                name, content_hash, ..
+            } => {
+                // A step that never started wrote nothing. This matters for
+                // a replacement: until its remove step ran, the old brief
+                // still sits at the destination.
+                if matches!(j.states.get(&n), None | Some(StepState::Pending)) {
+                    continue;
+                }
+                let child = child_of(name)?;
+                match observe_brief(&child)? {
+                    BriefObserved::Missing => continue,
+                    BriefObserved::Brief { hash } if hash == *content_hash => {
+                        // A scratch trash of its own: a replacement's old
+                        // copy may sit in the operation trash under the
+                        // same name.
+                        let scratch = trash.join("rollback");
+                        let outcome = match fs.remove_generated(&child, content_hash, &scratch)? {
+                            RemoveOutcome::Removed | RemoveOutcome::RemovedWithResidue { .. } => {
+                                let _ = purge_brief_copy(fs, &scratch, name);
+                                let _ = fs.remove_state_dir_if_empty(&scratch);
+                                StepOutcome::Done
+                            }
+                            RemoveOutcome::Skipped(r) => {
+                                left = true;
+                                warnings.push(Diagnostic::warning(
+                                    "rollback-left",
+                                    format!("{} was left in place ({})", child.rel(), r.code()),
+                                ));
+                                StepOutcome::Skipped(r)
+                            }
+                        };
+                        results.push(result_of(step, dest_rel, outcome));
+                    }
+                    _ => {
+                        left = true;
+                        warnings.push(Diagnostic::warning(
+                            "rollback-left",
+                            format!(
+                                "{} holds content unam did not place in this operation; it is left untouched",
+                                child.rel()
+                            ),
+                        ));
+                        results.push(result_of(
+                            step,
+                            dest_rel,
+                            StepOutcome::Skipped(SkipReason::Modified),
+                        ));
+                    }
+                }
+            }
+            Step::RemoveGenerated {
+                name, expect_hash, ..
+            } => {
+                let child = child_of(name)?;
+                if observe_one(&child, false)? != ObservedKind::Missing {
+                    continue;
+                }
+                let item = trash.join(name);
+                let restored = match observe_brief_at(item.path())? {
+                    BriefObserved::Brief { hash } if hash == *expect_hash => {
+                        let expect = OwnedExpectation {
+                            strategy: crate::config::Strategy::Copy,
+                            source: String::new(),
+                            tree_hash: Some(tree_hash(item.path(), SKILL_SKIP_NAMES)?),
+                        };
+                        fs.restore_owned(&child, &expect, &trash, None, &op_id)?
+                    }
+                    _ => RestoreOutcome::NotRestored("content-not-recoverable".to_string()),
+                };
+                match restored {
+                    RestoreOutcome::Restored => {
+                        results.push(result_of(step, dest_rel, StepOutcome::Done));
+                    }
+                    RestoreOutcome::NotRestored(reason) => {
+                        left = true;
+                        warnings.push(Diagnostic::warning(
+                            "rollback-not-restored",
+                            format!(
+                                "{} could not be restored: {reason}; the receipt is restored without the file",
+                                child.rel()
+                            ),
+                        ));
+                        results.push(result_of(
+                            step,
+                            dest_rel,
+                            StepOutcome::Failed {
+                                code: "rollback-not-restored".into(),
+                                message: reason,
+                            },
+                        ));
+                    }
+                }
+            }
             Step::RemoveDir { dir, .. } => {
                 if let Some(p) = ancestor(dir)
                     && std::fs::symlink_metadata(p.path()).is_err()
