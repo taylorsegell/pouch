@@ -16,8 +16,8 @@ metadata:
 **Date**: 04-10-26 (supplemented 2026-10-12 in one combined research, design, and plan pass; lighter process per `v1-static-activation_WAVES_09-10-26.md`)
 **Complexity**: COMPLEX
 **Phase:** Phase 6 of 8: milestone M5
-**Status**: CODE DONE (EXECUTE 2026-10-17; the independent EVL confirmation run by vc-tester is next)
-**Phase status:** CODE DONE
+**Status**: VERIFIED (WITH_GAPS) 2026-10-17 (EXECUTED 2026-10-17; EVL CLEAN after 1 fix cycle, 643 tests; UPDATE PROCESS done; HARD STOP at the Product Phase 1 Gate)
+**Phase status:** VERIFIED (WITH_GAPS)
 **Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 **Execution strategy:** sequential, one sonnet execute agent (Taylor, 2026-10-09: all agents sonnet). One compile chain (`adapter` -> `observe` -> `generated` -> `plan` -> `state` -> `fsops` -> `apply` -> `change` -> CLI -> tests); no disjoint file groups for a team.
@@ -270,8 +270,8 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 - [x] 3. PLAN-SUPPLEMENT (2026-10-12): existing phase plan rewritten into an executable plan; Inner Loop Refresh Note written
 - [x] 4. PVL (2026-10-12, cycle 1 of at most 2): Gate PASS, 0 FAIL-class gaps, execute-time notes EX1 to EX14 in the Validate Contract. Was: vc-validate-agent: at most 2 cycles; only FAIL-class gaps (wrong requirement mapping, steps that cannot compile in order) trigger a cycle; nits go to execute time; validate-contract written per `.claude/skills/vc-validate-findings/references/example-validate-output.md`
 - [x] 5. EXECUTE (2026-10-17): checklist A1 to E4 done, F1 done at the commit step; G1 to G3 green (642 tests), G4 to G6 recorded (mode-only diff note in the report); phase report written; EVL (independent vc-tester) not yet run
-- [ ] 6. EVL: independent vc-tester re-run of the Exit Gate; follow-up stubs registered; EVL HANDOFF SUMMARY written
-- [ ] 7. UPDATE PROCESS: phase report written, umbrella state updated, commit done, then HARD STOP at the product Phase 1 gate
+- [x] 6. EVL (2026-10-17): independent vc-tester re-run, 2 cycles (cycle 1 found the replace/FailBefore(7)/resume brief-loss bug, fixed in 5ba6888; cycle 2 all green, 643 tests, full fault matrix); no follow-up stubs; EVL HANDOFF SUMMARY CLEAN
+- [x] 7. UPDATE PROCESS (2026-10-17): phase report completed (EVL outcome, D11, review findings R1 to R4), umbrella state updated, context docs updated, committed; HARD STOP at the Product Phase 1 Gate (AWAITING TAYLOR)
 
 **Validate-contract required before execute.** If step 4 (PVL) is unchecked or `## Validate Contract` reads "(placeholder - vc-validate-agent writes this section before EXECUTE)", the orchestrator must spawn vc-validate-agent first. A partial contract missing Plan updates applied / Execute-agent instructions / Test gates is treated as a placeholder.
 

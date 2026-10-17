@@ -37,6 +37,8 @@ Append-only. One section per toolkit phase (one milestone each). Phases run sequ
 
 ## Phase 6: milestone M5
 - `crates/unam-core/src/adapter/agents_neutral.rs`; additions to `adapter/mod.rs`, `plan.rs`, `apply.rs`, `verify.rs`; CLI output; `crates/unam-cli/tests/`
+- Actual (2026-10-17): created `adapter/agents_neutral.rs`, `generated.rs`, `generated/tests.rs`, `tests/{ac_agents_neutral,ac_briefs,phase1_checks,phase1_exit}.rs`, three snapshots; modified `adapter/mod.rs`, `observe.rs`, `plan.rs`, `state.rs`, `fsops.rs`, `apply.rs` (also the EVL resume fix, 5ba6888), `change.rs`, `verify.rs`, `reconcile.rs`, `lib.rs`, CLI `output.rs`, `cli/{change,status}.rs`, `docs/adapters.md`, test helpers; `Cargo.lock` unchanged
+- status: DONE (2026-10-17; EVL CLEAN after 1 fix cycle, 643 tests; VERIFIED WITH_GAPS)
 
 ## Phase 7: milestone M6
 - `crates/unam-cli/src/tui/**`, `crates/unam-cli/src/main.rs`; `crates/unam-cli/tests/`

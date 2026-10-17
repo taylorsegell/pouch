@@ -8,7 +8,7 @@ plan: process/features/v1-static-activation/active/v1-static-activation_04-10-26
 
 # Milestone M5 phase report: agents-neutral adapter and generated briefs
 
-TL;DR: M5 is CODE DONE and the execute run is green: gates G1 to G3 pass (642 tests, 0 failed, 0 ignored), all 44 product Phase 1 criteria (AC-1 to AC-43 and AC-53) have a named, passing test, and S1 and S6 pass on Taylor's real library (median 0.65 s against a 30 s limit; four skills cost 1.1 percent of the whole library). The independent EVL run (vc-tester) has not happened yet. Product Phase 1 is NOT done: that needs Taylor's daily use, the first real project (D4), and Linux/CI, none of which an agent can supply. The program stops at the product Phase 1 gate (state: AWAITING TAYLOR).
+TL;DR: M5 is VERIFIED (WITH_GAPS). The execute run was green and the independent EVL run (vc-tester) passed after one fix cycle (a real resume bug in brief replace, fixed in 5ba6888; 643 tests now). Execute-run numbers: gates G1 to G3 pass (642 tests at that point, 0 failed, 0 ignored), all 44 product Phase 1 criteria (AC-1 to AC-43 and AC-53) have a named, passing test, and S1 and S6 pass on Taylor's real library (median 0.65 s against a 30 s limit; four skills cost 1.1 percent of the whole library). Product Phase 1 is NOT done: that needs Taylor's daily use, the first real project (D4), and Linux/CI, none of which an agent can supply. The program stops at the product Phase 1 gate (state: AWAITING TAYLOR).
 
 ## What Was Done
 
@@ -25,54 +25,54 @@ Written at closeout, not at 50 percent: the note was not saved to disk while the
 
 ## Product Phase 1 completeness
 
-Agent half of PRD section 12. Every criterion has a named test (`phase1_ac_coverage`; red-first, see Red-first record) and every test passed in the execute run. The EVL column is for the orchestrator's independent vc-tester run. Nothing is red or missing.
+Agent half of PRD section 12. Every criterion has a named test (`phase1_ac_coverage`; red-first, see Red-first record) and every test passed in the execute run. The EVL column is the independent vc-tester run at 5ba6888 (643 tests, 0 failed, 0 ignored, full fault matrix included): pass for all 44 criteria. Nothing is red or missing.
 
 | Criterion | Closed in | Test (file::name) | Execute run | EVL |
 |---|---|---|---|---|
-| AC-1 | M1 | `ac_read_path::ac_01_register_non_git_directory_and_skills_discoverable` | pass | |
-| AC-2 | M3 | `ac_activation::ac_02_source_tree_unchanged_after_full_activate_modify_deactivate_cycle` | pass | |
-| AC-3 | M1 | `ac_read_path::ac_03_three_level_nested_categories_real_paths` | pass | |
-| AC-4 | M1 | `ac_read_path::ac_04_git_and_node_modules_yield_no_skills` | pass | |
-| AC-5 | M1 | `ac_read_path::ac_05_name_dir_mismatch_warns_and_bad_yaml_skipped_with_diagnostic` | pass | |
-| AC-6 | M1 | `ac_read_path::ac_06_search_spans_three_categories_one_result_set` | pass | |
-| AC-7 | M2 | `ac_bundles::ac_07_hermes_only_bundle_with_bare_names_loads_unchanged` | pass | |
-| AC-8 | M2 | `ac_bundles::ac_08_ambiguous_bare_name_errors_naming_both_ids_and_nothing_activates` | pass | |
-| AC-9 | M2 | `ac_bundles::ac_09_bundle_spans_two_categories_and_two_sources` | pass | |
-| AC-10 | M2 | `ac_activation::ac_10_saved_bundle_applied_to_empty_project_yields_original_selection`; `ac_selection::ac_10_saved_bundle_in_empty_project_yields_original_selection` | pass | |
-| AC-11 | M2 | `ac_bundles::ac_11_removing_one_entry_leaves_every_other_line_byte_identical` | pass | |
-| AC-12 | M2 | `ac_selection::ac_12_bundle_plus_add_plus_remove_resolves_with_provenance` | pass | |
-| AC-13 | M3 | `ac_activation::ac_13_two_skills_from_two_categories_both_applied_with_no_category_step` | pass | |
-| AC-14 | M4 | `ac_verify::ac_14_status_shows_source_path_destination_strategy_provenance_state_per_entry` | pass | |
-| AC-15 | M3 | `ac_activation::ac_15_yes_still_prints_the_plan_and_the_plan_matches_the_filesystem` | pass | |
-| AC-16 | M3 | `ac_activation::ac_16_second_identical_activation_makes_zero_changes_and_says_so` | pass | |
-| AC-17 | M3 | `ac_activation::ac_17_remove_one_add_one_changes_exactly_two_entries_and_a_third_record_is_verbatim` (generated entries: `ac_briefs::brief_unchanged_is_a_no_op_and_record_verbatim`) | pass | |
-| AC-18 | M3 | `ac_activation::ac_18_replace_and_add_from_the_same_start_give_different_end_states` | pass | |
-| AC-19 | M3 | `ac_activation::ac_19_operations_in_project_a_leave_project_b_unchanged_by_hash` | pass | |
-| AC-20 | M5 | `ac_agents_neutral::ac_20_two_targets_hold_and_report_different_selections` | pass | |
-| AC-21 | M3 | `ac_activation::ac_21_returning_to_a_project_shows_its_prior_selection_unchanged` | pass | |
-| AC-22 | M3 | `ac_activation::ac_22_collision_with_a_foreign_skill_refuses_names_both_paths_and_changes_nothing` | pass | |
-| AC-23 | M3 | `ac_activation::ac_23_deactivate_all_removes_exactly_the_two_owned_and_leaves_foreign_and_directory` (generated entries: `ac_briefs::brief_removed_on_deactivate_and_foreign_left`) | pass | |
-| AC-24 | M3, M5 | `ac_activation::ac_24_no_agent_config_file_is_created_or_modified`; `ac_agents_neutral::ac_24_agents_neutral_no_agent_config_file_is_created_or_modified` | pass | |
-| AC-25 | M3 | `ac_activation::ac_25_every_created_entry_is_in_the_receipt_with_source_id_and_strategy` | pass | |
-| AC-26 | M4 | `ac_verify::ac_26_broken_destination_symlink_is_orphaned_and_status_exits_8` | pass | |
-| AC-27 | M4 | `ac_verify::ac_27_shadowed_skill_reports_destination_and_shadowing_path` | pass | |
-| AC-28 | M4 | `ac_verify::ac_28_no_output_claims_an_agent_read_loaded_or_applied_a_skill` | pass | |
-| AC-29 | M3, M5 | `ac_activation::ac_29_claude_code_output_states_no_restart_required_with_evidence`; `ac_agents_neutral::ac_29_agents_neutral_says_undocumented_and_prints_the_hermes_followup` | pass | |
-| AC-30 | M3 | `ac_activation::ac_30_every_removal_prints_the_loaded_instructions_caveat` | pass | |
-| AC-31 | M3 | `ac_recovery::ac_31_interrupted_apply_leaves_the_journal_and_the_next_command_detects_it_without_acting`; `ac_recovery::ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure` | pass | |
-| AC-32 | M3 | `ac_recovery::ac_32_one_of_three_entries_fails_the_other_two_remain_applied_and_the_failure_is_named` | pass | |
-| AC-33 | M4 | `ac_reconcile::ac_33_rollback_from_history_restores_prior_destination_and_receipt` | pass | |
-| AC-34 | M4 | `ac_reconcile::ac_34_hand_deleted_entry_reconcile_reports_exit_8_and_repair_restores` | pass | |
-| AC-35 | M2 | `ac_selection::ac_35_hand_edited_selection_is_desired_not_applied` | pass | |
-| AC-36 | M4 | `ac_verify::ac_36_renamed_source_skill_is_orphaned_with_candidates_and_blocked_by_default` | pass | |
-| AC-37 | M4 | `ac_reconcile::ac_37_source_relocate_repairs_every_affected_project` | pass | |
-| AC-38 | M1 | `ac_read_path::ac_38_unreachable_source_reported_no_mutation` | pass | |
-| AC-39 | M4 | `ac_verify::ac_39_source_edit_under_follow_is_visible_at_destination_without_drift_warning` | pass | |
-| AC-40 | M3 | `ac_activation::ac_40_skill_in_two_bundles_appears_once_with_two_provenance_records` | pass | |
-| AC-41 | M4 | `ac_verify::ac_41_contradictory_skills_activate_and_no_semantic_conflict_claim_appears` | pass | |
-| AC-42 | M5 | `ac_agents_neutral::ac_42_nested_project_warns_and_names_the_ancestor` | pass | |
-| AC-43 | M5 | `ac_agents_neutral::ac_43_every_plan_names_the_four_consumers` | pass | |
-| AC-53 | M3 | `ac_recovery::ac_53_second_mutating_command_refuses_while_locked_and_changes_nothing` | pass | |
+| AC-1 | M1 | `ac_read_path::ac_01_register_non_git_directory_and_skills_discoverable` | pass | pass |
+| AC-2 | M3 | `ac_activation::ac_02_source_tree_unchanged_after_full_activate_modify_deactivate_cycle` | pass | pass |
+| AC-3 | M1 | `ac_read_path::ac_03_three_level_nested_categories_real_paths` | pass | pass |
+| AC-4 | M1 | `ac_read_path::ac_04_git_and_node_modules_yield_no_skills` | pass | pass |
+| AC-5 | M1 | `ac_read_path::ac_05_name_dir_mismatch_warns_and_bad_yaml_skipped_with_diagnostic` | pass | pass |
+| AC-6 | M1 | `ac_read_path::ac_06_search_spans_three_categories_one_result_set` | pass | pass |
+| AC-7 | M2 | `ac_bundles::ac_07_hermes_only_bundle_with_bare_names_loads_unchanged` | pass | pass |
+| AC-8 | M2 | `ac_bundles::ac_08_ambiguous_bare_name_errors_naming_both_ids_and_nothing_activates` | pass | pass |
+| AC-9 | M2 | `ac_bundles::ac_09_bundle_spans_two_categories_and_two_sources` | pass | pass |
+| AC-10 | M2 | `ac_activation::ac_10_saved_bundle_applied_to_empty_project_yields_original_selection`; `ac_selection::ac_10_saved_bundle_in_empty_project_yields_original_selection` | pass | pass |
+| AC-11 | M2 | `ac_bundles::ac_11_removing_one_entry_leaves_every_other_line_byte_identical` | pass | pass |
+| AC-12 | M2 | `ac_selection::ac_12_bundle_plus_add_plus_remove_resolves_with_provenance` | pass | pass |
+| AC-13 | M3 | `ac_activation::ac_13_two_skills_from_two_categories_both_applied_with_no_category_step` | pass | pass |
+| AC-14 | M4 | `ac_verify::ac_14_status_shows_source_path_destination_strategy_provenance_state_per_entry` | pass | pass |
+| AC-15 | M3 | `ac_activation::ac_15_yes_still_prints_the_plan_and_the_plan_matches_the_filesystem` | pass | pass |
+| AC-16 | M3 | `ac_activation::ac_16_second_identical_activation_makes_zero_changes_and_says_so` | pass | pass |
+| AC-17 | M3 | `ac_activation::ac_17_remove_one_add_one_changes_exactly_two_entries_and_a_third_record_is_verbatim` (generated entries: `ac_briefs::brief_unchanged_is_a_no_op_and_record_verbatim`) | pass | pass |
+| AC-18 | M3 | `ac_activation::ac_18_replace_and_add_from_the_same_start_give_different_end_states` | pass | pass |
+| AC-19 | M3 | `ac_activation::ac_19_operations_in_project_a_leave_project_b_unchanged_by_hash` | pass | pass |
+| AC-20 | M5 | `ac_agents_neutral::ac_20_two_targets_hold_and_report_different_selections` | pass | pass |
+| AC-21 | M3 | `ac_activation::ac_21_returning_to_a_project_shows_its_prior_selection_unchanged` | pass | pass |
+| AC-22 | M3 | `ac_activation::ac_22_collision_with_a_foreign_skill_refuses_names_both_paths_and_changes_nothing` | pass | pass |
+| AC-23 | M3 | `ac_activation::ac_23_deactivate_all_removes_exactly_the_two_owned_and_leaves_foreign_and_directory` (generated entries: `ac_briefs::brief_removed_on_deactivate_and_foreign_left`) | pass | pass |
+| AC-24 | M3, M5 | `ac_activation::ac_24_no_agent_config_file_is_created_or_modified`; `ac_agents_neutral::ac_24_agents_neutral_no_agent_config_file_is_created_or_modified` | pass | pass |
+| AC-25 | M3 | `ac_activation::ac_25_every_created_entry_is_in_the_receipt_with_source_id_and_strategy` | pass | pass |
+| AC-26 | M4 | `ac_verify::ac_26_broken_destination_symlink_is_orphaned_and_status_exits_8` | pass | pass |
+| AC-27 | M4 | `ac_verify::ac_27_shadowed_skill_reports_destination_and_shadowing_path` | pass | pass |
+| AC-28 | M4 | `ac_verify::ac_28_no_output_claims_an_agent_read_loaded_or_applied_a_skill` | pass | pass |
+| AC-29 | M3, M5 | `ac_activation::ac_29_claude_code_output_states_no_restart_required_with_evidence`; `ac_agents_neutral::ac_29_agents_neutral_says_undocumented_and_prints_the_hermes_followup` | pass | pass |
+| AC-30 | M3 | `ac_activation::ac_30_every_removal_prints_the_loaded_instructions_caveat` | pass | pass |
+| AC-31 | M3 | `ac_recovery::ac_31_interrupted_apply_leaves_the_journal_and_the_next_command_detects_it_without_acting`; `ac_recovery::ac_31_resume_and_rollback_reach_a_consistent_state_for_every_injected_failure` | pass | pass |
+| AC-32 | M3 | `ac_recovery::ac_32_one_of_three_entries_fails_the_other_two_remain_applied_and_the_failure_is_named` | pass | pass |
+| AC-33 | M4 | `ac_reconcile::ac_33_rollback_from_history_restores_prior_destination_and_receipt` | pass | pass |
+| AC-34 | M4 | `ac_reconcile::ac_34_hand_deleted_entry_reconcile_reports_exit_8_and_repair_restores` | pass | pass |
+| AC-35 | M2 | `ac_selection::ac_35_hand_edited_selection_is_desired_not_applied` | pass | pass |
+| AC-36 | M4 | `ac_verify::ac_36_renamed_source_skill_is_orphaned_with_candidates_and_blocked_by_default` | pass | pass |
+| AC-37 | M4 | `ac_reconcile::ac_37_source_relocate_repairs_every_affected_project` | pass | pass |
+| AC-38 | M1 | `ac_read_path::ac_38_unreachable_source_reported_no_mutation` | pass | pass |
+| AC-39 | M4 | `ac_verify::ac_39_source_edit_under_follow_is_visible_at_destination_without_drift_warning` | pass | pass |
+| AC-40 | M3 | `ac_activation::ac_40_skill_in_two_bundles_appears_once_with_two_provenance_records` | pass | pass |
+| AC-41 | M4 | `ac_verify::ac_41_contradictory_skills_activate_and_no_semantic_conflict_claim_appears` | pass | pass |
+| AC-42 | M5 | `ac_agents_neutral::ac_42_nested_project_warns_and_names_the_ancestor` | pass | pass |
+| AC-43 | M5 | `ac_agents_neutral::ac_43_every_plan_names_the_four_consumers` | pass | pass |
+| AC-53 | M3 | `ac_recovery::ac_53_second_mutating_command_refuses_while_locked_and_changes_nothing` | pass | pass |
 
 Success targets (PRD 13.1):
 
@@ -146,6 +146,7 @@ Within the validate-contract blast radius; none touches auth, billing, schema, a
 | D8 | The specialist review and security skills were not invoked | no agent or skill tool in this execute session | self-review and an inline STRIDE below; EVL and a reviewer spawn remain |
 | D9 | The validate-contract commands G4, G5 (e), and G6 compare against `8d688e1`, but commit `4956007` ("update file permissions", 644 to 755 across the repository, protected docs, catalog sources, and all 36 snapshots included) makes the literal commands report mode-only differences | an environment change since the contract was written; content is identical (blob hashes equal) | the contract commands as written fail for a reason unrelated to M5; an EVL run must compare against `HEAD` or by blob. Taylor should know the chmod happened |
 | D10 | S1 passes `--yes`, into a temporary project outside this repository | the plan's S1 definition requires `add` with `--yes` to measure "verified active"; S6 never passes it (EX12). The spawn instruction said "never pass `--yes` there" for the real library | the library is read-only in S1 (only symlinks pointing into it are created in the temp project); the before/after `snapshot_source` equality is asserted |
+| D11 | An unwanted receipted brief that is already missing from disk becomes a `RemoveGenerated` step, not a silent receipt drop (`generated.rs` about lines 263 to 275). Found by the code review (finding R3); not recorded at execute time | the removal step is what clears the receipt row and keeps the journal honest | the SES-2 removal caveat prints for a file that is already gone; harmless, nothing at risk |
 
 EX1 to EX14 (all binding notes):
 
@@ -185,13 +186,13 @@ EX1 to EX14 (all binding notes):
 - Selected plan: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_PLAN_04-10-26.md`.
 - Finished: checklist A1 to E4; F1 at the commit step. Classification: `Keep in active/testing` until the independent EVL run passes; then `Ready for UPDATE PROCESS archival`.
 - Verified in this run: G1 to G3, G5, G6 (content), E2, E3, perf (extra). Unverified: the independent re-run; Linux and CI; the Cursor editor and Windsurf; any agent actually reading a brief (PRD G12).
-- Remaining: EVL (vc-tester), UPDATE PROCESS (context docs, `process/context/all-context.md` and `tests/all-tests.md` still describe M4: 567 tests), then the hard stop.
+- Remaining at execute time: EVL, UPDATE PROCESS (context docs), then the hard stop. Done since: EVL (2 cycles, CLEAN) and UPDATE PROCESS (context docs updated for M5, 643 tests); only the hard stop remains.
 - Follow-up plan stubs created: none. CONTEXT_PARTIAL: `CONTEXT_PARTIAL: process/context/tests/all-tests.md` and `all-context.md` (milestone M5 facts: test count, `agents_neutral.rs`, `generated.rs`, new test files, 39 snapshots) are stale until UPDATE PROCESS; execute may not edit `process/context/`.
 - Single best next state: spawn vc-tester for the EVL confirmation run (use `HEAD` or blob comparison for the protected-docs and snapshot checks, see D9).
 
 ## For Taylor
 
-What is verified (execute run): everything under Product Phase 1 completeness above; the S1 and S6 numbers on your library; the new adapter and briefs behave as the plan says, including interruption at every sampled step. What is not: the independent vc-tester run, Linux/CI, the Cursor editor and Windsurf, and whether any agent reads a brief.
+What is verified (execute run and the independent EVL run at `5ba6888`): everything under Product Phase 1 completeness above; the S1 and S6 numbers on your library; the new adapter and briefs behave as the plan says, including interruption at every sampled step. What is not: Linux/CI, the Cursor editor and Windsurf, and whether any agent reads a brief.
 
 To confirm product Phase 1 you still need to: use `unam` daily on a real project (D4, name the project), look at `unam doctor --evidence` once, and say explicitly that product Phase 1 is done and M6 may start. No agent fills the gate record.
 
@@ -203,7 +204,9 @@ Interpretations to read (the plan asked for these; I did not resolve any documen
 4. D9: commit `4956007` changed the mode of every tracked file from 644 to 755, protected docs included. Content is unchanged, but the contract's `git diff --exit-code 8d688e1 -- ...` commands now fail on mode alone. Intended or not is yours to say.
 5. D1, D3, D5: the conflict code for an edited brief, where the new warnings print, and the brief description wording (see Plan Deviations).
 6. D10: S1 used `--yes` into a temporary project (the library was only read).
-7. The open M3 and M4 items stay with you: the seven decision-sheet rows, D4 and the first adopting project (row 54), the M4 interpretations in the M4 report.
+7. EVL found and fixed one real bug (`5ba6888`: a replaced brief could be lost after an interrupted replace and resume). Details in the EVL outcome section.
+8. Code-review findings to decide (recorded, not fixed): R1, a `.DS_Store` in a brief directory blocks that target with exit 6 (a one-line-class fix: ignore `SKILL_SKIP_NAMES` in `brief_at` and removal); R2, a hand-edited brief blocks the whole plan, even when the edit equals the desired content. R3 is D11; R4 is negligible.
+9. The open M3 and M4 items stay with you: the seven decision-sheet rows, D4 and the first adopting project (row 54), the M4 interpretations in the M4 report.
 
 ## Forward Preview
 
@@ -260,4 +263,28 @@ Fixing that exposed a second defect on the same path, `FailAfter(7)` (the old br
 - G1 `cargo fmt --all --check`: pass. G2 clippy `-D warnings`: pass. G3 `INSTA_UPDATE=no cargo test --workspace --locked`: all pass (core 390 unit tests, ac_briefs 13).
 - `git diff --stat HEAD -- crates/unam-cli/tests/snapshots`: empty.
 
-Closeout state: Keep in active/testing until the orchestrator's EVL re-run (vc-tester) confirms.
+Closeout state at the end of the fix cycle: Keep in active/testing until the orchestrator's EVL re-run (vc-tester) confirms. It confirmed, see below.
+
+## EVL outcome (UPDATE PROCESS, 2026-10-17)
+
+Two cycles, loop status HALTED_SUCCESS (`results-m5-evl.tsv`; reports `phase-06-m5-agents-neutral-and-briefs-evl-iteration-001_REPORT_17-10-26.md` and `-002_`).
+
+| Cycle | Result |
+|---|---|
+| 1 (vc-tester at the execute commit) | G1 to G6 pass (G5 e and G6 mode-only). The full fault matrix (`UNAM_FULL_FAULT_MATRIX=1`) failed 2 brief tests: replace on claude-code, `FailBefore(7)`, resume dropped the new brief. Product bug. Fix cycle 1 (above), commit `5ba6888` |
+| 2 (vc-tester at `5ba6888`) | G1, G2 exit 0; G3 643 passed, 0 failed, 0 ignored; G4 not applicable; G5 (a) to (d) pass (14 `brief_*` names); G5 (e) and G6 mode-only (numstat 0 0 and 0 insertions, 0 deletions); full fault matrix `ac_briefs` 13 and `ac_recovery` 14 pass; `git diff --check` clean |
+
+Known gap carried forward: the literal G5 (e) and G6 diff commands exit 1 only because commit `4956007` changed every tracked file mode from 644 to 755 (D9); content is identical.
+
+Lesson: the strided fault sample (call 1, every third call, last call) did not hit call 7 and missed a real resume bug. The full matrix found it. Run the full matrix in EVL by default for any change to the apply, resume, or rollback path (about 150 s).
+
+Independent code review (vc-code-reviewer, static, no material bug; the four safety properties hold: source never written, only receipted entries removed, foreign files untouched, names validated before they become paths). Findings are recorded, not fixed; Taylor decides on R1 and R2:
+
+| # | Severity | Finding |
+|---|---|---|
+| R1 | low (macOS daily use) | `fsops.rs` `brief_at` requires the brief directory to hold exactly `SKILL.md`, while skill hashing ignores `.git` and `.DS_Store` (`catalog/scan.rs` `SKILL_SKIP_NAMES`). If Finder adds a `.DS_Store`, a wanted brief becomes a blocking `modified-at-dest` conflict (exit 6) on every add, use, and `reconcile --repair` for that target. An unwanted brief is skipped, unreceipted, and later reported as foreign. Fails safe. Suggested fix: ignore `SKILL_SKIP_NAMES` in `brief_at` and in removal |
+| R2 | low | An edited, still-wanted brief blocks the whole plan, including unrelated adds and `reconcile --repair`, even when it was hand-edited to exactly the desired content (`generated.rs` about lines 235 to 253). Broader than M5-11's "an edited brief is left" |
+| R3 | low (unlisted deviation) | Recorded as D11 |
+| R4 | negligible | The rollback scratch path `trash.join("rollback")` could collide with a removed skill literally named `rollback` |
+
+Closeout state: Ready for UPDATE PROCESS archival (EVL CLEAN). The plan stays in the program task folder like M0 to M4.
