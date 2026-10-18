@@ -166,6 +166,24 @@ fn lock_acquire_contend_release() {
     assert!(lock_path(root).path().is_file(), "never deleted");
 }
 
+/// The lock is an flock on the open file description, so a duplicated
+/// descriptor (what a forked child holds until it execs) keeps it held after
+/// the owner drops it. This is why tests must not spawn while a sibling
+/// thread takes and re-takes the lock.
+#[test]
+fn lock_survives_a_duplicated_descriptor_until_every_copy_closes() {
+    let t = tmp();
+    let root = t.path();
+    let held = ProjectLock::acquire(root, "add", &FixedClock).unwrap();
+    let copy = held._file.try_clone().unwrap();
+    drop(held);
+    let e = ProjectLock::acquire(root, "rm", &FixedClock).unwrap_err();
+    assert!(matches!(e, Error::Locked { .. }), "{e:?}");
+    drop(copy);
+    let again = ProjectLock::acquire(root, "use", &FixedClock).unwrap();
+    drop(again);
+}
+
 #[test]
 fn lock_with_garbage_content_gives_no_pid() {
     let t = tmp();

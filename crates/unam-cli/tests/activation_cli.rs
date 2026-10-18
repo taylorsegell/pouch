@@ -440,9 +440,11 @@ fn rm_with_edit_after_plan(fx: &Fx, p: &Path, edit: &dyn Fn()) -> unam_core::app
         "rm",
         &clock,
     );
-    let out = change::run(&req, &RealFs, &mut |_| {
-        edit();
-        Decision::Proceed
+    let out = in_lock_section(|| {
+        change::run(&req, &RealFs, &mut |_| {
+            edit();
+            Decision::Proceed
+        })
     })
     .map_err(|f| f.error)
     .unwrap();
@@ -712,7 +714,7 @@ fn history_is_capped_at_twenty_entries() {
             Edit::Remove(vec!["fx:sdlc/code-review".into()])
         };
         let req = c.request(edit, "add", &clock);
-        let out = change::run(&req, &RealFs, &mut |_| Decision::Proceed)
+        let out = in_lock_section(|| change::run(&req, &RealFs, &mut |_| Decision::Proceed))
             .map_err(|f| f.error)
             .unwrap();
         let Outcome::Applied(_, report) = out else {
