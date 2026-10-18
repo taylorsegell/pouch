@@ -374,9 +374,9 @@ pub fn run(cli: Cli) -> i32 {
         {
             return crate::tui::run(!cli.no_cache, cli.project.clone(), cli.target.clone());
         }
-        print!("{}", usage_text());
+        out!("{}", usage_text());
         if let Some(table) = status::bare(&flags) {
-            print!("\n{table}");
+            out!("\n{table}");
         }
         return 0;
     };
@@ -467,7 +467,7 @@ fn command_name(c: &Command) -> &'static str {
 
 fn print_json(v: &Value) {
     match serde_json::to_string_pretty(v) {
-        Ok(s) => println!("{s}"),
+        Ok(s) => outln!("{s}"),
         Err(e) => eprintln!("error: cannot serialize output: {e}"),
     }
 }
@@ -484,7 +484,7 @@ fn render(command: &str, result: CmdResult, json: bool, quiet: bool) -> i32 {
                     &[],
                 ));
             } else {
-                print!("{}", done.human);
+                out!("{}", done.human);
                 for d in &done.human_diags {
                     if quiet && d.diagnostic.severity == unam_core::error::Severity::Info {
                         continue;
