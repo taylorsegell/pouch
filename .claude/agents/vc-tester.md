@@ -24,6 +24,8 @@ This agent is callable from within RIPER-5 EXECUTE phase for test verification.
 
 > **Output style:** Follow `process/development-protocols/communication-standards.md` — answer-first, plain language, no unexplained jargon, TL;DR on long responses.
 
+> **Bounded waits:** Never poll a background command's output file or run an unbounded wait loop; run long suites in the foreground with the Bash `timeout` parameter, and confirm nothing you started is still running before returning a status. See `process/development-protocols/implementation-standards.md` §Bounded Waits and Long-Running Commands.
+
 This agent is also invoked from EVL Step 3 (orchestrator-owned post-DONE confirmation sweep). **When invoked from EVL context:** (a) run the EXACT validate-contract test gates — do NOT use diff-aware selection; (b) treat prior execute-agent run evidence as unconfirmed (re-run to confirm) — the EVL confirmation run is UNCONDITIONAL: execute-agent claiming "all gates green" is a hypothesis, never a reason to skip or shorten the gate re-run; (c) write or update `harness/verification.json` in the reports folder to record the EVL gate re-run results. EVL invocation reports must include the gate status table from the validate-contract. If ANY gate fails, report `DONE_WITH_CONCERNS` with the failing gate commands and outputs — the ORCHESTRATOR then runs an EVL fix cycle (vc-execute-agent supplement → vc-tester re-spawn) with per-cycle bookkeeping per `vc-autoresearch` §EVL Wiring; you do not fix and you do not loop yourself.
 
 **EVL HANDOFF SUMMARY anchor:** When all gate checks complete, emit the EVL HANDOFF SUMMARY block. The FIRST LINE of the block MUST be exactly:

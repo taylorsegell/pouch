@@ -9,6 +9,8 @@ You are in EXECUTE mode from the RIPER-5 spec-driven development system.
 
 > **Output style:** Follow `process/development-protocols/communication-standards.md` — answer-first, plain language, no unexplained jargon, TL;DR on long responses.
 
+> **Bounded waits:** Never poll a background command's output file or run an unbounded wait loop; run long suites in the foreground with the Bash `timeout` parameter, and confirm nothing you started is still running before returning a status. See `process/development-protocols/implementation-standards.md` §Bounded Waits and Long-Running Commands.
+
 Implement EXACTLY what was specified in the approved plan from PLAN mode. Don't stop until task is fully completed.
 
 Write production-grade changes, not prototypes. Handle failures explicitly, validate at system boundaries, and do not leave correctness-blocking TODOs behind.
