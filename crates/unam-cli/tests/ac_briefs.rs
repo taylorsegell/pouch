@@ -713,9 +713,11 @@ fn run_brief_matrix(
                 }
                 let req = c.recover(&clock);
                 if recovery == "resume" {
-                    let out = change::resume(&req, &RealFs, &mut |_| Decision::Proceed)
-                        .map_err(|f| f.error)
-                        .unwrap();
+                    let out = in_lock_section(|| {
+                        change::resume(&req, &RealFs, &mut |_| Decision::Proceed)
+                    })
+                    .map_err(|f| f.error)
+                    .unwrap();
                     assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
                     assert_eq!(essence(&b.s.project, target), clean_state, "{ctx}");
                     assert!(!journal.exists(), "{ctx}");
@@ -732,9 +734,11 @@ fn run_brief_matrix(
                         "{ctx}: trash left"
                     );
                 } else {
-                    let out = change::rollback(&req, &RealFs, &mut |_| Decision::Proceed)
-                        .map_err(|f| f.error)
-                        .unwrap();
+                    let out = in_lock_section(|| {
+                        change::rollback(&req, &RealFs, &mut |_| Decision::Proceed)
+                    })
+                    .map_err(|f| f.error)
+                    .unwrap();
                     let RecoverOutcome::Recovered(report, _) = out else {
                         panic!("{ctx}")
                     };
@@ -782,9 +786,10 @@ fn brief_resume_refuses_journal_content_that_does_not_match_its_hash() {
     fs::write(&journal, format!("{}\n", lines.join("\n"))).unwrap();
     let c = sc.s.ctx(&fx.env);
     let clock = StepClock::new();
-    let out = change::resume(&c.recover(&clock), &RealFs, &mut |_| Decision::Proceed)
-        .map_err(|f| f.error)
-        .unwrap();
+    let out =
+        in_lock_section(|| change::resume(&c.recover(&clock), &RealFs, &mut |_| Decision::Proceed))
+            .map_err(|f| f.error)
+            .unwrap();
     let RecoverOutcome::Recovered(report, _) = out else {
         panic!("not recovered")
     };
@@ -862,7 +867,7 @@ fn brief_replace_interrupted_at_call_seven_resumes_to_clean_state() {
         let c = b.s.ctx(&fx.env);
         let clock = StepClock::new();
         let req = c.recover(&clock);
-        let out = change::resume(&req, &RealFs, &mut |_| Decision::Proceed)
+        let out = in_lock_section(|| change::resume(&req, &RealFs, &mut |_| Decision::Proceed))
             .map_err(|f| f.error)
             .unwrap();
         assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
@@ -1066,16 +1071,17 @@ fn adopt_matrix(target: TargetId, recovery: &str) {
         let clock = StepClock::new();
         let req = c.recover(&clock);
         if recovery == "resume" {
-            let out = change::resume(&req, &RealFs, &mut |_| Decision::Proceed)
+            let out = in_lock_section(|| change::resume(&req, &RealFs, &mut |_| Decision::Proceed))
                 .map_err(|f| f.error)
                 .unwrap();
             assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
             assert_eq!(essence(&b.s.project, target), clean_state, "{ctx}");
             assert!(!journal.exists(), "{ctx}");
         } else {
-            let out = change::rollback(&req, &RealFs, &mut |_| Decision::Proceed)
-                .map_err(|f| f.error)
-                .unwrap();
+            let out =
+                in_lock_section(|| change::rollback(&req, &RealFs, &mut |_| Decision::Proceed))
+                    .map_err(|f| f.error)
+                    .unwrap();
             assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
             assert_eq!(fs::read(&brief).unwrap(), before_bytes, "{ctx}: file");
             assert_project_unchanged(&start, &b.s.project);

@@ -332,7 +332,9 @@ impl Scenario {
     ) -> std::result::Result<unam_core::change::Outcome, unam_core::change::ChangeFailure> {
         let c = self.ctx(env);
         let req = c.request_for(self.target, self.edit.clone(), self.command, clock);
-        unam_core::change::run(&req, fs, &mut |_| unam_core::change::Decision::Proceed)
+        super::in_lock_section(|| {
+            unam_core::change::run(&req, fs, &mut |_| unam_core::change::Decision::Proceed)
+        })
     }
 }
 
@@ -350,9 +352,11 @@ pub fn core_apply_for(env: &TestEnv, project: &Path, target: TargetId, edit: Edi
     // and the change never share an operation id.
     let clock = StepClock::starting_at(1_700_000_000_000);
     let req = c.request_for(target, edit, "add", &clock);
-    let out = unam_core::change::run(&req, &RealFs, &mut |_| unam_core::change::Decision::Proceed)
-        .map_err(|f| f.error)
-        .unwrap();
+    let out = super::in_lock_section(|| {
+        unam_core::change::run(&req, &RealFs, &mut |_| unam_core::change::Decision::Proceed)
+    })
+    .map_err(|f| f.error)
+    .unwrap();
     assert!(matches!(out, unam_core::change::Outcome::Applied(..)));
 }
 

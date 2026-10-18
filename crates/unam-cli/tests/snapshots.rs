@@ -254,12 +254,10 @@ fn bundle_edit() {
         &env,
         "printf 'name: commented\\ndescription: Edited.\\nskills:\\n  - alpha-root-skill\\n' > \"$1\"",
     );
-    let out = env
-        .cmd()
-        .env("EDITOR", &editor)
-        .args(["--json", "bundle", "edit", "commented"])
-        .output()
-        .unwrap();
+    let mut cmd = env.cmd();
+    cmd.env("EDITOR", &editor)
+        .args(["--json", "bundle", "edit", "commented"]);
+    let out = common::gated_output(cmd);
     assert_eq!(out.status.code(), Some(0));
     let text = env.normalize(&String::from_utf8(out.stdout).unwrap());
     let v: Value = serde_json::from_str(&text).unwrap();
@@ -279,7 +277,7 @@ fn crash_add(fx: &Fx, p: &Path, refs: &[&str], mode: FailMode) {
     );
     let ff = FailingFs::new(mode);
     let _ = catch_unwind(AssertUnwindSafe(|| {
-        change::run(&req, &ff, &mut |_| Decision::Proceed)
+        common::in_lock_section(|| change::run(&req, &ff, &mut |_| Decision::Proceed))
     }));
 }
 

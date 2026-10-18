@@ -473,7 +473,7 @@ fn evidence_repair_interrupted_resume_and_rollback_reach_zero_divergence() {
         let c = core_ctx(&fx.env, &twin);
         let clock = StepClock::new();
         let req = c.request(Edit::Reconcile, "reconcile", &clock);
-        change::run(&req, &counter, &mut |_| Decision::Proceed)
+        in_lock_section(|| change::run(&req, &counter, &mut |_| Decision::Proceed))
             .map_err(|f| f.error)
             .unwrap();
     }
@@ -492,26 +492,32 @@ fn evidence_repair_interrupted_resume_and_rollback_reach_zero_divergence() {
         let clock = StepClock::new();
         let req = c.request(Edit::Reconcile, "reconcile", &clock);
         let _ = catch_unwind(AssertUnwindSafe(|| {
-            change::run(
-                &req,
-                &FailingFs::new(FailMode::CrashBefore(second_link)),
-                &mut |_| Decision::Proceed,
-            )
+            in_lock_section(|| {
+                change::run(
+                    &req,
+                    &FailingFs::new(FailMode::CrashBefore(second_link)),
+                    &mut |_| Decision::Proceed,
+                )
+            })
         }));
         // Exactly one of the two links was created before the "crash".
         assert!(p.join(".unam/claude-code/journal.jsonl").exists());
         assert_eq!(children(&dest(&p)).len(), 1, "{recovery}");
         let clock = StepClock::starting_at(1_800_000_000_000);
         if recovery == "resume" {
-            change::resume(&c.recover(&clock), &RealFs, &mut |_| Decision::Proceed)
-                .map_err(|f| f.error)
-                .unwrap();
+            in_lock_section(|| {
+                change::resume(&c.recover(&clock), &RealFs, &mut |_| Decision::Proceed)
+            })
+            .map_err(|f| f.error)
+            .unwrap();
             assert_eq!(children(&dest(&p)), ["code-review", "pytest-fixtures"]);
             assert_zero_divergence(&c, recovery);
         } else {
-            change::rollback(&c.recover(&clock), &RealFs, &mut |_| Decision::Proceed)
-                .map_err(|f| f.error)
-                .unwrap();
+            in_lock_section(|| {
+                change::rollback(&c.recover(&clock), &RealFs, &mut |_| Decision::Proceed)
+            })
+            .map_err(|f| f.error)
+            .unwrap();
             // Back to the state before the repair: the same two hand
             // deletions, nothing more and nothing less.
             assert_project_unchanged(&before, &p);

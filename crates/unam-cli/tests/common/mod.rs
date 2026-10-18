@@ -10,7 +10,36 @@ use assert_cmd::Command;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::RwLock;
 use tempfile::TempDir;
+
+/// Keeps a process spawn from overlapping an in-process project lock.
+///
+/// `ProjectLock` is an flock. When one test thread forks to spawn `unam`,
+/// the child inherits every open descriptor, including a lock file another
+/// thread holds, until it calls exec. If that thread then drops the lock and
+/// re-acquires at once, the inherited copy still holds it and the re-acquire
+/// fails with `Locked`. Spawns take the write side; in-process sections that
+/// take a project lock take the read side. A lock section must never spawn.
+pub static SPAWN_GATE: RwLock<()> = RwLock::new(());
+
+/// Run an in-process section that takes and drops project locks.
+pub fn in_lock_section<R>(f: impl FnOnce() -> R) -> R {
+    let _g = SPAWN_GATE.read().unwrap_or_else(|e| e.into_inner());
+    f()
+}
+
+/// Wait until no spawn is mid-fork: any child forked before this call has
+/// exec'd (so closed its inherited descriptors) once the write lock is won.
+pub fn spawn_fence() {
+    drop(SPAWN_GATE.write());
+}
+
+/// Run a prepared command to completion with the gate held for the spawn.
+pub fn gated_output(mut c: Command) -> std::process::Output {
+    let _g = SPAWN_GATE.write().unwrap_or_else(|e| e.into_inner());
+    c.output().unwrap()
+}
 
 /// An isolated environment: every unam directory, HOME, and the XDG bases
 /// point into one tempdir, and the working directory is a tempdir too.
@@ -125,7 +154,9 @@ impl TestEnv {
 
     /// Run `unam` with args; returns (exit code, stdout, stderr).
     pub fn run(&self, args: &[&str]) -> (i32, String, String) {
-        let out = self.cmd().args(args).output().unwrap();
+        let mut c = self.cmd();
+        c.args(args);
+        let out = gated_output(c);
         (
             out.status.code().unwrap_or(-1),
             String::from_utf8_lossy(&out.stdout).into_owned(),
@@ -395,7 +426,9 @@ pub fn cmd_in(env: &TestEnv, dir: &Path) -> Command {
 
 /// Run `unam` in `dir`; returns (exit code, stdout, stderr).
 pub fn run_in(env: &TestEnv, dir: &Path, args: &[&str]) -> (i32, String, String) {
-    let out = cmd_in(env, dir).args(args).output().unwrap();
+    let mut c = cmd_in(env, dir);
+    c.args(args);
+    let out = gated_output(c);
     (
         out.status.code().unwrap_or(-1),
         String::from_utf8_lossy(&out.stdout).into_owned(),

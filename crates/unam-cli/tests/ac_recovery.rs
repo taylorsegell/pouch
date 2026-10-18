@@ -37,7 +37,7 @@ fn crash_add(fx: &Fx, p: &Path, r: &[&str], fs_ops: &FailingFs) {
     let clock = StepClock::new();
     let req = c.request(Edit::Add(refs(r)), "add", &clock);
     let _ = catch_unwind(AssertUnwindSafe(|| {
-        change::run(&req, fs_ops, &mut |_| Decision::Proceed)
+        in_lock_section(|| change::run(&req, fs_ops, &mut |_| Decision::Proceed))
     }));
 }
 
@@ -224,12 +224,18 @@ fn run_fault_matrix(only: &[&str]) {
                         );
                         let before = snapshot_project(&s.project);
                         for e in [
-                            change::resume(&c.recover(&clock), &RealFs, &mut |_| Decision::Proceed)
-                                .err()
-                                .unwrap()
-                                .error,
-                            change::rollback(&c.recover(&clock), &RealFs, &mut |_| {
-                                Decision::Proceed
+                            in_lock_section(|| {
+                                change::resume(&c.recover(&clock), &RealFs, &mut |_| {
+                                    Decision::Proceed
+                                })
+                            })
+                            .err()
+                            .unwrap()
+                            .error,
+                            in_lock_section(|| {
+                                change::rollback(&c.recover(&clock), &RealFs, &mut |_| {
+                                    Decision::Proceed
+                                })
                             })
                             .err()
                             .unwrap()
@@ -246,9 +252,11 @@ fn run_fault_matrix(only: &[&str]) {
                     }
                     let req = c.recover(&clock);
                     if recovery == "resume" {
-                        let out = change::resume(&req, &RealFs, &mut |_| Decision::Proceed)
-                            .map_err(|f| f.error)
-                            .unwrap();
+                        let out = in_lock_section(|| {
+                            change::resume(&req, &RealFs, &mut |_| Decision::Proceed)
+                        })
+                        .map_err(|f| f.error)
+                        .unwrap();
                         assert!(matches!(out, RecoverOutcome::Recovered(..)), "{ctx}");
                         assert_eq!(change_state(&s.project), clean_state, "{ctx}");
                         assert!(!journal(&s.project).exists(), "{ctx}");
@@ -269,9 +277,11 @@ fn run_fault_matrix(only: &[&str]) {
                             );
                         }
                     } else {
-                        let out = change::rollback(&req, &RealFs, &mut |_| Decision::Proceed)
-                            .map_err(|f| f.error)
-                            .unwrap();
+                        let out = in_lock_section(|| {
+                            change::rollback(&req, &RealFs, &mut |_| Decision::Proceed)
+                        })
+                        .map_err(|f| f.error)
+                        .unwrap();
                         let RecoverOutcome::Recovered(report, _) = out else {
                             panic!("{ctx}")
                         };
@@ -389,6 +399,8 @@ fn ac_53_second_mutating_command_refuses_while_locked_and_changes_nothing() {
         assert_eq!(fs::read(p.join(".unam/lock")).unwrap(), lock_bytes);
     }
     drop(guard);
+    // A sibling test's spawn may still hold a forked copy of the lock fd.
+    spawn_fence();
     let (code, v) = fx.json_raw(&p, &["add", "fx:sdlc/code-review", "--yes"]);
     assert_eq!(code, 0, "{v}");
     fx.done();
@@ -591,7 +603,7 @@ fn rollback_can_be_repeated_after_a_crash_during_rollback() {
     let clock = StepClock::new();
     let ff = FailingFs::new(FailMode::CrashBefore(2));
     let r = catch_unwind(AssertUnwindSafe(|| {
-        change::rollback(&c.recover(&clock), &ff, &mut |_| Decision::Proceed)
+        in_lock_section(|| change::rollback(&c.recover(&clock), &ff, &mut |_| Decision::Proceed))
     }));
     assert!(crashed(&r));
     assert!(journal(&p).exists());
@@ -655,9 +667,11 @@ fn execute_refuses_when_the_destination_root_was_swapped_during_the_prompt() {
         fs::remove_dir_all(p.join(".claude")).unwrap();
         std::os::unix::fs::symlink(&outside, p.join(".claude")).unwrap();
     };
-    let e = change::run(&req, &RealFs, &mut |_| {
-        swap();
-        Decision::Proceed
+    let e = in_lock_section(|| {
+        change::run(&req, &RealFs, &mut |_| {
+            swap();
+            Decision::Proceed
+        })
     })
     .err()
     .unwrap();
@@ -688,7 +702,7 @@ fn resume_after_a_crash_following_a_torn_tail_rewrites_the_journal() {
     let clock = StepClock::new();
     let ff = FailingFs::new(FailMode::CrashAfter(1));
     let res = catch_unwind(AssertUnwindSafe(|| {
-        change::resume(&c.recover(&clock), &ff, &mut |_| Decision::Proceed)
+        in_lock_section(|| change::resume(&c.recover(&clock), &ff, &mut |_| Decision::Proceed))
     }));
     assert!(crashed(&res));
     assert_eq!(ff.calls()[0].1, "write_state");
@@ -722,5 +736,38 @@ fn rollback_removes_a_history_entry_written_before_the_crash() {
     assert_eq!(code, 0, "{v}");
     assert!(!history.exists());
     assert_project_unchanged(&start, &p);
+    fx.done();
+}
+
+/// Regression for the forked-descriptor flake: spawns on other threads must
+/// never overlap an in-process lock section. All loops are fixed-count.
+#[test]
+fn lock_sections_never_overlap_a_spawn() {
+    let fx = Fx::new();
+    let p = fx.project("p");
+    let root = fx.canon(&p);
+    std::thread::scope(|scope| {
+        for _ in 0..3 {
+            scope.spawn(|| {
+                for _ in 0..200 {
+                    let (code, _, _) = run_in(&fx.env, &p, &["--version"]);
+                    assert_eq!(code, 0);
+                }
+            });
+        }
+        scope.spawn(|| {
+            let clock = StepClock::new();
+            for i in 0..2000 {
+                in_lock_section(|| {
+                    let a = ProjectLock::acquire(&root, "test", &clock)
+                        .unwrap_or_else(|e| panic!("acquire {i}: {e:?}"));
+                    drop(a);
+                    let b = ProjectLock::acquire(&root, "test", &clock)
+                        .unwrap_or_else(|e| panic!("re-acquire {i}: {e:?}"));
+                    drop(b);
+                });
+            }
+        });
+    });
     fx.done();
 }
