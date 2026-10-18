@@ -285,5 +285,13 @@ In the picker: type `review`, press `space` on a skill, type `pytest`, `space` o
 - First real release run; Homebrew formula and tap; universal macOS binary.
 - Taylor's M6 manual AC-44 run (stub `m6-ac44-manual-terminal-run_NOTE_17-10-26.md`) and the interactive half of S11.
 - Warm-start margin of about 3 to 5 ms (stub `m6-warm-start-margin_NOTE_17-10-26.md`).
-- `unam ... | head` panics with a broken-pipe message (exit 101) when the reader closes early. Rust's default for `println!`; not a data-safety issue, not fixed (M7 adds no product behavior). Worth a small fix later.
 - Daily use, the D4 real activation, S5, the decision-sheet rows, and the untracked-lock question stay with you.
+
+## EVL fix cycle 1
+
+Two findings fixed; nothing else touched.
+
+1. Broken-pipe panic. Every stdout write in `crates/unam-cli/src/cli/*.rs` now goes through `out!` / `outln!` (defined in `main.rs`), which write to a locked stdout and return io errors instead of panicking. `ErrorKind::BrokenPipe` ends the process with exit 0; any other write error prints `error: cannot write to stdout` and exits 1. No `SIGPIPE` trick, no new dependency. The TUI writes to the terminal and was not touched. Regression test: `crates/unam-cli/tests/broken_pipe.rs` (400-skill fixture, read 50 bytes, close the read end, assert exit 0 and no "panicked"). Red run before the fix: `json_output_to_closed_pipe_exits_zero` failed with "failed printing to stdout: Broken pipe (os error 32)" (std `println!` panic); the human-output case did not overflow the pipe on the old code and passed both before and after. Green after the fix.
+2. `unam-core` workspace dependency now carries `version = "0.1.0"` next to its `path`. `Cargo.lock` is unchanged. `cargo publish` and `cargo package` were not run.
+
+Gates: fmt, clippy `-D warnings`, `cargo test --workspace --locked` (712 passed, 0 failed), `dist plan`, `dist generate --check`, `cargo check --profile dist --locked --offline -p unambiguous`, snapshots unchanged against fadca4b, protected docs unchanged against 8d688e1, no `panic = "abort"`, no added `.spawn(` in src, no `#[ignore`, `git diff --check`: all clean. The broken-pipe item is removed from the open residuals.
