@@ -13,7 +13,7 @@ use std::process::{Command, Stdio};
 fn run_with_early_close(args: &[&str]) {
     let env = TestEnv::new();
     let lib = env.path("work").join("biglib");
-    for i in 0..400 {
+    for i in 0..1200 {
         write_file(
             &lib,
             &format!("cat/skill-{i:04}/SKILL.md"),
@@ -27,14 +27,25 @@ fn run_with_early_close(args: &[&str]) {
     let (code, v) = run_json(&env, &["source", "add", "big", lib.to_str().unwrap()]);
     assert_eq!(code, 0, "{v}");
 
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("unam"));
-    cmd.env_clear();
-    for (k, v) in env.vars() {
-        cmd.env(k, v);
-    }
-    let mut child = cmd
-        .current_dir(env.path("cwd"))
-        .args(args)
+    let make_cmd = || {
+        let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("unam"));
+        cmd.env_clear();
+        for (k, v) in env.vars() {
+            cmd.env(k, v);
+        }
+        cmd.current_dir(env.path("cwd")).args(args);
+        cmd
+    };
+    // Guard: the full output must exceed a 64 KB pipe buffer, otherwise the
+    // child could finish writing before the read end closes (vacuous test).
+    let full = make_cmd().output().unwrap();
+    assert!(
+        full.stdout.len() > 65_536,
+        "fixture output too small to overflow a pipe: {} bytes",
+        full.stdout.len()
+    );
+
+    let mut child = make_cmd()
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
