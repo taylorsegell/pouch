@@ -81,7 +81,7 @@ pub fn run(ctx: &Ctx, evidence: bool) -> CmdResult {
     let all = warnings;
     if failed > 0 {
         if !ctx.json {
-            print!("{human}");
+            out!("{human}");
         }
         return Err(Failed::with_data(
             Error::DoctorFailed { failed },

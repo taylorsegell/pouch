@@ -1,5 +1,28 @@
 //! The `unam` command-line interface.
 
+/// Write formatted text to stdout. A closed pipe (`unam ... | head`) ends the
+/// process quietly with exit 0, the usual behavior for CLI tools; any other
+/// write error is reported and exits 1. Never panics, unlike `print!`.
+fn write_stdout(args: std::fmt::Arguments<'_>) {
+    use std::io::Write;
+    let mut out = std::io::stdout().lock();
+    if let Err(e) = out.write_fmt(args) {
+        if e.kind() == std::io::ErrorKind::BrokenPipe {
+            std::process::exit(0);
+        }
+        eprintln!("error: cannot write to stdout: {e}");
+        std::process::exit(1);
+    }
+}
+
+macro_rules! out {
+    ($($arg:tt)*) => { $crate::write_stdout(format_args!($($arg)*)) };
+}
+
+macro_rules! outln {
+    ($($arg:tt)*) => { $crate::write_stdout(format_args!("{}\n", format_args!($($arg)*))) };
+}
+
 mod cli;
 mod output;
 mod tui;

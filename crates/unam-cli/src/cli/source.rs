@@ -284,7 +284,7 @@ pub fn relocate(ctx: &Ctx, alias: &str, path: &str) -> CmdResult {
     };
     if rel.projects.iter().any(runnable) {
         if !ctx.json {
-            print!("{human}");
+            out!("{human}");
         }
         match ask(ctx) {
             Decision::Proceed => {}
@@ -348,7 +348,7 @@ pub fn relocate(ctx: &Ctx, alias: &str, path: &str) -> CmdResult {
     let out = if ctx.json { String::new() } else { summary };
     if failed > 0 {
         if !ctx.json {
-            print!("{out}");
+            out!("{out}");
         }
         return Err(Failed::with_data(
             Error::ApplyFailed { failed, skipped: 0 },

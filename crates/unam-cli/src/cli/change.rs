@@ -96,7 +96,7 @@ fn interrupted(summary: &JournalSummary, json_mode: bool, warnings: Vec<FlatDiag
         "next": ["unam resume", "unam rollback"],
     });
     if !json_mode {
-        print!("{}", render_summary(summary));
+        out!("{}", render_summary(summary));
     }
     Failed::with_data(
         Error::Interrupted {
@@ -298,7 +298,7 @@ fn edit_run(ctx: &Ctx, command: &'static str, edit: Edit) -> CmdResult {
                     dest_root_existed: plan.dest_dirs_to_create.is_empty(),
                 })
             });
-            print!("{}", render_plan(plan, note.as_ref()));
+            out!("{}", render_plan(plan, note.as_ref()));
         }
         ask(ctx)
     };
@@ -318,7 +318,7 @@ fn edit_run(ctx: &Ctx, command: &'static str, edit: Edit) -> CmdResult {
         Outcome::Blocked(p) => {
             warnings.extend(global(&p.warnings));
             if !ctx.json {
-                print!("{}", render_plan(&p.plan, None));
+                out!("{}", render_plan(&p.plan, None));
             }
             let data = run.data(&p, "blocked", None);
             Err(Failed::with_data(
@@ -391,7 +391,7 @@ fn edit_run(ctx: &Ctx, command: &'static str, edit: Edit) -> CmdResult {
                 })
             } else {
                 if !ctx.json {
-                    print!("{human}");
+                    out!("{human}");
                 }
                 let (failed, skipped) = tally(&report.results);
                 Err(Failed::with_data(
@@ -445,8 +445,8 @@ fn recover_run(ctx: &Ctx, action: &'static str) -> CmdResult {
     };
     let mut decide = |s: &JournalSummary| -> Decision {
         if !ctx.json {
-            print!("{}", render_summary(s));
-            println!("Next: {action} the steps above.");
+            out!("{}", render_summary(s));
+            outln!("Next: {action} the steps above.");
         }
         ask(ctx)
     };
@@ -589,7 +589,7 @@ fn recover_run(ctx: &Ctx, action: &'static str) -> CmdResult {
                 })
             } else {
                 if !ctx.json {
-                    print!("{human}");
+                    out!("{human}");
                 }
                 let (failed, skipped) = tally(&report.results);
                 let left = report

@@ -98,7 +98,7 @@ pub fn status(ctx: &Ctx) -> CmdResult {
     let orphaned = report.count(EntryState::Orphaned);
     if orphaned > 0 {
         if !ctx.json {
-            print!("{human}");
+            out!("{human}");
         }
         return Err(Failed::with_data(
             Error::Diverged {
@@ -239,7 +239,7 @@ pub fn reconcile(ctx: &Ctx, repair: bool) -> CmdResult {
     warnings.extend(global(&r.verify.diagnostics));
     if !r.divergences.is_empty() {
         if !ctx.json {
-            print!("{human}");
+            out!("{human}");
         }
         return Err(Failed::with_data(
             Error::Diverged {

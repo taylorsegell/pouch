@@ -19,7 +19,7 @@ unsafe_code = "forbid"
 unwrap_used = "deny"
 
 [workspace.dependencies]
-unam-core = { path = "crates/unam-core" }
+unam-core = { path = "crates/unam-core", version = "0.1.0" }
 clap = { version = "4.6.7", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
