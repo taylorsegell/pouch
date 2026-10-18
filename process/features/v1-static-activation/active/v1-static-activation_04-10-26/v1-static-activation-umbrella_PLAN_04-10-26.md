@@ -415,7 +415,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 | 6 of 8: M5 agents-neutral and generated briefs | VERIFIED (WITH_GAPS) 2026-10-17 (G1 to G3 PASS, 655 tests after EVL fix cycle 1 and the review-fix round, full fault matrix PASS, S1 and S6 PASS on the real library; literal G5 e and G6 diff commands mode-only (D9); Linux/CI never run, D4 pending; review findings R1 and R2 for Taylor) |
 | Product Phase 1 Gate | CLEARED by Taylor 2026-10-17 (daily use, D4, S5 deferred until after M7) |
 | 7 of 8: M6 TUI | VERIFIED (WITH_GAPS) 2026-10-17 (G1 to G6 PASS, 699 tests, EVL PASS in 2 iterations; warm start 45.0 to 46.8 ms of 50, RSS 9.1 MB; termion backend instead of crossterm; Taylor's manual AC-44 real-terminal run outstanding; Linux/CI never run) |
-| 8 of 8: M7 OSS readiness | PLANNED (product Phase 2, gate cleared) |
+| 8 of 8: M7 OSS readiness | CODE DONE 2026-10-17 (EXECUTE: G1 to G3 green, 710 tests; dist plan, generate --check, and the profile check exit 0; Linux/CI, the first release run, and Taylor's manual runs outstanding; EVL next) |
 
 Status values: PLANNED | CODE DONE | TESTING | VERIFIED | BLOCKED | COMPLETE
 
@@ -490,19 +490,20 @@ No criterion is carried by Known-Gap. If a milestone discovers an untestable beh
 
 ## Current Execution State
 
-Last updated: 2026-10-17 (M6 UPDATE PROCESS complete)
+Last updated: 2026-10-17 (M7 EXECUTE complete, code done; EVL next)
 Current phase: 8 of 8 (milestone M7, OSS readiness)
 Phase 8 name: M7 OSS readiness
-Phase 8 status: PLANNED (not started; product Phase 1 gate cleared 2026-10-17; PRD Q11 must be decided first)
+Phase 8 status: CODE DONE (EXECUTE 2026-10-17; code commit 9897bfe; gates G1 to G3 green with 710 tests; EVL and UPDATE PROCESS not yet run)
+Phase 8 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_REPORT_17-10-26.md
 Phase 7 status: VERIFIED (WITH_GAPS) 2026-10-17
 Phase 7 EVL: PASS in 2 iterations (HALTED_SUCCESS, `results-m6-evl.tsv`). Iteration 1 at 0425429: G1 to G6 green, warm start 47.4 ms. Iteration 2 at 9658536 after the review-fix round (bd97432): G1 to G6 green, 699 tests, warm start 45.0 to 46.8 ms of 50, peak RSS 9.1 MB, 39 CLI snapshots and 6 TUI snapshots unchanged, `git diff --check` clean; classification WITH_GAPS. Code review: no Critical or High findings; findings 1 to 6 fixed; three Low items not fixed
 Phase 7 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_REPORT_17-10-26.md
 Phase 7 commits: 37292c2 (code), 0425429 (process, execute report), bd97432 (review fixes), 9658536 (process, review-fix round and EVL 1); the UPDATE PROCESS commit follows
 Phase 6 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md
-Next phase: phase 8 of 8 (M7 OSS readiness), loop step RESEARCH
+Next phase: phase 8 of 8 (M7 OSS readiness), loop step EVL (independent vc-tester re-run of G1 to G6)
 Completed phases: phase 0 (plan creation); phases 1 to 7 of 8 (M0 to M6), each VERIFIED (WITH_GAPS)
-Current loop step: RESEARCH (milestone M7, step 1; not started)
-Validate-contract status: M0 to M6 written (Gate PASS) and closed; M7 not written
+Current loop step: EVL (milestone M7, step 6; code done, EXECUTE finished)
+Validate-contract status: M0 to M6 written (Gate PASS) and closed; M7 written 2026-10-17 (Gate PASS, inner-pvl: phase-8)
 Product Phase 1 Gate: CLEARED by Taylor on 2026-10-17 (record in `## Product Phase 1 Gate`). Daily use, D4, and S5 are deferred until all milestones are done
 Program Net Gate: PENDING
 Open items (all with Taylor unless noted):

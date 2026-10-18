@@ -188,7 +188,7 @@ docs/adapters.md                      spec-called doc (M2): Hermes slugify diffe
                                       M7 regenerates the adapter-evidence part and keeps the M2 sections
 ```
 
-Still to come: `docs/json.md` (M7). The M6 `tui/` modules exist: `actions.rs` is the only module that calls `unam-core` (a parity test proves no other write path), and the TUI tests are in-crate (`cargo test -p unam --bin unam tui::`) because `unam-cli` is bin-only. `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 regenerates the adapter-evidence part and must keep the two M2 sections).
+Still to come: `docs/json.md` (M7). The M6 `tui/` modules exist: `actions.rs` is the only module that calls `unam-core` (a parity test proves no other write path), and the TUI tests are in-crate (`cargo test -p unambiguous --bin unam tui::`) because `unam-cli` is bin-only. `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 regenerates the adapter-evidence part and must keep the two M2 sections).
 
 ## Technology Stack
 
