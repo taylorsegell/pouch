@@ -5,6 +5,12 @@ edition.workspace = true
 version.workspace = true
 publish.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+authors.workspace = true
+keywords = ["agent", "skills", "claude-code", "cli", "symlink"]
+categories = ["command-line-utilities", "development-tools"]
 
 [lints]
 workspace = true

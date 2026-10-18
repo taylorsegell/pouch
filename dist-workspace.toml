@@ -1,10 +1,13 @@
-# Hand-written, unverified: dist is not installed; milestone M7 verifies with `dist plan`.
-# No universal macOS target is claimed (spec 9 says universal; evidence missing).
-
 [workspace]
 members = ["cargo:."]
 
+# Config for cargo-dist 0.32.0. Verified locally with `dist generate` and
+# `dist plan`; nothing here publishes anything (no publish-jobs entry, no tap
+# repository). The release workflow runs only when a version tag is pushed.
 [dist]
 cargo-dist-version = "0.32.0"
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
-installers = []
+ci = "github"
+installers = ["shell", "homebrew"]
+tap = "taylorsegell/homebrew-tap"
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
+install-path = "CARGO_HOME"

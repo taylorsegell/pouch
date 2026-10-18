@@ -1,6 +1,6 @@
 # Adapters and Hermes compatibility
 
-This document records how unam stays compatible with tools it reads from or writes for. Milestone M2 created it with the two bundle sections; milestone M4 added the adapter evidence sections after them (see Maintenance).
+This document records how unam stays compatible with tools it reads from or writes for. Milestone M2 created it with the two bundle sections; milestone M4 added the adapter evidence sections after them. Milestone M7 checked those sections against `unam doctor --evidence` with automated tests (see Maintenance).
 
 ## Bundle slugify parity with Hermes
 
@@ -59,7 +59,7 @@ TL;DR: every tested agent that scans a destination discovered a symlinked skill 
 
 Refresh behavior observed: Claude Code needs nothing for an existing `.claude/skills` directory; Codex needs nothing; the cursor-agent CLI shows a mid-session addition only after a restart; Hermes needs `hermes skills trust <repo>` once and a restart for a mid-session addition. Claude Code does not scan `.agents/skills` at all (no discovery even after a restart, copy or symlink).
 
-Not tested: Windsurf (not installed) and the Cursor editor. The Cursor results are evidence for the `cursor-agent` CLI only; the Cursor editor is not tested, so its behavior stays "not documented".
+Not tested: Windsurf (not installed) and the Cursor editor. The Cursor results are evidence for the `cursor-agent` CLI only; the Cursor editor is not tested, so its behavior stays "not documented". Every spike run was on macOS; the Linux behavior of the agents and of `unam` is not yet verified.
 
 ## Adapter evidence: the claude-code claims
 
@@ -133,5 +133,7 @@ TL;DR: a bundle with an `instruction` gets a small generated skill, `<slug>-brie
 
 ## Maintenance
 
-- The two M2 sections (Hermes slugify parity and the bundle loader differences), the two M4 evidence sections, and the M5 `agents-neutral` and brief sections are all kept.
-- When an adapter changes its evidence entries, regenerate the claim table from `unam doctor --evidence` (run it only against a temporary `UNAM_CONFIG_DIR` and `HOME`, never against a real project) and keep the M0 outcome section in step with `spike/symlink-discovery.md`. Milestone M5 added the `agents-neutral` claims and the brief section; milestone M7 regenerates the adapter-evidence part and must keep the two M2 sections.
+- The two M2 sections (Hermes slugify parity and the bundle loader differences), the M0 outcome, the two evidence sections, and the generated brief section are all kept.
+- Two tests keep the evidence tables honest (`crates/unam-cli/tests/docs_adapters.rs`). `docs_adapters_cover_every_doctor_evidence_claim` runs `unam doctor --evidence` in a temporary project and asserts that every row it prints (adapter, claim key, source) has its own table row in that adapter's section above. `docs_adapters_check_detects_missing_row` proves the check fails when a row is deleted or sits under the wrong adapter. The tests check that the rows exist and carry the source; they do not check that the vendors' pages still say what the rows say.
+- When an adapter changes its evidence entries, regenerate the claim table from `unam doctor --evidence` (run it only against a temporary `UNAM_CONFIG_DIR` and `HOME`, never against a real project) and keep the M0 outcome section in step with `spike/symlink-discovery.md`.
+- Claims about the Cursor editor and Windsurf stay marked untested until someone runs them; the Cursor spike results are for the `cursor-agent` CLI only.

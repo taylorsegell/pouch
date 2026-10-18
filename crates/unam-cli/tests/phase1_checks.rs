@@ -57,7 +57,7 @@ fn no_network_dependencies() {
     let pkgs = locked_packages();
     // Not vacuous: the lockfile is read and holds the workspace crates.
     assert!(pkgs.len() > 30, "{} packages parsed", pkgs.len());
-    assert!(pkgs.iter().any(|p| p == "unam") && pkgs.iter().any(|p| p == "unam-core"));
+    assert!(pkgs.iter().any(|p| p == "unambiguous") && pkgs.iter().any(|p| p == "unam-core"));
     // Any HTTP, TLS, async-runtime, or socket client crate.
     let denied = [
         "reqwest",

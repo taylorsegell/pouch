@@ -6,7 +6,7 @@
 //! and snapshot the library before and after to prove it is read-only. They
 //! run once at the Phase 1 exit:
 //!
-//! `UNAM_REAL_LIBRARY=<path> cargo test --release -p unam --test phase1_exit -- --nocapture`
+//! `UNAM_REAL_LIBRARY=<path> cargo test --release -p unambiguous --test phase1_exit -- --nocapture`
 
 // Integration test file: unwrap is acceptable here.
 #![allow(clippy::unwrap_used)]

@@ -7,6 +7,10 @@ edition = "2024"
 version = "0.1.0"
 publish = false
 rust-version = "1.89"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/taylorsegell/unambiguous"
+readme = "README.md"
+authors = ["Taylor Segell"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
@@ -35,3 +39,7 @@ assert_cmd = "2.2.2"
 predicates = "3"
 proptest = "1"
 ratatui = { version = "0.30.2", default-features = false, features = ["termion"] }
+
+# The profile cargo-dist builds release archives with (`dist` inherits `release`).
+[profile.dist]
+inherits = "release"
