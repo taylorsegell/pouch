@@ -1,3 +1,4 @@
 iteration	timestamp	gaps_found	fail_count	concern_count	applied	saturation_status	loop_status	notes
 0	2026-10-17T00:00:00Z	0	0	0	0	n/a	baseline	EXECUTE reported G1 to G6 green, 710 tests
 1	2026-10-17T00:00:00Z	1	1	0	0	not_saturated	CONTINUE	vc-tester at 5d5505a: G1 to G6 green; broken-pipe panic exit 101 on unam --json search | head; fix cycle 1 (plus unam-core dep version)
+2	2026-10-17T00:00:00Z	0	0	3	1	saturated	HALTED_SUCCESS	vc-tester at bae2268: 712 tests, release-plan checks green, broken pipe exits 0; concerns: vacuous human pipe test, stderr residual, Apache EOF blank line

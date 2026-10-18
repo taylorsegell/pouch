@@ -20,6 +20,8 @@ Lighter process for M4 and M5 (Taylor-approved recommendation, 2026-10-09):
 
 - [x] Wave 6 (ran 2026-10-17, after Taylor cleared the Product Phase 1 Gate): M6 research, plan, PVL, EXECUTE (37292c2), review fixes (bd97432), EVL 2 iterations, UPDATE PROCESS. M7 (OSS readiness) is next: loop step RESEARCH, after PRD Q11 (crate name and license) is decided.
 
+- [x] Wave 7 (ran 2026-10-17): M7 research, plan, PVL, EXECUTE (9897bfe), EVL 2 iterations (fix 15764ef, test 473161c), UPDATE PROCESS. The program is complete (all 8 phases VERIFIED WITH_GAPS); next is Taylor's release handoff.
+
 Gate for waves 2 to 5: if M3 is still uncommitted because no review decision exists, the wave does nothing except re-check for the decision, report, and stop. M4 must not start on an uncommitted M3.
 
 If a wave cannot finish its work, it records where it stopped here and the next wave continues from that point before starting its own list.

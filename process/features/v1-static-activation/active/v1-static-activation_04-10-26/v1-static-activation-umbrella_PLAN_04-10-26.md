@@ -13,7 +13,7 @@ metadata:
 
 **Date**: 04-10-26
 **Complexity**: COMPLEX
-**Status**: PLANNED
+**Status**: COMPLETE (all 8 phases VERIFIED WITH_GAPS 2026-10-17; Program Net Gate CONDITIONAL; waiting on Taylor's manual runs, Linux/CI, and the first release)
 
 - Program type: PHASE PROGRAM (8 toolkit phases, one per spec milestone M0 to M7, sequential with gated joins)
 - Feature folder: `process/features/v1-static-activation/`
@@ -243,7 +243,7 @@ Program-level summary. The authoritative per-step checkboxes are in each milesto
 | M4 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-12. Report: `phase-05-m4-verify-status-reconcile-rollback_REPORT_12-10-26.md`. G1 to G6 green, 567 tests; commit pending in the same wave |
 | M5 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-17. Report: `phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md`. EVL CLEAN (3 iterations; 655 tests at 4832e31), full fault matrix. Product Phase 1 Gate cleared 2026-10-17 |
 | M6 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-17. Report: `phase-07-m6-tui_REPORT_17-10-26.md`. EVL PASS in 2 iterations, 699 tests; Taylor's manual AC-44 terminal run outstanding |
-| M7 | 1 RESEARCH (not started) | Product Phase 2, gate cleared; PRD Q11 (crate name and license) needed first |
+| M7 | complete (steps 1 to 7 done) | VERIFIED (WITH_GAPS) 2026-10-17. Report: `phase-08-m7-oss-readiness_REPORT_17-10-26.md`. EVL HALTED_SUCCESS in 2 iterations plus test strengthening, 712 tests; Linux/CI, first release, Taylor's manual runs outstanding |
 
 ---
 
@@ -309,7 +309,7 @@ All inside the program task folder, flat.
 | M4 | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-05-m4-verify-status-reconcile-rollback_REPORT_04-10-26.md` |
 | M5 | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md` |
 | M6 | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_REPORT_04-10-26.md` |
-| M7 | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_REPORT_04-10-26.md` |
+| M7 | `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_REPORT_17-10-26.md` |
 
 ---
 
@@ -355,7 +355,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 16. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). The data dir (project index, `projects.json`) has no `UNAM_*` override in spec section 2 or PRD 9. Not added in M1 (the three documented overrides are unchanged); tests isolate it through `HOME` and `XDG_DATA_HOME`. Taylor to confirm whether a fourth override is wanted.
 17. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). The spec has no `Diagnostic` type and no catalog-level diagnostics, yet spec 4.2, 4.3, and AC-5 require named diagnostics. M1 adds `Diagnostic { code, severity, message, path, remedy }`, per-skill diagnostics, and a catalog-level list carrying the source alias; JSON arrays are always present. Code names are recorded in the M1 plan as stable contract.
 18. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). M1 gets a temporary `lookup(ref)` in the catalog module that handles all three spec 4.6 reference forms (exit 4 with candidates, exit 5 listing every candidate, never picking) so `show` works. It is explicitly temporary: milestone M2's `resolve.rs` supersedes it. M1 also reads a provisional `<data dir>/projects.json` for the `source rm` exit-3 check (index absent means no references); milestone M2's `project.rs` owns the real index format and replaces that reader.
-19. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). `dist-workspace.toml` is hand-written and unverified (`dist` is not installed; milestone M7 verifies with `dist plan`). Spec section 9 names a macOS universal binary, but the research evidence does not support a universal target, so M1 lists per-arch targets (`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`) and makes no universal claim. The M7 entry in the Per-Phase Exit Gate table still says "macOS universal"; to be reconciled when milestone M7 is researched.
+19. CLOSED 2026-10-17 as a recorded gap (M7: `dist` 0.32.0 installed, `dist plan` and `dist generate --check` pass for four per-architecture targets; it rejects a universal macOS target, so macOS ships as two archives). Original note follows. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). `dist-workspace.toml` is hand-written and unverified (`dist` is not installed; milestone M7 verifies with `dist plan`). Spec section 9 names a macOS universal binary, but the research evidence does not support a universal target, so M1 lists per-arch targets (`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`) and makes no universal claim. The M7 entry in the Per-Phase Exit Gate table still says "macOS universal"; to be reconciled when milestone M7 is researched.
 20. STILL OPEN (REPORT TO TAYLOR, 2026-10-05; provisional). M1 CLI search uses `nucleo-matcher` (Pattern::parse, match_list) instead of the full `nucleo` crate named in spec 1.4. The picker in milestone M6 may adopt full `nucleo` if it needs incremental matching. Match-index output (spec 4.3) is deferred to milestone M6.
 21. DROPPED for v1 (decision sheet row 21 proposed answer; M4 did not build it; workaround `source rm` then `source add`; Taylor may override). PRD requirement SRC-4 lists "rename" among source operations, but the spec CLI (section 5) has no `source rename` command. M1 does not build it; sources are keyed by alias in the data model as the spec says. Suggested milestone: M4 (alongside `source relocate`, which already updates references). Taylor to confirm the milestone.
 22. RESOLVED 2026-10-12 (M4 built it: bare `unam` prints usage, then the status table when the root holds `.unam/`, exit 0; original note follows). Spec 5 says bare `unam` prints status and usage. M1 prints usage only (plus a line that status arrives later) because the `status` command is built in milestone M4; bare `unam` does not load the config. Taylor to confirm; milestone M4 adds status to bare `unam`.
@@ -415,7 +415,7 @@ Taylor's twelve decisions of 2026-10-04 are applied below (spec and PRD edits ar
 | 6 of 8: M5 agents-neutral and generated briefs | VERIFIED (WITH_GAPS) 2026-10-17 (G1 to G3 PASS, 655 tests after EVL fix cycle 1 and the review-fix round, full fault matrix PASS, S1 and S6 PASS on the real library; literal G5 e and G6 diff commands mode-only (D9); Linux/CI never run, D4 pending; review findings R1 and R2 for Taylor) |
 | Product Phase 1 Gate | CLEARED by Taylor 2026-10-17 (daily use, D4, S5 deferred until after M7) |
 | 7 of 8: M6 TUI | VERIFIED (WITH_GAPS) 2026-10-17 (G1 to G6 PASS, 699 tests, EVL PASS in 2 iterations; warm start 45.0 to 46.8 ms of 50, RSS 9.1 MB; termion backend instead of crossterm; Taylor's manual AC-44 real-terminal run outstanding; Linux/CI never run) |
-| 8 of 8: M7 OSS readiness | CODE DONE 2026-10-17 (EXECUTE: G1 to G3 green, 710 tests; dist plan, generate --check, and the profile check exit 0; Linux/CI, the first release run, and Taylor's manual runs outstanding; EVL next) |
+| 8 of 8: M7 OSS readiness | VERIFIED (WITH_GAPS) 2026-10-17 (G1 to G6 PASS, 712 tests; EVL HALTED_SUCCESS in 2 iterations plus test-strengthening commit 473161c; `dist plan`, `dist generate --check`, and the profile check exit 0; Linux/CI never run, first release run and Homebrew tap unexercised, no universal macOS archive, Taylor's manual AC-44 and S11 runs outstanding) |
 
 Status values: PLANNED | CODE DONE | TESTING | VERIFIED | BLOCKED | COMPLETE
 
@@ -480,43 +480,41 @@ No criterion is carried by Known-Gap. If a milestone discovers an untestable beh
 ## Resume and Execution Handoff
 
 - Selected plan file path: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/v1-static-activation-umbrella_PLAN_04-10-26.md`
-- Last completed phase: phase 7 of 8 (milestone M6), VERIFIED (WITH_GAPS) 2026-10-17; phase report written
-- Validate-contract status: M0 to M6 written (Gate PASS) and closed; M7 not written (vc-validate-agent writes it at the M7 PVL step)
+- Last completed phase: phase 8 of 8 (milestone M7), VERIFIED (WITH_GAPS) 2026-10-17; phase report written. The program loop is complete.
+- Validate-contract status: M0 to M7 written (Gate PASS) and closed
 - Supporting context files loaded: `process/context/all-context.md`, `process/context/product/all-product.md`, `process/context/tests/all-tests.md`, `docs/PROJECT-BRIEF.md`, spec sections 8 to 12, PRD sections 0, 3, 12, 13, 15, `spike/symlink-discovery.md`, `process/development-protocols/phase-programs.md`
-- Next step for a fresh agent: read this plan and the M5 report (Forward Preview). M0 to M6 are done. Taylor cleared the Product Phase 1 Gate on 2026-10-17 and approved M6 and M7; continue with M7 (RESEARCH next) once PRD Q11 (crate name and license) is decided.
-- Execute-agent start instruction: never start EXECUTE for M1 or later until the M0 gate is met; the Product Phase 1 Gate record shows Taylor's confirmation (2026-10-17), so M7 may proceed through the normal loop.
+- Next step for a fresh agent: do not start another milestone. Read the M7 report, section "For Taylor", for the release handoff (steps 1 to 7). Anything further (Linux/CI run, first release, daily use, D4, S5, product Phase 3) is Taylor's decision and needs his explicit go-ahead; pushing, tagging, and publishing are hard stops.
+- Execute-agent start instruction: none pending. Any follow-up fix starts from a backlog stub in `process/features/v1-static-activation/backlog/` and a new plan.
 
 ---
 
 ## Current Execution State
 
-Last updated: 2026-10-17 (M7 EXECUTE complete, code done; EVL next)
-Current phase: 8 of 8 (milestone M7, OSS readiness)
+Last updated: 2026-10-17 (M7 UPDATE PROCESS complete; program loop finished)
+Current phase: 8 of 8 (milestone M7, OSS readiness), complete. The program is complete: all 8 phases are VERIFIED (WITH_GAPS)
 Phase 8 name: M7 OSS readiness
-Phase 8 status: CODE DONE (EXECUTE 2026-10-17; code commit 9897bfe; gates G1 to G3 green with 710 tests; EVL and UPDATE PROCESS not yet run)
+Phase 8 status: VERIFIED (WITH_GAPS) 2026-10-17 (code 9897bfe; fix 15764ef; test 473161c; process commits 5d5505a, bae2268, and the UPDATE PROCESS commit)
+Phase 8 EVL: HALTED_SUCCESS in 2 iterations (`results-m7-evl.tsv`) plus test-strengthening commit 473161c. Iteration 1 at 5d5505a found a broken-pipe panic (exit 101), fixed in 15764ef. Iteration 2 at bae2268: G1 to G6 green, 712 tests, 0 ignored, `dist plan`, `dist generate --check`, and the profile check exit 0, 45 snapshots identical to fadca4b, protected docs unchanged, lockfile rename-only; classification WITH_GAPS
 Phase 8 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_REPORT_17-10-26.md
-Phase 7 status: VERIFIED (WITH_GAPS) 2026-10-17
-Phase 7 EVL: PASS in 2 iterations (HALTED_SUCCESS, `results-m6-evl.tsv`). Iteration 1 at 0425429: G1 to G6 green, warm start 47.4 ms. Iteration 2 at 9658536 after the review-fix round (bd97432): G1 to G6 green, 699 tests, warm start 45.0 to 46.8 ms of 50, peak RSS 9.1 MB, 39 CLI snapshots and 6 TUI snapshots unchanged, `git diff --check` clean; classification WITH_GAPS. Code review: no Critical or High findings; findings 1 to 6 fixed; three Low items not fixed
-Phase 7 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-07-m6-tui_REPORT_17-10-26.md
-Phase 7 commits: 37292c2 (code), 0425429 (process, execute report), bd97432 (review fixes), 9658536 (process, review-fix round and EVL 1); the UPDATE PROCESS commit follows
+Phase 7 status: VERIFIED (WITH_GAPS) 2026-10-17 (report `phase-07-m6-tui_REPORT_17-10-26.md`)
 Phase 6 report: process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md
-Next phase: phase 8 of 8 (M7 OSS readiness), loop step EVL (independent vc-tester re-run of G1 to G6)
-Completed phases: phase 0 (plan creation); phases 1 to 7 of 8 (M0 to M6), each VERIFIED (WITH_GAPS)
-Current loop step: EVL (milestone M7, step 6; code done, EXECUTE finished)
-Validate-contract status: M0 to M6 written (Gate PASS) and closed; M7 written 2026-10-17 (Gate PASS, inner-pvl: phase-8)
-Product Phase 1 Gate: CLEARED by Taylor on 2026-10-17 (record in `## Product Phase 1 Gate`). Daily use, D4, and S5 are deferred until all milestones are done
-Program Net Gate: PENDING
+Next phase: none. Next step is Taylor's release handoff (M7 report, "For Taylor", steps 1 to 7), then daily use, the D4 real activation, and the S5 follow-up
+Completed phases: phase 0 (plan creation); phases 1 to 8 of 8 (M0 to M7), each VERIFIED (WITH_GAPS)
+Current loop step: none (program complete)
+Validate-contract status: M0 to M7 written (Gate PASS) and closed
+Product Phase 1 Gate: CLEARED by Taylor on 2026-10-17 (record in `## Product Phase 1 Gate`). Daily use, D4, and S5 are deferred until after the release handoff
+Program Net Gate: CONDITIONAL. Local gates are all green (fmt, clippy, 712 tests, `dist` checks). Not yet proven: Linux and CI (never run; Docker daemon was down), the first real release run and Homebrew formula/tap, `rust-version = "1.89"` on an older toolchain, Taylor's manual M6 AC-44 terminal run and the interactive half of S11, daily use, D4, and S5. No gap is counted as met; each has a backlog stub or a named step in the M7 report
 Open items (all with Taylor unless noted):
-- M6 manual AC-44 run in a real terminal (steps in the M6 report "For Taylor"; backlog stub `m6-ac44-manual-terminal-run_NOTE_17-10-26.md`) and the M6 decisions to confirm (mixed add/remove rule, key routing M6-12, enter applies in the plan view, the `b` overlay, `r`/`u` modal keys)
+- Release handoff steps 1 to 7 (M7 report "For Taylor"): confirm tap name `taylorsegell/homebrew-tap`, run the two manual terminal runs, push (origin is https://github.com/taylorsegell/unambiguous.git), watch CI, tag `v0.1.0`, create the tap, optional crates.io. Backlog `m7-linux-ci-verification_NOTE_17-10-26.md`
+- M6 manual AC-44 run in a real terminal (backlog stub `m6-ac44-manual-terminal-run_NOTE_17-10-26.md`) and the M6 decisions to confirm (mixed add/remove rule, key routing M6-12, enter applies in the plan view, the `b` overlay, `r`/`u` modal keys)
 - Warm-start margin of about 3 to 5 ms (backlog stub `m6-warm-start-margin_NOTE_17-10-26.md`)
-- Linux and CI never run (no remote)
-- PRD Q11 (crates.io name and license): needed before M7 starts
-- M7 docs must carry the M6 spec deviations (termion instead of crossterm, no `e` key, static loading frame, no match highlighting, lock only during apply, D-R1 ambiguous-target fallback, D-R2 warning classes); M7's release profile must not set `panic = "abort"`
 - Daily use, the D4 real activation, and naming the first adopting project (backlog NOTE `m3-d4-first-real-activation_NOTE_05-10-26.md`); then the S5 follow-up four weeks after daily use begins
 - The seven decision-sheet rows marked "Needs a real decision" in open-items-decision-sheet_REF_09-10-26.md
+- Low risks: `eprintln!` to a closed stderr could panic; `LICENSE-APACHE` has a trailing blank line (verbatim stock copy); macOS ships as two archives, not a universal binary (item 19, closed as a recorded gap)
 - The Cursor editor and Windsurf were never tested
 - Whether `.claude/scheduled_tasks.lock` should be untracked (pending Taylor)
-Latest validator run: 2026-10-17, M6 UPDATE PROCESS (results in the commit message)
+- Archival: this task folder stays in `active/` until the manual runs and the first green CI/release; then `git mv` it to `process/features/v1-static-activation/completed/` as one unit (recommendation in the M7 closeout; not moved yet)
+Latest validator run: 2026-10-17, M7 UPDATE PROCESS (results in the commit message)
 
 Loop step values: RESEARCH | INNOVATE | PLAN-SUPPLEMENT | PVL | EXECUTE | EVL | UPDATE-PROCESS
 Orchestrator rule: read "Current loop step" and "Validate-contract status" before spawning any subagent. Never spawn execute-agent when loop step is RESEARCH, INNOVATE, PLAN-SUPPLEMENT, or PVL.
@@ -533,4 +531,4 @@ Note: The Stable Program Goal above is fixed. This section is the only part that
 
 ## Next Step
 
-M0 to M6 are VERIFIED (WITH_GAPS) and Taylor cleared the Product Phase 1 Gate on 2026-10-17. Next: M7 (OSS readiness, phase 8 of 8), loop step 1 RESEARCH, once PRD Q11 (crate name and license) is decided.
+The program is complete: M0 to M7 are VERIFIED (WITH_GAPS) and the Program Net Gate is CONDITIONAL. Next is Taylor's release handoff (M7 report, "For Taylor", steps 1 to 7), then daily use, the D4 real activation, and the S5 follow-up. No agent step is pending.

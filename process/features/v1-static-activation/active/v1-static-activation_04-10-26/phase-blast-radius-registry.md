@@ -47,3 +47,5 @@ Append-only. One section per toolkit phase (one milestone each). Phases run sequ
 
 ## Phase 8: milestone M7
 - `README.md`, `CHANGELOG.md`, license, release workflow, `docs/adapters.md` and `docs/json.md` (permission-gated), package metadata
+- Actual (2026-10-17): created `LICENSE-MIT`, `LICENSE-APACHE`, `CHANGELOG.md`, `docs/json.md`, `.github/workflows/release.yml`, `crates/unam-cli/tests/{docs_json,docs_adapters,docs_honesty,release_files,broken_pipe}.rs`; rewrote `README.md`, `dist-workspace.toml`; modified `docs/adapters.md`, root `Cargo.toml` (metadata, `[profile.dist]`, `unam-core` dependency version), both crate manifests, `Cargo.lock` (package rename only, 180 names), `crates/unam-cli/src/{main.rs,cli/*.rs}` (stdout through `out!`/`outln!`), `tests/{phase1_checks,phase1_exit}.rs`, context docs (`-p unambiguous`); package renamed `unambiguous` (binary `unam`); 45 snapshots and protected docs unchanged
+- status: DONE (2026-10-17; EVL HALTED_SUCCESS in 2 iterations plus test strengthening, 712 tests; VERIFIED WITH_GAPS)

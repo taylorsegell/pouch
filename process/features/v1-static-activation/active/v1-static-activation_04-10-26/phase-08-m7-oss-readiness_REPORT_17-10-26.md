@@ -8,7 +8,7 @@ plan: process/features/v1-static-activation/active/v1-static-activation_04-10-26
 
 # Milestone M7 EXECUTE report: OSS readiness
 
-TL;DR: M7 is implemented as planned. Gates G1 to G3 are green (710 tests, 0 ignored), `dist plan`, `dist generate --check` and the `dist` profile check all exit 0, and the 45 snapshot files are byte-identical to BASE. Open: Linux and CI (Docker daemon down), the first real release run, Taylor's manual terminal runs. One plan wording defect: the literal G6 `.spawn(` grep matches a pre-existing test line. Code commit `9897bfe`; the process commit follows this report. Next loop step: EVL.
+TL;DR: M7 is implemented as planned. Gates G1 to G3 are green (710 tests, 0 ignored), `dist plan`, `dist generate --check` and the `dist` profile check all exit 0, and the 45 snapshot files are byte-identical to BASE. Open: Linux and CI (Docker daemon down), the first real release run, Taylor's manual terminal runs. One plan wording defect: the literal G6 `.spawn(` grep matches a pre-existing test line. Code commit `9897bfe`; the process commit follows this report. EVL then ran (two iterations plus a test-strengthening commit); final classification: VERIFIED (WITH_GAPS). See "EVL outcome and final classification" at the end.
 
 ## Context Envelope
 
@@ -251,7 +251,7 @@ None in the lockfile except the package rename (180 names before and after). Too
 - Tap name `taylorsegell/homebrew-tap` is a guess from the repository owner.
 - The plan's snapshot rename was wrong and was dropped; `phase1_checks.rs` had to change; `[profile.dist]` was added to the root `Cargo.toml`; the macOS universal target is unsupported by dist 0.32.0.
 - `release.yml` carries `contents: write` (generator default) and also runs on every `pull_request`, but only as `dist plan` (`publishing` false).
-- Before publishing to crates.io (not done, out of scope): `unam-core = { path = "crates/unam-core" }` in the workspace dependencies has no `version`, which `cargo publish` requires for a path dependency. Add `version = "0.1.0"` there and publish `unam-core` first. I did not test a publish dry run.
+- Before publishing to crates.io (not done, out of scope): `unam-core = { path = "crates/unam-core" }` in the workspace dependencies has no `version`, which `cargo publish` requires for a path dependency. Add `version = "0.1.0"` there and publish `unam-core` first. I did not test a publish dry run. (Done in EVL fix cycle 1: the version is now there; `cargo publish` and `cargo package` were still not run.)
 
 ### Release handoff, in order (you run these, when you are ready)
 
@@ -260,7 +260,7 @@ None in the lockfile except the package rename (180 names before and after). Too
 3. `git push origin main`, then watch `.github/workflows/ci.yml` (`gh run watch`). The `ubuntu` job is the first Linux signal; expect to fix small things. Optionally `cargo +1.89 check --workspace --locked`.
 4. When CI is green: `git tag v0.1.0` and `git push origin v0.1.0`. The release workflow builds four archives, the shell installer and `unambiguous.rb`, and attaches them to a GitHub release.
 5. Create the repository `taylorsegell/homebrew-tap`, copy `unambiguous.rb` from the release into it (under `Formula/`). Only then consider `publish-jobs = ["homebrew"]` plus a tap token in the repository secrets.
-6. Optional: crates.io. Remove `publish = false` (workspace), add the `unam-core` version (above), `cargo publish --dry-run -p unam-core`, publish `unam-core`, then `unambiguous`. Update the README install section from "after the first release" to the real commands at that point.
+6. Optional: crates.io. Remove `publish = false` (workspace), the `unam-core` version is already in place (EVL fix cycle 1), `cargo publish --dry-run -p unam-core`, publish `unam-core`, then `unambiguous`. Update the README install section from "after the first release" to the real commands at that point.
 7. Update the README, which says Linux is "not yet verified", only after a green Linux run.
 
 ### S11 manual walkthrough (interactive half, in your own terminal)
@@ -285,6 +285,9 @@ In the picker: type `review`, press `space` on a skill, type `pytest`, `space` o
 - First real release run; Homebrew formula and tap; universal macOS binary.
 - Taylor's M6 manual AC-44 run (stub `m6-ac44-manual-terminal-run_NOTE_17-10-26.md`) and the interactive half of S11.
 - Warm-start margin of about 3 to 5 ms (stub `m6-warm-start-margin_NOTE_17-10-26.md`).
+- `eprintln!` to a closed stderr could still panic (low risk; stdout is fixed).
+- `LICENSE-APACHE` ends with a trailing blank line (verbatim stock copy; left as is).
+- macOS ships as two archives (aarch64 and x86_64); cargo-dist 0.32.0 rejects a universal target (umbrella item 19, closed as a recorded gap).
 - Daily use, the D4 real activation, S5, the decision-sheet rows, and the untracked-lock question stay with you.
 
 ## EVL fix cycle 1
@@ -295,3 +298,40 @@ Two findings fixed; nothing else touched.
 2. `unam-core` workspace dependency now carries `version = "0.1.0"` next to its `path`. `Cargo.lock` is unchanged. `cargo publish` and `cargo package` were not run.
 
 Gates: fmt, clippy `-D warnings`, `cargo test --workspace --locked` (712 passed, 0 failed), `dist plan`, `dist generate --check`, `cargo check --profile dist --locked --offline -p unambiguous`, snapshots unchanged against fadca4b, protected docs unchanged against 8d688e1, no `panic = "abort"`, no added `.spawn(` in src, no `#[ignore`, `git diff --check`: all clean. The broken-pipe item is removed from the open residuals.
+
+## EVL outcome and final classification
+
+Final classification: **Ready for UPDATE PROCESS archival of the M7 plan content, program state VERIFIED (WITH_GAPS)**. The plan stays in the active program folder because the program as a whole still has Known-Gap residuals (see the umbrella `## Current Execution State` and the archival recommendation in the closeout).
+
+| Iteration | HEAD | Tester result | Notes |
+|---|---|---|---|
+| 1 | 5d5505a | G1 to G6 green; one defect found | `unam --json search ... | head` panicked on a closed stdout (exit 101) |
+| fix cycle 1 | 15764ef | code fix | every stdout write goes through `out!`/`outln!`; a closed pipe ends quietly with exit 0; `unam-core` workspace dependency gained `version = "0.1.0"` |
+| 2 | bae2268 | HALTED_SUCCESS; 712 tests, 0 ignored | G1 to G6 green; original defect gone (3 of 3); 45 snapshots identical to fadca4b; three concerns recorded |
+| test strengthening | 473161c | quick fix | `human_output_to_closed_pipe_exits_zero` produced 33 KB, under the 64 KB pipe buffer, so it passed even against the pre-fix source. It now overflows the buffer; red against the pre-fix source in a scratch copy, green now (`broken_pipe` 2 of 2) |
+
+Log: `results-m7-evl.tsv` (baseline plus iterations 1 and 2); iteration reports `phase-08-m7-oss-readiness-evl-iteration-001_REPORT_17-10-26.md` and `-002_REPORT_17-10-26.md`.
+
+M7 commits: 9897bfe (code), 5d5505a (process, EXECUTE report), 15764ef (broken-pipe fix and `unam-core` version), bae2268 (process, EVL fix cycle 1), 473161c (test), plus the UPDATE PROCESS commit that carries this section.
+
+### Known gaps carried out of EVL
+
+- Linux and CI never run (Docker daemon down); backlog `m7-linux-ci-verification_NOTE_17-10-26.md`.
+- First real release run, Homebrew formula and tap unexercised (needs Taylor to push and tag).
+- No universal macOS archive (cargo-dist 0.32.0).
+- `rust-version = "1.89"` never compiled on an older toolchain.
+- Taylor's manual runs: M6 AC-44 terminal run and the interactive half of S11.
+- `eprintln!` to a closed stderr could panic (low risk); `LICENSE-APACHE` trailing blank line.
+- M6 warm-start margin thin (about 47 of 50 ms); backlog `m6-warm-start-margin_NOTE_17-10-26.md`.
+
+### SPEC Achievement
+
+M7 is a phase-program inner-loop phase: the umbrella governs, there is no per-phase SPEC. Plan acceptance criteria met by passing automated gates: licenses and metadata, `dist plan` and `dist generate --check`, docs/json and docs/adapters coverage tests, README honesty phrases, snapshot stability, no `panic = "abort"`. Not met by an automated or E2E gate (Known-Gap, each with a backlog stub): Linux/CI behavior, first real release, interactive picker half of S11 (AC-44 shares it). No gap is treated as met.
+
+### Context reconciliation (UPDATE PROCESS)
+
+The CONTEXT_PARTIAL items from EXECUTE and the EVL handoff are closed in this commit: `all-context.md` (status, package name, license, release tooling, remote, Q11, scan metadata), `tests/all-tests.md` (712 tests, package `unambiguous`, new test files, `dist` commands and the hook caveat), `product/all-product.md` (package name note).
+
+### For Taylor
+
+Unchanged: the "For Taylor" block above holds the release handoff steps 1 to 7, the S11 manual steps, and every residual. Step 6 no longer needs the `unam-core` version edit (done in fix cycle 1). The broken-pipe residual is closed.

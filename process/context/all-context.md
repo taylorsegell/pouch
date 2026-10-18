@@ -19,7 +19,7 @@ Unambiguous is a Rust command-line tool, invoked as `unam`, that controls which 
 
 - **User:** Taylor, solo, on macOS and Linux, across Claude Code, Codex, Cursor, and Hermes.
 - **Standard:** personal tool built to open-source-ready standards: tests, docs, reproducible builds, no telemetry, no network.
-- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members), M5 (`agents-neutral` adapter writing `.agents/skills`, ancestor-skill warnings, generated per-bundle instruction briefs with journaled `write_generated`/`remove_generated` steps), and M6 (interactive picker: bare `unam` on a terminal opens a three-pane `ratatui` picker over the termion backend; 699 tests) are done and VERIFIED with gaps (M6 gap: Taylor's manual real-terminal run of AC-44 is outstanding). Taylor CLEARED the Product Phase 1 Gate on 2026-10-17: M7 (OSS readiness) is next, and needs PRD Q11 (crate name and license) decided first; daily use, the first adopting project (D4), and S5 are deferred until all milestones are done. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
+- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members), M5 (`agents-neutral` adapter writing `.agents/skills`, ancestor-skill warnings, generated per-bundle instruction briefs with journaled `write_generated`/`remove_generated` steps), M6 (interactive picker: bare `unam` on a terminal opens a three-pane `ratatui` picker over the termion backend), and M7 (OSS readiness: package renamed `unambiguous`, binary `unam`, `MIT OR Apache-2.0`, README, CHANGELOG, `docs/json.md`, cargo-dist release workflow; broken-pipe fix; 712 tests) are done and VERIFIED with gaps. All eight milestones (M0 to M7) are done and the program is at Taylor's release handoff. Open: Taylor's manual real-terminal runs (M6 AC-44, S11 interactive half), Linux and CI never run, the first real release run (push and tag are Taylor's), Homebrew tap, daily use, the first adopting project (D4), and S5. Taylor CLEARED the Product Phase 1 Gate on 2026-10-17. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
 - **Not a harness.** It sits in front of existing agent harnesses (PRD D7).
 
 Full product and design context: `process/context/product/all-product.md`.
@@ -43,10 +43,10 @@ Confirmed by Taylor on 04-10-26: the skill library path `~/Developer/01-AI/skill
 Additional rules set for the harness-setup session (04-10-26), kept as standing practice:
 
 - The five design documents that existed at kickoff are protected: `docs/PROJECT-BRIEF.md`, `docs/KICKOFF-PROMPT.md`, `docs/spec/PRD-unambiguous.md`, `docs/spec/unam-technical-spec.md`, `docs/adr/ADR-0001-dynamic-skill-routing.md`. Never move, rename, or rewrite them; an edit needs Taylor's explicit permission for that specific edit. New files the spec calls for (for example `docs/adapters.md`, `docs/json.md`) may be created and maintained. Report contradictions between documents, or between them and the toolkit, to Taylor; do not resolve them.
-- Product Phase 1 is done when AC-1 to AC-43 and AC-53 pass (PRD 13.2: every criterion is Phase 1 unless under its "Phase 2" or "Phase 3" heading) and Taylor uses the tool daily. Milestones M6 and M7 are product Phase 2; Taylor cleared the hard stop after M5 on 2026-10-17, so they proceed (daily use is deferred until after M7).
+- Product Phase 1 is done when AC-1 to AC-43 and AC-53 pass (PRD 13.2: every criterion is Phase 1 unless under its "Phase 2" or "Phase 3" heading) and Taylor uses the tool daily. Milestones M6 and M7 are product Phase 2; Taylor cleared the hard stop after M5 on 2026-10-17, so they ran; both are done (daily use is deferred until after the release handoff).
 - Do not run any skill-management tool against this repository.
-- Do not add a license file without asking (PRD Q11 is open).
-- Commit on `main` (see CLAUDE.md commit policy); never push without explicit approval.
+- PRD Q11 is answered (2026-10-17): package `unambiguous`, binary `unam`, license `MIT OR Apache-2.0` (`LICENSE-MIT`, `LICENSE-APACHE`). Do not add other license files without asking.
+- Commit on `main` (see CLAUDE.md commit policy); never push or tag without explicit approval. A git remote exists: `origin` is `https://github.com/taylorsegell/unambiguous.git` (nothing pushed by agents).
 
 ## Threat Model (set by Taylor, 2026-10-09)
 
@@ -100,7 +100,7 @@ For most substantial tasks:
 | `process/context/all-context.md` | any substantial planning, research, review, or implementation task |
 | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M6 (699 tests); CI written, not yet run) |
+| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M7 (712 tests); CI written, not yet run) |
 
 ## Current Context Groups
 
@@ -108,7 +108,7 @@ For most substantial tasks:
 |---|---|---|
 | `planning/` | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `product/` | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M6 (699 tests); CI written, not yet run) |
+| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M7 (712 tests); CI written, not yet run) |
 <!-- /GENERATED:routing -->
 
 ## Task Routing Table
@@ -158,12 +158,17 @@ unambiguous/
   README.md START-HERE.md .gitignore
 ```
 
-Source layout as of milestone M6 (M1 created 2026-10-05, M2 added the desired-state side, M3 added plan and apply, M4 added verify, reconcile, and doctor, M5 added the agents-neutral adapter and generated briefs, M6 added the interactive picker; the rest of spec section 1.3 arrives in later milestones):
+Source layout as of milestone M7 (M1 created 2026-10-05, M2 added the desired-state side, M3 added plan and apply, M4 added verify, reconcile, and doctor, M5 added the agents-neutral adapter and generated briefs, M6 added the interactive picker, M7 added release files and docs; spec section 1.3 is complete for v1):
 
 ```
 Cargo.toml Cargo.lock clippy.toml     virtual workspace, resolver = "3", unwrap denied
-dist-workspace.toml                   hand-written, unverified (dist not installed)
+dist-workspace.toml                   cargo-dist 0.32.0 config (ci github, shell + homebrew installers, four
+                                      targets); checked by `dist plan` and `dist generate --check`
+LICENSE-MIT LICENSE-APACHE            MIT OR Apache-2.0 (Apache text identical to the clap copy)
+README.md CHANGELOG.md                M7 rewrite; Keep a Changelog, 0.1.0 Unreleased
 .github/workflows/ci.yml              fmt, clippy, test on ubuntu and macos; written, not yet run
+.github/workflows/release.yml         generated by `dist generate`; runs `dist plan` on pull requests, builds on a
+                                      version-tag push only; never run
 crates/
   unam-core/src/                      config, paths, error, fsops (FsOps seam, typed paths), hash, source,
                                       resolve, observe, state, plan, apply, change,
@@ -178,6 +183,7 @@ crates/
   unam-cli/tests/                     ac_read_path, ac_bundles, ac_selection, ac_activation,
                                       ac_recovery, ac_verify, ac_reconcile, doctor_cli, activation_cli,
                                       ac_agents_neutral, ac_briefs, phase1_checks, phase1_exit,
+                                      docs_json, docs_adapters, docs_honesty, release_files, broken_pipe,
                                       bundle_cli, read_side_invariant,
                                       search_cli, show_cli, source_cli, cache_cli, usage, snapshots
                                       (+ common/{mod,faults}.rs, fixtures/)
@@ -185,19 +191,21 @@ crates/
                                       JSONL journal, history, lock; target is the adapter name
 docs/adapters.md                      spec-called doc (M2): Hermes slugify differences and bundle loader
                                       differences; M4 added the claude-code evidence table and M0 Outcome;
-                                      M7 regenerates the adapter-evidence part and keeps the M2 sections
+                                      M7 kept the M2 sections; a test matches every doctor --evidence claim to a row
+docs/json.md                          M7: --json envelope plus one section per command (38 markers, one per JSON
+                                      snapshot; a test fails if a snapshot has no marker)
 ```
 
-Still to come: `docs/json.md` (M7). The M6 `tui/` modules exist: `actions.rs` is the only module that calls `unam-core` (a parity test proves no other write path), and the TUI tests are in-crate (`cargo test -p unambiguous --bin unam tui::`) because `unam-cli` is bin-only. `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 regenerates the adapter-evidence part and must keep the two M2 sections).
+Nothing from spec section 1.3 is still to come for v1. The M6 `tui/` modules exist: `actions.rs` is the only module that calls `unam-core` (a parity test proves no other write path), and the TUI tests are in-crate (`cargo test -p unambiguous --bin unam tui::`) because `unam-cli` is bin-only. `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 kept the two M2 sections and added a test that matches every `doctor --evidence` claim to a table row).
 
 ## Technology Stack
 
 - **Language:** Rust, stable toolchain, edition 2024. Local toolchain at setup: rustc 1.99.0, cargo 1.99.0 (stable-aarch64-apple-darwin).
 - **Platforms:** macOS and Linux. Windows is not a v1 build target.
-- **Workspace:** Cargo virtual workspace, crates `unam-core` (library) and `unam-cli` (binary `unam`). Created in milestone M1; M2 added no crates (lockfile unchanged).
+- **Workspace:** Cargo virtual workspace, crates `unam-core` (library) and `unam-cli` (package `unambiguous` since M7, binary `unam`; use `-p unambiguous`, `-p unam-cli` does not exist). Created in milestone M1; M2 added no crates (lockfile unchanged). License `MIT OR Apache-2.0`, `rust-version` 1.89, `publish = false`.
 - **Dependencies in use (M1; lockfile committed):** clap 4.6.7 (derive), serde 1.0.229, serde_json 1.0.151, serde_norway 0.9.42, toml 1.1.6, ignore 0.4.33, blake3 1.8.7, nucleo-matcher 0.3.1, jiff 0.2.37, thiserror 2.0.21 (core), anyhow 1.0.104 (binary), tracing 0.1.44 + tracing-subscriber 0.3.23. Test: assert_cmd 2.2.2, predicates 3.1.4, insta 1.49.0, tempfile 3.27.0, proptest 1.11.0. M6 added `ratatui` 0.30.2 with `default-features = false, features = ["termion"]` (lockfile 141 to 180 packages). Departures from spec 1.4: `directories` dropped (paths resolved in `paths.rs`), `nucleo-matcher` instead of full `nucleo` (umbrella open items 15 and 20), and **termion instead of crossterm** as the TUI backend (Taylor decision 2026-10-17): ratatui's crossterm backend always enables crossterm `events`, which pulls `mio`, which the `no_network_dependencies` test denies (feasibility VERDICT `phase-07-m6-tui_FEASIBILITY_17-10-26.md`). Never add `crossterm`, `mio`, `socket2`, or `signal-hook`; `panic = "abort"` is banned by `no_panic_abort_profile`. Still planned: `fs4` (M3).
 - **Deliberately absent in v1:** any Git library (shell out to `git` when present).
-- **Release:** `cargo-dist` (milestone M7). `dist` and `cargo-insta` are not installed locally; `dist-workspace.toml` is parse-checked only.
+- **Release:** `cargo-dist` 0.32.0 is installed (`~/.cargo/bin/dist`); `dist-workspace.toml` and `.github/workflows/release.yml` are verified locally by `dist plan` and `dist generate --check` (the first real release run is Taylor's: push, then tag `v0.1.0`). Four archives (aarch64 and x86_64 for macOS and Linux gnu), shell installer, Homebrew formula (`taylorsegell/homebrew-tap`, publish job disabled). cargo-dist rejects a universal macOS target. `cargo-insta` is not installed. The release profile must not set `panic = "abort"` (a test enforces it).
 - **Harness:** vibecode-pro-max-kit 3.2.5; Node.js v24.11.1 runs its validators.
 
 ## Key Patterns and Conventions
@@ -229,7 +237,8 @@ From `docs/PROJECT-BRIEF.md`, "Open questions":
 | Default strategy per adapter (PRD Q1) | milestone M0. ANSWERED 2026-10-05: `symlink` for both `claude-code` and `agents-neutral` (`spike/symlink-discovery.md`) |
 | Hermes `slugify` parity | milestone M2 |
 | First real project to adopt `unam` | end of milestone M3 |
-| Crate name and license (PRD Q11) | before milestone M7 |
+| Crate name and license (PRD Q11) | ANSWERED 2026-10-17: package `unambiguous`, binary `unam`, `MIT OR Apache-2.0` |
+| Linux and CI first run; first release; Homebrew tap | Taylor, at the release handoff (M7 report "For Taylor") |
 
 ---
 
@@ -258,7 +267,7 @@ When durable project knowledge changes:
 
 ## Scan Metadata
 
-- Generated: 2026-10-04; delta update 2026-10-17 (milestone M6 closeout)
-- HEAD: commit 9658536 or later (the M6 process commit follows it)
-- Mode: delta (status, repository structure refreshed; M6 added ratatui (termion) and 38 transitive packages to `Cargo.lock`)
+- Generated: 2026-10-04; delta update 2026-10-17 (milestone M7 closeout, program complete)
+- HEAD: commit 473161c or later (the M7 process commit follows it)
+- Mode: delta (status, structure, stack, release tooling, and open questions refreshed; M7 changed `Cargo.lock` only by the package rename, 180 names before and after)
 - Package manager: cargo (workspace exists since milestone M1)

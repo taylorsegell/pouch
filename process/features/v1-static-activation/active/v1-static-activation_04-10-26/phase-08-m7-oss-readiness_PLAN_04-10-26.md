@@ -16,9 +16,9 @@ metadata:
 **Date**: 04-10-26 (supplemented 2026-10-17; light lane per `v1-static-activation_WAVES_09-10-26.md`: plan about 400 lines, PVL at most 2 cycles, only FAIL-class gaps count)
 **Complexity**: COMPLEX
 **Phase:** Phase 8 of 8: milestone M7
-**Status**: CODE DONE 2026-10-17 (EXECUTE complete; next loop step EVL)
-**Phase status:** CODE DONE; product Phase 1 gate cleared 2026-10-17; PRD Q11 decided by Taylor 2026-10-17
-**Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_REPORT_04-10-26.md (flat in the program task folder)
+**Status**: VERIFIED (WITH_GAPS) 2026-10-17 (EXECUTE 9897bfe; EVL HALTED_SUCCESS in 2 iterations plus test-strengthening commit 473161c; UPDATE PROCESS done)
+**Phase status:** VERIFIED (WITH_GAPS); product Phase 1 gate cleared 2026-10-17; PRD Q11 decided by Taylor 2026-10-17
+**Report destination:** process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_REPORT_17-10-26.md (flat in the program task folder)
 **Primary execute anchor:** this file. Supporting phase files: none.
 **Execution strategy:** sequential, one sonnet execute agent (Taylor: all agents sonnet; this overrides the umbrella's "opus EXECUTE" line). INNOVATE skipped: Taylor's 2026-10-17 decisions (D-NAME to D-BREW below) resolved every design choice. Reuse the M6 test pattern (`Command::output()`, never the spawn text).
 
@@ -243,8 +243,8 @@ Orchestrator reads this before deciding which subagent to spawn next. The canoni
 - [x] 3. PLAN-SUPPLEMENT (2026-10-17): existing phase plan rewritten into an executable plan; Inner Loop Refresh Note written
 - [x] 4. PVL (2026-10-17, inner-pvl: phase-8, 2 cycles, Gate PASS, contract written; results in results-m7.tsv): vc-validate-agent: at most 2 cycles; only FAIL-class gaps (wrong requirement mapping, steps that cannot run in order) trigger a cycle; nits go to execute time; validate-contract written per `.claude/skills/vc-validate-findings/references/example-validate-output.md` (Status / Gate / Plan updates applied / Execute-agent instructions / Test gates / High-risk pack / Backlog artifacts / Known gaps / Accepted by)
 - [x] 5. EXECUTE (2026-10-17, code commit 9897bfe): all checklist items done; G1 to G3 green (710 tests), G4a to G4c exit 0; gaps documented in the phase report (Linux/CI stub, universal macOS, S11 interactive half)
-- [ ] 6. EVL: independent vc-tester re-run of G1 to G6; follow-up stubs registered; EVL HANDOFF SUMMARY written
-- [ ] 7. UPDATE PROCESS: phase report written, umbrella state updated, context docs updated (Q11 decided, crate name, 699+ tests, `-p unambiguous`), commit done
+- [x] 6. EVL (2026-10-17, HALTED_SUCCESS in 2 iterations at bae2268, test strengthened in 473161c; results in results-m7-evl.tsv): independent vc-tester re-run of G1 to G6; follow-up stubs registered; EVL HANDOFF SUMMARY written
+- [x] 7. UPDATE PROCESS (2026-10-17): phase report written, umbrella state updated, context docs updated (Q11 decided, crate name, 699+ tests, `-p unambiguous`), commit done
 
 **Validate-contract required before execute.** If step 4 (PVL) is unchecked or `## Validate Contract` reads "(placeholder - vc-validate-agent writes this section before EXECUTE)", the orchestrator must spawn vc-validate-agent first. A partial contract missing Plan updates applied / Execute-agent instructions / Test gates is treated as a placeholder.
 
@@ -300,10 +300,10 @@ Known-Gap residuals (never a PASS): Linux and CI never ran unless the Docker run
 ## Resume and Execution Handoff
 
 - Selected plan file path: `process/features/v1-static-activation/active/v1-static-activation_04-10-26/phase-08-m7-oss-readiness_PLAN_04-10-26.md`
-- Last completed step: 4 PVL (2026-10-17; 2 cycles, 6 FAIL-class gaps F1 to F6 fixed in the plan, Gate PASS)
+- Last completed step: 7 UPDATE PROCESS (2026-10-17; all steps 1 to 7 done; VERIFIED WITH_GAPS)
 - Validate-contract status: written (2026-10-17, generated-by inner-pvl: phase-8, Gate PASS)
 - Supporting context files: `process/context/all-context.md`, `process/context/product/all-product.md`, `process/context/tests/all-tests.md`, `process/context/planning/all-planning.md`, `phase-07-m6-tui_REPORT_17-10-26.md` (deviation list), `phase-06-m5-agents-neutral-and-briefs_REPORT_04-10-26.md`
-- Next step: EXECUTE (step 5) on sonnet with the exact plan path, honoring the Validate Contract's EX1 to EX17; pass `PATH` and `INSTA_UPDATE=no` as in the Exit Gate block; EXECUTE step C1 is the only network use and writes only under `~/.cargo`.
+- Next step: none in the loop. This was the last milestone. Next is Taylor's release handoff (steps 1 to 7 in the M7 report "For Taylor"), then daily use, the D4 real activation, and S5.
 
 ---
 
@@ -437,7 +437,7 @@ Accepted by: not required (no CONCERN remains); the named residuals above are re
 
 ## Next Step
 
-ENTER EXECUTE MODE with this plan path (validate-contract Gate PASS; honor G5 and EX1 to EX17).
+None in the loop: M7 is VERIFIED (WITH_GAPS). Next is Taylor's release handoff (M7 report "For Taylor"), then daily use, D4, and S5.
 
 ---
 
@@ -448,3 +448,4 @@ EXECUTE 2026-10-17. Full list with EX1 to EX17 in `phase-08-m7-oss-readiness_REP
 1. G6 literal grep `! grep -rE '\.spawn\(|#\[ignore' crates` cannot pass: `crates/unam-cli/tests/phase1_checks.rs` line 223 holds a deliberate `.spawn()` in the existing `no_background_process` control, present at BASE. No M7 file contains either pattern. Judged as: no new hit.
 2. The `-p unam` strings in the live docs listed in the Blast Radius were replaced as planned; `all-product.md` held none. One sentence in `process/context/tests/all-tests.md` line 23 still says "the CLI package is `unam`"; it is context-doc prose and is left for UPDATE PROCESS (EX17).
 3. This plan file's own `-p unam` mentions are descriptions of the change and were left as they are.
+4. EVL (2026-10-17): iteration 1 found a broken-pipe panic (`unam --json search ... | head`, exit 101); fix cycle 1 (15764ef) routed stdout writes through `out!`/`outln!` and added `version = "0.1.0"` to the `unam-core` workspace dependency. Iteration 2 HALTED_SUCCESS at bae2268 (712 tests). Commit 473161c strengthened the human-output broken-pipe test so it overflows the pipe buffer. Outside the plan's literal file list (`crates/unam-cli/src/**`, `crates/unam-cli/tests/broken_pipe.rs`, workspace `Cargo.toml`); recorded in the M7 report.

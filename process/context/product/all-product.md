@@ -103,7 +103,7 @@ M0 results: milestone M0 ran on 2026-10-05; its Outcome is in `spike/symlink-dis
 
 ## Architecture Summary
 
-One binary, `unam`, from a Cargo workspace with two crates. `unam-core` holds all logic. `unam-cli` holds a `clap` CLI and a `ratatui` picker that only call the core. Three state stores are never merged: desired (`<root>/.unam/selection.yaml`), applied (`<root>/.unam/applied.json`), observed (a filesystem scan). Source paths are a read-only newtype that no write function accepts. Two adapters in product Phase 1: `claude-code` (`.claude/skills`) and `agents-neutral` (`.agents/skills`). Details: spec sections 1 to 4.
+One binary, `unam`, from a Cargo workspace with two crates. `unam-core` holds all logic. `unam-cli` (package `unambiguous` since M7) holds a `clap` CLI and a `ratatui` picker that only call the core. Three state stores are never merged: desired (`<root>/.unam/selection.yaml`), applied (`<root>/.unam/applied.json`), observed (a filesystem scan). Source paths are a read-only newtype that no write function accepts. Two adapters in product Phase 1: `claude-code` (`.claude/skills`) and `agents-neutral` (`.agents/skills`). Details: spec sections 1 to 4.
 
 ## Source Paths
 
