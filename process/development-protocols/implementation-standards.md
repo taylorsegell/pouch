@@ -71,7 +71,7 @@ See skill: invoke `vc-risk-evidence-pack` for the full 6-class definitions, 5-ar
 Every wait must end. On 2026-10-17 an agent ran `until grep -q "Doc-tests\|error: test failed" <task>.output; do sleep 3; done`; neither string ever appeared, and the loop spun for about 16 hours.
 
 - Never poll a background command's output file. Background Bash commands and agents send a notification when they exit, so wait for that instead.
-- If a wait loop is truly unavoidable, it MUST have a hard bound: `timeout <secs>` or a loop counter. It must also exit when the watched process is gone (`kill -0 $pid || break`), not only when a success string matches.
+- If a wait loop is truly unavoidable, it MUST have a hard bound: a loop counter, or `perl -e 'alarm N; exec @ARGV' <cmd>` (portable to macOS). Shell `timeout`/`gtimeout` only exist where GNU coreutils is installed, so do not rely on them. It must also exit when the watched process is gone (`kill -0 $pid || break`), not only when a success string matches.
 - Run long test suites (cargo test, and especially `UNAM_FULL_FAULT_MATRIX=1`, which takes about 150 s) in the foreground with the Bash tool's `timeout` parameter (at most 600000 ms). For anything longer, run it in the background and rely on the exit notification.
 - Before returning a final status, an agent confirms that nothing it started is still running.
 
