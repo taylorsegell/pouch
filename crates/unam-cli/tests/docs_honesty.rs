@@ -18,7 +18,7 @@ fn repo_root() -> PathBuf {
 
 /// Marker phrases the README must contain, literally.
 const REQUIRED: [&str; 4] = [
-    "Linux: not yet verified",
+    "Linux: tests pass in CI on Ubuntu x86_64",
     "Cursor editor and Windsurf are not tested",
     "no telemetry",
     "no network",
