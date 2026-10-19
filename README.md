@@ -74,7 +74,7 @@ Per-user settings live in `~/.config/unam/` (override with `UNAM_CONFIG_DIR`); e
 
 ## Platforms and evidence
 
-- Linux: not yet verified. The tool is built and tested on macOS. The CI workflow in `.github/workflows/ci.yml` has never run, and no Linux test run has completed.
+- Linux: tests pass in CI on Ubuntu x86_64 (`.github/workflows/ci.yml`, the same fmt, clippy, and test gates as macOS). How the agents discover skills on Linux was not spike-tested (the M0 spike ran on macOS), aarch64 Linux has not been run, and the release build has not run yet.
 - The `claude-code` and `agents-neutral` adapters rest on a recorded discovery spike (`spike/symlink-discovery.md`) and on vendor documentation; every claim and its source is listed in `docs/adapters.md` and printed by `unam doctor --evidence`.
 - Evidence for Cursor is for the `cursor-agent` CLI only. The Cursor editor and Windsurf are not tested; their rows rest on documentation.
 - Windows is not a target.

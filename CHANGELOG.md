@@ -25,7 +25,7 @@ The first version. Nothing has been tagged, pushed as a release, or published; s
 
 ### Known limits
 
-- Linux is not yet verified; the continuous-integration workflow has never run.
+- Linux: the test suite passes in CI on Ubuntu x86_64; agent discovery on Linux is not spike-tested and aarch64 Linux has not been run.
 - The Cursor editor and Windsurf are not tested; Cursor evidence is for the `cursor-agent` CLI only.
 - The picker uses `termion` instead of `crossterm`; a resize shows on the next key press and an external SIGTERM leaves the terminal raw.
 - A universal macOS binary is not built: cargo-dist 0.32.0 does not support that target spelling.
