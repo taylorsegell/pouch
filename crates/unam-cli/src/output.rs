@@ -366,13 +366,23 @@ pub fn render_plan(plan: &Plan, refresh: Option<&RefreshNote>) -> String {
         s.push('\n');
     }
     s.push_str(&format!(
-        "Catalog estimate   {} skills, ~{} tokens (estimate)\n",
-        plan.estimate.skills, plan.estimate.tokens
+        "Catalog estimate   {} {}, ~{} tokens (estimate)\n",
+        plan.estimate.skills,
+        if plan.estimate.skills == 1 {
+            "skill"
+        } else {
+            "skills"
+        },
+        plan.estimate.tokens
     ));
     if let Some(r) = refresh
         && !plan.steps.is_empty()
     {
-        s.push_str(&format!("After apply        {}\n", neutralize(&r.text)));
+        // The plan is shown before the apply, so the note reads in future tense.
+        let text = r
+            .text
+            .replacen("this apply created", "this apply will create", 1);
+        s.push_str(&format!("After apply        {}\n", neutralize(&text)));
     }
     s
 }
