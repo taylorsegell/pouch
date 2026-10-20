@@ -1,87 +1,87 @@
-# Unambiguous
+# Pouch
 
-`unam` is a command-line tool that controls which agent skills a project is exposed to. You keep one skill library in one place. `unam` activates only the skills a project needs, so the agent chooses from a short, relevant list instead of the whole library. Choosing from four relevant skills is more accurate than choosing from four hundred; saving tokens is a side effect.
+`pouch` is a command-line tool that controls which agent skills a project is exposed to. You keep one skill library in one place. `pouch` activates only the skills a project needs, so the agent chooses from a short, relevant list instead of the whole library. Choosing from four relevant skills is more accurate than choosing from four hundred; saving tokens is a side effect.
 
 It places skills where your project's agent looks for them (symlinks by default), remembers what it placed, and can verify, repair, and undo it. It never writes to your library and never touches files it did not place.
 
 ## First run: pick two skills
 
 ```
-unam source add lib ~/skills     # once: register your skill library under the alias "lib"
+pouch source add lib ~/skills     # once: register your skill library under the alias "lib"
 cd ~/code/my-project             # any project; its root is the nearest directory with a .git
-unam                             # opens the picker
+pouch                             # opens the picker
 # Type a few letters to search the library. Press space on two skills to mark them.
 # Press enter to confirm. The plan shows the two adds, the destination, and which
 # agents will see them. Press enter again to accept. Both skills are now active.
 ```
 
-Undo it with `unam deactivate`, or remove one skill with `unam rm lib:path/to/skill`.
+Undo it with `pouch deactivate`, or remove one skill with `pouch rm lib:path/to/skill`.
 
 ## Install
 
 From a clone of this repository (needs a Rust toolchain, 1.89 or newer):
 
 ```
-cargo install --path crates/unam-cli --locked
+cargo install --path crates/pouch-cli --locked
 ```
 
-This installs the `unam` binary into `~/.cargo/bin`. Prebuilt archives for macOS and Linux (x86_64 and aarch64) and a shell installer are on the [v0.1.0 release page](https://github.com/taylorsegell/unambiguous/releases/tag/v0.1.0). To install with the shell installer:
+This installs the `pouch` binary into `~/.cargo/bin`. Prebuilt archives for macOS and Linux (x86_64 and aarch64) and a shell installer are on the [v0.1.0 release page](https://github.com/taylorsegell/pouch/releases/tag/v0.1.0). To install with the shell installer:
 
 ```
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/taylorsegell/unambiguous/releases/download/v0.1.0/unambiguous-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/taylorsegell/pouch/releases/download/v0.1.0/pouch-installer.sh | sh
 ```
 
-`cargo install unambiguous` does not work, because the crate is not published to crates.io. Homebrew is not available yet.
+`cargo install pouch` does not work, because the crate is not published to crates.io. Homebrew is not available yet.
 
 ## First activation without the picker
 
 Everything the picker does is also a plain command, with `--json` output for scripts (see `docs/json.md`).
 
 ```
-unam source add lib ~/skills            # register the library
-unam search review                      # find skills; rows show name, category, source
-unam show lib:sdlc/code-review          # one skill: metadata, files, absolute path
+pouch source add lib ~/skills            # register the library
+pouch search review                      # find skills; rows show name, category, source
+pouch show lib:sdlc/code-review          # one skill: metadata, files, absolute path
 cd ~/code/my-project
-unam add lib:sdlc/code-review --yes     # plan, then apply without a prompt
-unam status                             # the six-state table for this project
+pouch add lib:sdlc/code-review --yes     # plan, then apply without a prompt
+pouch status                             # the six-state table for this project
 ```
 
-`--yes` skips the confirmation prompt; the plan is still printed. Without it, and without a terminal, `unam` refuses rather than guessing. Without `--target`, a change uses the target already in the project's selection; a new project gets the agent `unam` detects there, or Claude Code (`.claude/skills`) when it detects none. Pass `--target agents-neutral` for the shared `.agents/skills` directory that Codex, Cursor, Windsurf and Devin, and Hermes read.
+`--yes` skips the confirmation prompt; the plan is still printed. Without it, and without a terminal, `pouch` refuses rather than guessing. Without `--target`, a change uses the target already in the project's selection; a new project gets the agent `pouch` detects there, or Claude Code (`.claude/skills`) when it detects none. Pass `--target agents-neutral` for the shared `.agents/skills` directory that Codex, Cursor, Windsurf and Devin, and Hermes read.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `unam` | Open the picker (needs a terminal); without one it prints usage and status |
-| `unam source add\|list\|rm\|relocate` | Register, list, unregister, or move a skill library |
-| `unam search [words]` | Search skills across sources |
-| `unam show <skill>` | Show one skill: metadata, supporting files, absolute path |
-| `unam bundle save\|ls\|show\|edit\|duplicate\|rm\|add` | Manage named sets of skills |
-| `unam add <skill>...` | Add skills to this project's selection and apply them |
-| `unam rm <skill>...` | Remove skills from the selection and apply the change |
-| `unam use <bundle> --replace\|--add` | Use a bundle in this project |
-| `unam deactivate` | Remove every skill `unam` placed for the target and clear its selection |
-| `unam resume`, `unam rollback` | Finish or undo an interrupted apply; `rollback` also restores the previous state |
-| `unam status` | Show whether each selected skill is selected, applied, active, shadowed, foreign, or orphaned |
-| `unam reconcile [--repair]` | Report where the destination differs from the selection, and optionally repair it |
-| `unam doctor [--evidence]` | Check symlinks, the destination, sources, the receipt, and the journal; `--evidence` lists every adapter claim with its source |
+| `pouch` | Open the picker (needs a terminal); without one it prints usage and status |
+| `pouch source add\|list\|rm\|relocate` | Register, list, unregister, or move a skill library |
+| `pouch search [words]` | Search skills across sources |
+| `pouch show <skill>` | Show one skill: metadata, supporting files, absolute path |
+| `pouch bundle save\|ls\|show\|edit\|duplicate\|rm\|add` | Manage named sets of skills |
+| `pouch add <skill>...` | Add skills to this project's selection and apply them |
+| `pouch rm <skill>...` | Remove skills from the selection and apply the change |
+| `pouch use <bundle> --replace\|--add` | Use a bundle in this project |
+| `pouch deactivate` | Remove every skill `pouch` placed for the target and clear its selection |
+| `pouch resume`, `pouch rollback` | Finish or undo an interrupted apply; `rollback` also restores the previous state |
+| `pouch status` | Show whether each selected skill is selected, applied, active, shadowed, foreign, or orphaned |
+| `pouch reconcile [--repair]` | Report where the destination differs from the selection, and optionally repair it |
+| `pouch doctor [--evidence]` | Check symlinks, the destination, sources, the receipt, and the journal; `--evidence` lists every adapter claim with its source |
 
 Global flags: `--json`, `--project <PATH>`, `--target <ID>`, `--yes`, `--no-cache`, `-v`, `-q`. A skill is named `alias:relative/path`; a bare name works when it is unambiguous, and an ambiguous one is an error that lists the candidates.
 
-Per-user settings live in `~/.config/unam/` (override with `UNAM_CONFIG_DIR`); each project keeps its own state in `<root>/.unam/`. `unam` makes no network connections and sends no telemetry.
+Per-user settings live in `~/.config/pouch/` (override with `POUCH_CONFIG_DIR`); each project keeps its own state in `<root>/.pouch/`. `pouch` makes no network connections and sends no telemetry.
 
 ## What activation does and does not do
 
-- **no network, no telemetry.** `unam` has no network dependency and runs no background process.
-- After each change `unam` says what the agent needs to see it: nothing, a reload command, a restart, or "not documented". It reads this from the adapter, not from a guess.
+- **no network, no telemetry.** `pouch` has no network dependency and runs no background process.
+- After each change `pouch` says what the agent needs to see it: nothing, a reload command, a restart, or "not documented". It reads this from the adapter, not from a guess.
 - After each removal it says that a conversation which already loaded the instructions keeps them until it ends.
 - "Verified" means discoverable under the target's documented scan rules. It does not prove a running agent loaded the skill.
-- A bundle can carry an instruction. By default `unam` writes it as a small generated skill, `<bundle>-brief`, next to the bundle's skills. It is discoverable; `unam` cannot make an agent read it. A bundle opts out with `metadata.unambiguous.materialize_instruction: false` (see `docs/adapters.md`).
+- A bundle can carry an instruction. By default `pouch` writes it as a small generated skill, `<bundle>-brief`, next to the bundle's skills. It is discoverable; `pouch` cannot make an agent read it. A bundle opts out with `metadata.pouch.materialize_instruction: false` (see `docs/adapters.md`).
 
 ## Platforms and evidence
 
 - Linux: tests pass in CI on Ubuntu x86_64 (`.github/workflows/ci.yml`, the same fmt, clippy, and test gates as macOS). How the agents discover skills on Linux was not spike-tested (the M0 spike ran on macOS), the release workflow builds aarch64 Linux archives, but they have not been run on an aarch64 Linux machine.
-- The `claude-code` and `agents-neutral` adapters rest on a recorded discovery spike (`spike/symlink-discovery.md`) and on vendor documentation; every claim and its source is listed in `docs/adapters.md` and printed by `unam doctor --evidence`.
+- The `claude-code` and `agents-neutral` adapters rest on a recorded discovery spike (`spike/symlink-discovery.md`) and on vendor documentation; every claim and its source is listed in `docs/adapters.md` and printed by `pouch doctor --evidence`.
 - Evidence for Cursor is for the `cursor-agent` CLI only. The Cursor editor and Windsurf are not tested; their rows rest on documentation.
 - Windows is not a target.
 
@@ -111,9 +111,9 @@ Per-user settings live in `~/.config/unam/` (override with `UNAM_CONFIG_DIR`); e
 
 ## Development
 
-Rust (stable, edition 2024) for macOS and Linux. The workspace has two crates: `unam-core` (all logic) and `unambiguous` (the `unam` binary). Run the checks with `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, and `cargo test --workspace --locked`. Tests use temporary directories and never touch your config or your skill library. Project context for agents lives in `process/context/`; the workflow is driven by vibecode-pro-max-kit.
+Rust (stable, edition 2024) for macOS and Linux. The workspace has two crates: `pouch-core` (all logic) and `pouch` (the `pouch` binary). Run the checks with `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, and `cargo test --workspace --locked`. Tests use temporary directories and never touch your config or your skill library. Project context for agents lives in `process/context/`; the workflow is driven by vibecode-pro-max-kit.
 
-Do not run `unam` against this repository: the development toolkit owns `.claude/skills/` here.
+Do not run `pouch` against this repository: the development toolkit owns `.claude/skills/` here.
 
 ## License
 

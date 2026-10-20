@@ -1,5 +1,7 @@
 # Kickoff prompt
 
+Renamed: this project is now called pouch (binary `pouch`) as of 2026-10-20; this document keeps the original name as history.
+
 Paste everything in the block below into a new Claude Code session started in the project folder, after the toolkit installer has run.
 
 ```text

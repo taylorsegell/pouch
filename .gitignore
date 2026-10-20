@@ -5,12 +5,12 @@
 # OS
 .DS_Store
 
-# unam project state, in case unam is ever pointed at a project inside this repo
-.unam/applied.json
-.unam/journal.json
-.unam/history/
-.unam/lock
-.unam/atlas.json
+# pouch project state, in case pouch is ever pointed at a project inside this repo
+.pouch/applied.json
+.pouch/journal.json
+.pouch/history/
+.pouch/lock
+.pouch/atlas.json
 
 # vibecode-pro-max-kit
 .vc-version
