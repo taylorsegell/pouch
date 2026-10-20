@@ -25,7 +25,13 @@ From a clone of this repository (needs a Rust toolchain, 1.89 or newer):
 cargo install --path crates/unam-cli --locked
 ```
 
-This installs the `unam` binary into `~/.cargo/bin`. Prebuilt release archives and installers, and `cargo install unambiguous`, will exist only after the first release and publication. Neither has happened yet, so do not expect them.
+This installs the `unam` binary into `~/.cargo/bin`. Prebuilt archives for macOS and Linux (x86_64 and aarch64) and a shell installer are on the [v0.1.0 release page](https://github.com/taylorsegell/unambiguous/releases/tag/v0.1.0). To install with the shell installer:
+
+```
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/taylorsegell/unambiguous/releases/download/v0.1.0/unambiguous-installer.sh | sh
+```
+
+`cargo install unambiguous` does not work, because the crate is not published to crates.io. Homebrew is not available yet.
 
 ## First activation without the picker
 
@@ -74,7 +80,7 @@ Per-user settings live in `~/.config/unam/` (override with `UNAM_CONFIG_DIR`); e
 
 ## Platforms and evidence
 
-- Linux: tests pass in CI on Ubuntu x86_64 (`.github/workflows/ci.yml`, the same fmt, clippy, and test gates as macOS). How the agents discover skills on Linux was not spike-tested (the M0 spike ran on macOS), aarch64 Linux has not been run, and the release build has not run yet.
+- Linux: tests pass in CI on Ubuntu x86_64 (`.github/workflows/ci.yml`, the same fmt, clippy, and test gates as macOS). How the agents discover skills on Linux was not spike-tested (the M0 spike ran on macOS), the release workflow builds aarch64 Linux archives, but they have not been run on an aarch64 Linux machine.
 - The `claude-code` and `agents-neutral` adapters rest on a recorded discovery spike (`spike/symlink-discovery.md`) and on vendor documentation; every claim and its source is listed in `docs/adapters.md` and printed by `unam doctor --evidence`.
 - Evidence for Cursor is for the `cursor-agent` CLI only. The Cursor editor and Windsurf are not tested; their rows rest on documentation.
 - Windows is not a target.

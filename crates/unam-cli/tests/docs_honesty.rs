@@ -17,16 +17,21 @@ fn repo_root() -> PathBuf {
 }
 
 /// Marker phrases the README must contain, literally.
-const REQUIRED: [&str; 4] = [
+const REQUIRED: [&str; 6] = [
     "Linux: tests pass in CI on Ubuntu x86_64",
     "Cursor editor and Windsurf are not tested",
+    "does not work, because the crate is not published to crates.io",
+    "Homebrew is not available yet",
     "no telemetry",
     "no network",
 ];
 
 /// Phrases no line of any public document may contain (compared lower case).
-const FORBIDDEN: [&str; 3] = [
+const FORBIDDEN: [&str; 6] = [
     "Linux is verified",
+    "cargo install unambiguous works",
+    "brew install is available",
+    "published to crates.io and",
     "Windsurf is supported",
     "Cursor editor is supported",
 ];
