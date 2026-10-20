@@ -1,0 +1,16 @@
+---
+source: crates/pouch-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "source rm",
+  "data": {
+    "alias": "fx",
+    "removed": true,
+    "forced": false,
+    "dangling_projects": []
+  },
+  "warnings": [],
+  "errors": []
+}
