@@ -8,14 +8,14 @@ date: 20-10-26
 
 TL;DR: one mechanical, script-driven rename of every product-name use of `unam` / `unambiguous` to `pouch` across crates, tests, snapshots, docs, and current context, with the five protected docs getting a single added line. Gated by the full existing suite (including the full fault matrix), `dist` checks, and a new residual-name guard test. Three commits on `main`, no push. GitHub, release, tap, and folder steps are Taylor's, listed in the Handoff.
 
-Status: PLANNED (validate-contract written 2026-10-20, generated-by outer-pvl; VALIDATE plan updates P1 to P14 applied, listed in the contract)
+Status: VERIFIED and complete (2026-10-20). EVL G1 to G16 green in an independent vc-tester rerun (717 tests, full fault matrix green). Commits on main, none pushed: 5b69070 refactor (rename), 20cc06f docs, 0ef9078 process (context and plan). Archived at UPDATE PROCESS.
 Date: 20-10-26
 Complexity: COMPLEX (about 120 code files, 45 snapshots, one Cargo.lock regeneration, no runtime-logic change)
 
 ## Phase Completion Rules
 
 - CODE DONE: steps 1 to 13 applied, not yet independently confirmed.
-- VERIFIED: gates G1 to G14 green in a spawned vc-tester EVL run, protected-doc diff proven, three commits made on main.
+- VERIFIED: gates G1 to G16 green in a spawned vc-tester EVL run, protected-doc diff proven, three commits made on main.
 - Known-gap residuals (aarch64 Linux never executed, agent skill discovery on Linux not spike-tested, AC-44 real-terminal TUI run) are named residuals; they never promote or block rename VERIFIED status. Linux and CI HAVE run (CI green on ubuntu-latest and macos-latest, runs 39179076283 and 39345121170; release workflow succeeded once for unam v0.1.0, run 39345610585), so "Linux/CI never run" is not a residual.
 - Out-of-scope Handoff items stay open until Taylor does them; they do not block VERIFIED.
 
@@ -219,7 +219,7 @@ All work is local and uncommitted until step 15. Before step 4 record `git rev-p
 2. Last completed phase or step: PLAN written; no code touched.
 3. Validate-contract status: written 2026-10-20 (Gate: PASS, generated-by outer-pvl); see `## Validate Contract` and the `## Autonomous Goal Block`.
 4. Supporting context loaded: `process/context/all-context.md`, `tests/all-tests.md`, `planning/all-planning.md`, `product/all-product.md` (routing only), research findings from vc-research-agent, `process/development-protocols/orchestration.md`, `implementation-standards.md`.
-5. Next step for a fresh agent: VALIDATE is done; after "ENTER EXECUTE MODE", a spawned vc-execute-agent starts at step 1 (baseline) and must not skip step 2 or step 3. EVL: a spawned vc-tester re-runs G1 to G14. Model: sonnet for every spawn including EXECUTE (Taylor's standing note), never fable.
+5. Next step for a fresh agent: VALIDATE is done; after "ENTER EXECUTE MODE", a spawned vc-execute-agent starts at step 1 (baseline) and must not skip step 2 or step 3. EVL: a spawned vc-tester re-runs G1 to G16 (done; all green). Model: sonnet for every spawn including EXECUTE (Taylor's standing note), never fable.
 
 ### Handoff: steps that are NOT part of this plan's EXECUTE (each needs Taylor's explicit go-ahead at the time)
 
@@ -230,6 +230,12 @@ All work is local and uncommitted until step 15. Before step 4 record `git rev-p
 5. Homebrew tap `taylorsegell/homebrew-tap`: formula name becomes `pouch` after the first release run.
 6a. Old real-home state is orphaned, not migrated (accepted): `~/.cache/unam` and `~/.local/share/unam/projects.json` exist from 2026-10-19 use (`~/.config/unam` does not). Nothing reads them after the rename; Taylor may delete them and re-run `pouch source add` for his library.
 6. Local folder rename (Taylor does it last): first copy the Claude memory dir `~/.claude/projects/-Users-databased-Developer-01-AI-unambiguous` to the new path-derived name; then the folder rename; then check `process/context` links and `git status`.
+
+## EVL Results (recorded at UPDATE PROCESS, 2026-10-20)
+
+- Gates G1 to G16 all green, independent vc-tester rerun; 717 tests pass; full fault matrix green; closeout classification CLEAN.
+- G6 adaptation: `git grep` on macOS has no reliable `\b`. The working form is `git grep -InEi unam` piped through a python filter `(?i)unam(?!biguous)` plus the allowlist. Positive control at 483e729 found 905 hits; the working tree found 0. Use this form on any rerun.
+- Known gaps unchanged: aarch64 Linux never executed, Linux skill discovery not spike-tested, AC-44 (Taylor), GitHub-side rename and re-release and Homebrew tap (Taylor handoff), `dist generate --check` emits cross-compile and Homebrew homepage warnings only.
 
 ## Known Gaps (Resolved via Backlog)
 
