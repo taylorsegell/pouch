@@ -1,6 +1,6 @@
-# Unambiguous - All Context
+# Pouch - All Context
 
-Last updated: 2026-10-17
+Last updated: 2026-10-20
 
 This file is the root context entrypoint for the repo.
 
@@ -15,11 +15,11 @@ Start here before loading deeper context files.
 
 ## Project
 
-Unambiguous is a Rust command-line tool, invoked as `unam`, that controls which agent skills a project is exposed to. One skill library lives outside every project; `unam` activates a chosen subset in a given project by placing it where that project's agent looks for skills, tracks what it placed, and can verify, repair, and undo it. The goal is accuracy: a model choosing from four relevant skills picks better than one choosing from a whole library. Token savings are a side effect.
+Pouch is a Rust command-line tool, invoked as `pouch` (renamed from Unambiguous / `unam` on 2026-10-20; nothing reads the old `.unam/` state or `~/.config/unam`), that controls which agent skills a project is exposed to. One skill library lives outside every project; `pouch` activates a chosen subset in a given project by placing it where that project's agent looks for skills, tracks what it placed, and can verify, repair, and undo it. The goal is accuracy: a model choosing from four relevant skills picks better than one choosing from a whole library. Token savings are a side effect.
 
 - **User:** Taylor, solo, on macOS and Linux, across Claude Code, Codex, Cursor, and Hermes.
 - **Standard:** personal tool built to open-source-ready standards: tests, docs, reproducible builds, no telemetry, no network.
-- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members), M5 (`agents-neutral` adapter writing `.agents/skills`, ancestor-skill warnings, generated per-bundle instruction briefs with journaled `write_generated`/`remove_generated` steps), M6 (interactive picker: bare `unam` on a terminal opens a three-pane `ratatui` picker over the termion backend), and M7 (OSS readiness: package renamed `unambiguous`, binary `unam`, `MIT OR Apache-2.0`, README, CHANGELOG, `docs/json.md`, cargo-dist release workflow; broken-pipe fix; 712 tests) are done and VERIFIED with gaps. All eight milestones (M0 to M7) are done and the program is at Taylor's release handoff. Open: Taylor's manual real-terminal runs (M6 AC-44, S11 interactive half), Linux and CI never run, the first real release run (push and tag are Taylor's), Homebrew tap, daily use, the first adopting project (D4), and S5. Taylor CLEARED the Product Phase 1 Gate on 2026-10-17. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
+- **Status:** milestones M0 (symlink discovery spike, symlink default for both adapters), M1 (core read path: `source add|list|rm`, `search`, `show`), M2 (bundles, project selection, resolve: `bundle save|ls|show|edit|duplicate|rm|add`, `show` lists referencing bundles), M3 (adapter trait, claude-code plan and apply: `add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with journal, receipt, history, and project lock), M4 (`verify`/`status`, `reconcile [--repair]`, rollback from history, `doctor [--evidence]`, `source relocate`, `source rm` counts bundle members), M5 (`agents-neutral` adapter writing `.agents/skills`, ancestor-skill warnings, generated per-bundle instruction briefs with journaled `write_generated`/`remove_generated` steps), M6 (interactive picker: bare `pouch` on a terminal opens a three-pane `ratatui` picker over the termion backend), and M7 (OSS readiness: `MIT OR Apache-2.0`, README, CHANGELOG, `docs/json.md`, cargo-dist release workflow; broken-pipe fix) are done and VERIFIED with gaps. The project was renamed to pouch on 2026-10-20 (package `pouch`, library crate `pouch-core`, binary `pouch`, state dir `.pouch/`, env vars `POUCH_*`; 717 tests). All eight milestones (M0 to M7) are done and the program is at Taylor's release handoff. CI is green on ubuntu-latest and macos-latest (runs 39179076283 and 39345121170); the release workflow ran once, for v0.1.0 under the old name (run 39345610585). Open: Taylor's manual real-terminal runs (M6 AC-44, S11 interactive half), aarch64 Linux never executed, agent skill discovery on Linux not spike-tested, the rename handoff (GitHub repo rename, delete the old v0.1.0 release and tag, push, re-release as pouch v0.1.0; all Taylor's), Homebrew tap, daily use, the first adopting project (D4), and S5. Taylor CLEARED the Product Phase 1 Gate on 2026-10-17. Progress and open items: umbrella plan `## Current Execution State` in `process/features/v1-static-activation/`.
 - **Not a harness.** It sits in front of existing agent harnesses (PRD D7).
 
 Full product and design context: `process/context/product/all-product.md`.
@@ -32,7 +32,7 @@ Recorded verbatim from `docs/PROJECT-BRIEF.md`, "Rules for anyone working in thi
 
 - **No application code before the M0 spike table is filled in.** `spike/symlink-discovery.md`.
 - **The skill library is read-only.** It lives at `~/Developer/01-AI/skillzone/` (confirm the path with Taylor). Inspect it freely; never write to it.
-- **Never run `unam` against this repository.** The development toolkit owns `.claude/skills/` here and links `.agents/skills` to it, so both of `unam`'s adapters would resolve to the same toolkit-owned directory. All `unam` tests use temporary directories and fixtures.
+- **Never run `pouch` against this repository.** The development toolkit owns `.claude/skills/` here and links `.agents/skills` to it, so both of `pouch`'s adapters would resolve to the same toolkit-owned directory. All `pouch` tests use temporary directories and fixtures.
 - **The PRD and spec are authoritative.** Where a plan disagrees with them, they win until Taylor changes them.
 - **Adapter claims need evidence.** Every statement about how an agent discovers skills is backed by a source or a spike result before code depends on it.
 - No publishing to crates.io and no pushing to a remote without Taylor's explicit go-ahead.
@@ -45,12 +45,12 @@ Additional rules set for the harness-setup session (04-10-26), kept as standing 
 - The five design documents that existed at kickoff are protected: `docs/PROJECT-BRIEF.md`, `docs/KICKOFF-PROMPT.md`, `docs/spec/PRD-unambiguous.md`, `docs/spec/unam-technical-spec.md`, `docs/adr/ADR-0001-dynamic-skill-routing.md`. Never move, rename, or rewrite them; an edit needs Taylor's explicit permission for that specific edit. New files the spec calls for (for example `docs/adapters.md`, `docs/json.md`) may be created and maintained. Report contradictions between documents, or between them and the toolkit, to Taylor; do not resolve them.
 - Product Phase 1 is done when AC-1 to AC-43 and AC-53 pass (PRD 13.2: every criterion is Phase 1 unless under its "Phase 2" or "Phase 3" heading) and Taylor uses the tool daily. Milestones M6 and M7 are product Phase 2; Taylor cleared the hard stop after M5 on 2026-10-17, so they ran; both are done (daily use is deferred until after the release handoff).
 - Do not run any skill-management tool against this repository.
-- PRD Q11 is answered (2026-10-17): package `unambiguous`, binary `unam`, license `MIT OR Apache-2.0` (`LICENSE-MIT`, `LICENSE-APACHE`). Do not add other license files without asking.
-- Commit on `main` (see CLAUDE.md commit policy); never push or tag without explicit approval. A git remote exists: `origin` is `https://github.com/taylorsegell/unambiguous.git` (nothing pushed by agents).
+- PRD Q11 was answered on 2026-10-17 (formerly package `unambiguous`, binary `unam`); the project was renamed on 2026-10-20 to package `pouch`, binary `pouch`. License `MIT OR Apache-2.0` (`LICENSE-MIT`, `LICENSE-APACHE`). Do not add other license files without asking.
+- Commit on `main` (see CLAUDE.md commit policy); never push or tag without explicit approval. A git remote exists: `origin` is still `https://github.com/taylorsegell/unambiguous.git` until Taylor renames the GitHub repo to `pouch` (nothing pushed by agents).
 
 ## Threat Model (set by Taylor, 2026-10-09)
 
-`unam` is a single-user local tool. Assume the same user owns the machine and the filesystem is trusted. Untrusted input is limited to skill file content (frontmatter and supporting files) and files that arrive in a cloned repository. Plans and validators must not add hardening against attackers beyond this (for example a concurrent hostile process swapping paths). Safety properties that protect the user from their own mistakes stay: the source library is never written, only receipted entries are removed, foreign files are never touched, and skill names are validated before they become paths.
+`pouch` is a single-user local tool. Assume the same user owns the machine and the filesystem is trusted. Untrusted input is limited to skill file content (frontmatter and supporting files) and files that arrive in a cloned repository. Plans and validators must not add hardening against attackers beyond this (for example a concurrent hostile process swapping paths). Safety properties that protect the user from their own mistakes stay: the source library is never written, only receipted entries are removed, foreign files are never touched, and skill names are validated before they become paths.
 
 ## Vocabulary
 
@@ -100,7 +100,7 @@ For most substantial tasks:
 | `process/context/all-context.md` | any substantial planning, research, review, or implementation task |
 | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M7 (712 tests); CI written, not yet run) |
+| `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for pouch (cargo suite exists since milestone M1, grown through M7 and the pouch rename (717 tests); CI green on ubuntu and macos) |
 
 ## Current Context Groups
 
@@ -108,7 +108,7 @@ For most substantial tasks:
 |---|---|---|
 | `planning/` | `process/context/planning/all-planning.md` | Plan shapes and SIMPLE vs COMPLEX calibration for implementation plans |
 | `product/` | `process/context/product/all-product.md` | Product and design source documents in docs/ and spike/: what each decides and which section answers which question |
-| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for unam (cargo suite exists since milestone M1, grown through M7 (712 tests); CI written, not yet run) |
+| `tests/` | `process/context/tests/all-tests.md` | Test runners, commands, and verification gates for pouch (cargo suite exists since milestone M1, grown through M7 and the pouch rename (717 tests); CI green on ubuntu and macos) |
 <!-- /GENERATED:routing -->
 
 ## Task Routing Table
@@ -166,28 +166,28 @@ dist-workspace.toml                   cargo-dist 0.32.0 config (ci github, shell
                                       targets); checked by `dist plan` and `dist generate --check`
 LICENSE-MIT LICENSE-APACHE            MIT OR Apache-2.0 (Apache text identical to the clap copy)
 README.md CHANGELOG.md                M7 rewrite; Keep a Changelog, 0.1.0 Unreleased
-.github/workflows/ci.yml              fmt, clippy, test on ubuntu and macos; written, not yet run
+.github/workflows/ci.yml              fmt, clippy, test on ubuntu and macos; green (runs 39179076283, 39345121170)
 .github/workflows/release.yml         generated by `dist generate`; runs `dist plan` on pull requests, builds on a
-                                      version-tag push only; never run
+                                      version-tag push only; ran once for v0.1.0 under the old name (run 39345610585)
 crates/
-  unam-core/src/                      config, paths, error, fsops (FsOps seam, typed paths), hash, source,
+  pouch-core/src/                      config, paths, error, fsops (FsOps seam, typed paths), hash, source,
                                       resolve, observe, state, plan, apply, change,
                                       verify, reconcile, doctor, generated (+ generated/tests),
                                       adapter/{mod,claude_code,agents_neutral},
                                       catalog/{mod,cache,frontmatter,lookup,scan,search},
                                       bundle/{mod,crud,slug,edit},
                                       project/{mod,selection,index}
-  unam-core/tests/                    perf_cold_scan.rs (500-skill fixture, 300 ms limit)
-  unam-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle,change,status,doctor},
+  pouch-core/tests/                    perf_cold_scan.rs (500-skill fixture, 300 ms limit)
+  pouch-cli/src/                       main.rs, output.rs, cli/{mod,search,show,source,bundle,change,status,doctor},
                                       tui/{mod,app,actions,picker,views,term,tests}.rs + tui/snapshots/ (6 .snap)
-  unam-cli/tests/                     ac_read_path, ac_bundles, ac_selection, ac_activation,
+  pouch-cli/tests/                     ac_read_path, ac_bundles, ac_selection, ac_activation,
                                       ac_recovery, ac_verify, ac_reconcile, doctor_cli, activation_cli,
                                       ac_agents_neutral, ac_briefs, phase1_checks, phase1_exit,
                                       docs_json, docs_adapters, docs_honesty, release_files, broken_pipe,
                                       bundle_cli, read_side_invariant,
                                       search_cli, show_cli, source_cli, cache_cli, usage, snapshots
                                       (+ common/{mod,faults}.rs, fixtures/)
-.unam/<target>/                       per-project state written by unam (not in this repo): receipt,
+.pouch/<target>/                       per-project state written by pouch (not in this repo): receipt,
                                       JSONL journal, history, lock; target is the adapter name
 docs/adapters.md                      spec-called doc (M2): Hermes slugify differences and bundle loader
                                       differences; M4 added the claude-code evidence table and M0 Outcome;
@@ -196,21 +196,21 @@ docs/json.md                          M7: --json envelope plus one section per c
                                       snapshot; a test fails if a snapshot has no marker)
 ```
 
-Nothing from spec section 1.3 is still to come for v1. The M6 `tui/` modules exist: `actions.rs` is the only module that calls `unam-core` (a parity test proves no other write path), and the TUI tests are in-crate (`cargo test -p unambiguous --bin unam tui::`) because `unam-cli` is bin-only. `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 kept the two M2 sections and added a test that matches every `doctor --evidence` claim to a table row).
+Nothing from spec section 1.3 is still to come for v1. The M6 `tui/` modules exist: `actions.rs` is the only module that calls `pouch-core` (a parity test proves no other write path), and the TUI tests are in-crate (`cargo test -p pouch --bin pouch tui::`) because `pouch-cli` is bin-only. `docs/adapters.md` exists since M2 (M4 added the claude-code table, M5 the agents-neutral table and a generated-brief section; M7 kept the two M2 sections and added a test that matches every `doctor --evidence` claim to a table row).
 
 ## Technology Stack
 
 - **Language:** Rust, stable toolchain, edition 2024. Local toolchain at setup: rustc 1.99.0, cargo 1.99.0 (stable-aarch64-apple-darwin).
 - **Platforms:** macOS and Linux. Windows is not a v1 build target.
-- **Workspace:** Cargo virtual workspace, crates `unam-core` (library) and `unam-cli` (package `unambiguous` since M7, binary `unam`; use `-p unambiguous`, `-p unam-cli` does not exist). Created in milestone M1; M2 added no crates (lockfile unchanged). License `MIT OR Apache-2.0`, `rust-version` 1.89, `publish = false`.
+- **Workspace:** Cargo virtual workspace, crates `pouch-core` (library) and `pouch-cli` (package `pouch`, binary `pouch`; use `-p pouch`; `-p pouch-cli` does not exist; the package was `unambiguous` from M7 until the 2026-10-20 rename). Created in milestone M1; M2 added no crates (lockfile unchanged). License `MIT OR Apache-2.0`, `rust-version` 1.89, `publish = false`.
 - **Dependencies in use (M1; lockfile committed):** clap 4.6.7 (derive), serde 1.0.229, serde_json 1.0.151, serde_norway 0.9.42, toml 1.1.6, ignore 0.4.33, blake3 1.8.7, nucleo-matcher 0.3.1, jiff 0.2.37, thiserror 2.0.21 (core), anyhow 1.0.104 (binary), tracing 0.1.44 + tracing-subscriber 0.3.23. Test: assert_cmd 2.2.2, predicates 3.1.4, insta 1.49.0, tempfile 3.27.0, proptest 1.11.0. M6 added `ratatui` 0.30.2 with `default-features = false, features = ["termion"]` (lockfile 141 to 180 packages). Departures from spec 1.4: `directories` dropped (paths resolved in `paths.rs`), `nucleo-matcher` instead of full `nucleo` (umbrella open items 15 and 20), and **termion instead of crossterm** as the TUI backend (Taylor decision 2026-10-17): ratatui's crossterm backend always enables crossterm `events`, which pulls `mio`, which the `no_network_dependencies` test denies (feasibility VERDICT `phase-07-m6-tui_FEASIBILITY_17-10-26.md`). Never add `crossterm`, `mio`, `socket2`, or `signal-hook`; `panic = "abort"` is banned by `no_panic_abort_profile`. Still planned: `fs4` (M3).
 - **Deliberately absent in v1:** any Git library (shell out to `git` when present).
-- **Release:** `cargo-dist` 0.32.0 is installed (`~/.cargo/bin/dist`); `dist-workspace.toml` and `.github/workflows/release.yml` are verified locally by `dist plan` and `dist generate --check` (the first real release run is Taylor's: push, then tag `v0.1.0`). Four archives (aarch64 and x86_64 for macOS and Linux gnu), shell installer, Homebrew formula (`taylorsegell/homebrew-tap`, publish job disabled). cargo-dist rejects a universal macOS target. `cargo-insta` is not installed. The release profile must not set `panic = "abort"` (a test enforces it).
+- **Release:** `cargo-dist` 0.32.0 is installed (`~/.cargo/bin/dist`); `dist-workspace.toml` and `.github/workflows/release.yml` are verified locally by `dist plan` and `dist generate --check` (the release workflow ran once, for v0.1.0 under the old name, run 39345610585; the pouch re-release is Taylor's: delete the old v0.1.0 release and tag, push, then tag `v0.1.0` again). Four archives (aarch64 and x86_64 for macOS and Linux gnu), shell installer, Homebrew formula (`taylorsegell/homebrew-tap`, publish job disabled). cargo-dist rejects a universal macOS target. `cargo-insta` is not installed. The release profile must not set `panic = "abort"` (a test enforces it).
 - **Harness:** vibecode-pro-max-kit 3.2.5; Node.js v24.11.1 runs its validators.
 
 ## Key Patterns and Conventions
 
-- **Core holds all logic.** CLI and TUI only call `unam-core` and render (spec 1.1).
+- **Core holds all logic.** CLI and TUI only call `pouch-core` and render (spec 1.1).
 - **Typed paths.** `SourcePath`, `DestPath`, `StatePath` newtypes; no write function accepts a `SourcePath` (spec 4.9).
 - **Skill identity** is `alias:relative/path`. Ambiguous references are always errors with candidates; nothing is picked silently (spec 4.6).
 - **Journaled apply.** Journal before mutation, receipt after, history capped at 20, advisory project lock (spec 4.10).
@@ -222,9 +222,9 @@ Nothing from spec section 1.3 is still to come for v1. The M6 `tui/` modules exi
 
 No environment is needed to develop yet. The product itself reads (spec section 2):
 
-- Config: `~/.config/unam/config.toml`; bundles: `~/.config/unam/bundles/`
-- Env overrides: `UNAM_CONFIG_DIR`, `UNAM_BUNDLES_DIR`, `UNAM_CACHE_DIR`; logging: `UNAM_LOG`
-- Per project: `<root>/.unam/` (selection, receipt, journal, history, lock)
+- Config: `~/.config/pouch/config.toml`; bundles: `~/.config/pouch/bundles/`
+- Env overrides: `POUCH_CONFIG_DIR`, `POUCH_BUNDLES_DIR`, `POUCH_CACHE_DIR`; logging: `POUCH_LOG`
+- Per project: `<root>/.pouch/` (selection, receipt, journal, history, lock)
 
 Tests must point every one of these at temporary directories, never at the real user config or this repository.
 
@@ -236,9 +236,9 @@ From `docs/PROJECT-BRIEF.md`, "Open questions":
 |---|---|
 | Default strategy per adapter (PRD Q1) | milestone M0. ANSWERED 2026-10-05: `symlink` for both `claude-code` and `agents-neutral` (`spike/symlink-discovery.md`) |
 | Hermes `slugify` parity | milestone M2 |
-| First real project to adopt `unam` | end of milestone M3 |
-| Crate name and license (PRD Q11) | ANSWERED 2026-10-17: package `unambiguous`, binary `unam`, `MIT OR Apache-2.0` |
-| Linux and CI first run; first release; Homebrew tap | Taylor, at the release handoff (M7 report "For Taylor") |
+| First real project to adopt `pouch` | end of milestone M3 |
+| Crate name and license (PRD Q11) | ANSWERED 2026-10-17 (formerly package `unambiguous`, binary `unam`); renamed 2026-10-20 to package `pouch`, binary `pouch`; `MIT OR Apache-2.0` |
+| Rename handoff (GitHub repo rename, delete old v0.1.0 release and tag, push, re-release as pouch v0.1.0); Homebrew tap; aarch64 Linux; Linux skill discovery | Taylor, at the release handoff. Linux x86_64 and CI have run green |
 
 ---
 
@@ -267,7 +267,7 @@ When durable project knowledge changes:
 
 ## Scan Metadata
 
-- Generated: 2026-10-04; delta update 2026-10-17 (milestone M7 closeout, program complete)
+- Generated: 2026-10-04; delta update 2026-10-20 (rename to pouch; CI and test-count facts refreshed); previous delta 2026-10-17 (milestone M7 closeout, program complete)
 - HEAD: commit 473161c or later (the M7 process commit follows it)
 - Mode: delta (status, structure, stack, release tooling, and open questions refreshed; M7 changed `Cargo.lock` only by the package rename, 180 names before and after)
 - Package manager: cargo (workspace exists since milestone M1)

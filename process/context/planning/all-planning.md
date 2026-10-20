@@ -8,7 +8,7 @@ date: 04-10-26
 
 # Planning Context
 
-This file is the canonical planning context entrypoint for Unambiguous.
+This file is the canonical planning context entrypoint for pouch (renamed from Unambiguous on 2026-10-20).
 
 Use it after `process/context/all-context.md` when the task needs plan-shape calibration,
 planning conventions, or implementation-plan examples.

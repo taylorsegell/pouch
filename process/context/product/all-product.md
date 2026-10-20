@@ -1,14 +1,14 @@
 ---
 name: context:all-product
 description: "Product and design source documents in docs/ and spike/: what each decides and which section answers which question"
-keywords: product, prd, spec, adr, brief, requirements, acceptance criteria, milestone, phase, adapter, bundle, selection, receipt, journal, atlas, router, spike, unam
+keywords: product, prd, spec, adr, brief, requirements, acceptance criteria, milestone, phase, adapter, bundle, selection, receipt, journal, atlas, router, spike, pouch
 related: []
 date: 04-10-26
 ---
 
 # Product Context
 
-This file is the product and design entrypoint for Unambiguous. It routes to the source documents and summarizes them. It does not restate them: when a detail matters, open the cited section.
+This file is the product and design entrypoint for pouch (formerly Unambiguous / `unam`; the protected design documents keep the original name as history and carry a rename note). It routes to the source documents and summarizes them. It does not restate them: when a detail matters, open the cited section.
 
 ## Scope
 
@@ -103,7 +103,7 @@ M0 results: milestone M0 ran on 2026-10-05; its Outcome is in `spike/symlink-dis
 
 ## Architecture Summary
 
-One binary, `unam`, from a Cargo workspace with two crates. `unam-core` holds all logic. `unam-cli` (package `unambiguous` since M7) holds a `clap` CLI and a `ratatui` picker that only call the core. Three state stores are never merged: desired (`<root>/.unam/selection.yaml`), applied (`<root>/.unam/applied.json`), observed (a filesystem scan). Source paths are a read-only newtype that no write function accepts. Two adapters in product Phase 1: `claude-code` (`.claude/skills`) and `agents-neutral` (`.agents/skills`). Details: spec sections 1 to 4.
+One binary, `pouch`, from a Cargo workspace with two crates. `pouch-core` holds all logic. `pouch-cli` (package `pouch`) holds a `clap` CLI and a `ratatui` picker that only call the core. Three state stores are never merged: desired (`<root>/.pouch/selection.yaml`), applied (`<root>/.pouch/applied.json`), observed (a filesystem scan). Source paths are a read-only newtype that no write function accepts. Two adapters in product Phase 1: `claude-code` (`.claude/skills`) and `agents-neutral` (`.agents/skills`). Details: spec sections 1 to 4.
 
 ## Source Paths
 
