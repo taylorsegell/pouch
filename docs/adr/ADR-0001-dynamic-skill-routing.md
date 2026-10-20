@@ -1,5 +1,7 @@
 # ADR-0001: Dynamic Skill Routing (Phase 3)
 
+Renamed: this project is now called pouch (binary `pouch`) as of 2026-10-20; this document keeps the original name as history.
+
 **Status:** Proposed
 **Date:** 2026-10-03
 **Deciders:** Taylor

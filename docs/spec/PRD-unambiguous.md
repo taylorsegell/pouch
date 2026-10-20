@@ -1,5 +1,7 @@
 # PRD: Unambiguous
 
+Renamed: this project is now called pouch (binary `pouch`) as of 2026-10-20; this document keeps the original name as history.
+
 **Project-scoped skill activation, and eventually intent-driven skill exposure, for a local skills library**
 
 | | |

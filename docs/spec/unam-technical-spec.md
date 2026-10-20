@@ -1,5 +1,7 @@
 # Unambiguous (`unam`): Technical Specification and Implementation Plan
 
+Renamed: this project is now called pouch (binary `pouch`) as of 2026-10-20; this document keeps the original name as history.
+
 Companion to `PRD-unambiguous.md`. The PRD defines what and why; this document defines how, in enough detail that an agent can begin implementation without further product decisions. Requirement and acceptance-criteria IDs (`ACT-6`, `AC-17`) refer to the PRD.
 
 This document covers PRD Phases 1 and 2. Phase 1 is milestones M0 to M5. Phase 2 is milestones M6 and M7 plus the items under "What to revisit" in section 11. Phase 3, intent-driven exposure, is decided in `ADR-0001-dynamic-skill-routing.md` and builds on the registry, catalog, and adapters defined here. Where this document says "v1" it means milestones M0 to M7; "v2" means the remaining Phase 2 scope.

@@ -1,5 +1,7 @@
 # Unambiguous: Project Brief
 
+Renamed: this project is now called pouch (binary `pouch`) as of 2026-10-20; this document keeps the original name as history.
+
 The standing context for this project: what it is, what is decided, and what is still open. Requirements live in the PRD, design in the spec and the ADR; this brief points to them and does not repeat them.
 
 ## What it is

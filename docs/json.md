@@ -1,6 +1,6 @@
 # The `--json` output
 
-Every `unam` command prints one JSON object on stdout when you pass `--json`, and nothing else on stdout. Human text, logs, and prompts go to stderr or are suppressed. This page documents the shape of each command's output. It was checked against the real output: `crates/unam-cli/tests/snapshots/` holds one recorded output per case, and the test `docs_json_every_snapshot_is_documented` fails when a recorded output has a `data` key that this page does not mention. The prose (types and meanings) is hand-written; the test checks coverage of keys, not the wording.
+Every `pouch` command prints one JSON object on stdout when you pass `--json`, and nothing else on stdout. Human text, logs, and prompts go to stderr or are suppressed. This page documents the shape of each command's output. It was checked against the real output: `crates/pouch-cli/tests/snapshots/` holds one recorded output per case, and the test `docs_json_every_snapshot_is_documented` fails when a recorded output has a `data` key that this page does not mention. The prose (types and meanings) is hand-written; the test checks coverage of keys, not the wording.
 
 Paths in the recorded outputs are replaced by placeholders (`[TMP]`, `[OP_ID]`); real output has real paths and operation ids. Each section below begins with a marker comment naming the recorded case it covers. Several cases can share one section when they share a shape.
 
@@ -20,9 +20,9 @@ A diagnostic in `warnings` (and in `diagnostics` arrays inside `data`) is an obj
 
 An entry in `errors` is an object: `code` (stable), `message`, `remedy` (what to do about it, or null), and, for an ambiguous skill reference, `candidates` (the full ids that matched).
 
-Exit codes: 0 ok, 1 generic failure, 2 bad argument, 3 source referenced by a project, 4 not found, 5 ambiguous reference, 6 blocked by conflicts, 7 apply failed, 8 destination diverges from the selection, 9 doctor found a failure, 10 an earlier apply was interrupted, 11 another `unam` process holds the project lock. The exit code and the `errors[0].code` always agree.
+Exit codes: 0 ok, 1 generic failure, 2 bad argument, 3 source referenced by a project, 4 not found, 5 ambiguous reference, 6 blocked by conflicts, 7 apply failed, 8 destination diverges from the selection, 9 doctor found a failure, 10 an earlier apply was interrupted, 11 another `pouch` process holds the project lock. The exit code and the `errors[0].code` always agree.
 
-## `unam source add --json`
+## `pouch source add --json`
 
 <!-- snap: add_success -->
 
@@ -42,7 +42,7 @@ Registers a source directory and scans it.
 
 A path that does not exist or is not readable fails with exit 2, `ok: false`, an empty `data`, and one entry in `errors` with code `source-path-invalid`.
 
-## `unam source list --json`
+## `pouch source list --json`
 
 <!-- snap: list -->
 
@@ -50,7 +50,7 @@ A path that does not exist or is not readable fails with exit 2, `ok: false`, an
 |---|---|---|
 | `sources` | array | One object per registered source: `alias`, `path`, `expanded_path`, `kind`, `precedence`, `reachable` (boolean), `skill_count`, `last_scan` (when the catalog was last scanned), and `diagnostics`. |
 
-## `unam source rm --json`
+## `pouch source rm --json`
 
 <!-- snap: rm_success -->
 
@@ -65,7 +65,7 @@ A path that does not exist or is not readable fails with exit 2, `ok: false`, an
 
 Without `--force`, a source that a project still references is not removed: exit 3, empty `data`, `errors[0].code` is `source-referenced`.
 
-## `unam source relocate --json`
+## `pouch source relocate --json`
 
 <!-- snap: source_relocate_json -->
 
@@ -80,7 +80,7 @@ Points a source at a new path and repairs the projects that use it.
 | `status` | string | `relocated` when the registry was changed. |
 | `projects` | array | One object per project that used the source: `root`, `target`, `status` (for example `repaired`), `plan`, `results`, and `error` (null on success). `plan` and `results` have the shapes described under the apply commands. |
 
-## `unam search --json`
+## `pouch search --json`
 
 <!-- snap: search_review -->
 
@@ -92,7 +92,7 @@ Points a source at a new path and repairs the projects that use it.
 | `total` | number | Number of matches. |
 | `results` | array | One object per match, best first: `id`, `name`, `category`, `source`, `description`, `score` (relevance, higher is better), and `diagnostics`. |
 
-## `unam show --json`
+## `pouch show --json`
 
 <!-- snap: show_found -->
 
@@ -119,7 +119,7 @@ A bare name that matches more than one skill fails with exit 5, empty `data`, an
 
 An unknown reference fails with exit 4, empty `data`, and `errors[0].code` `not-found`.
 
-## `unam bundle save --json`
+## `pouch bundle save --json`
 
 <!-- snap: bundle_save -->
 
@@ -136,7 +136,7 @@ Saves the project's current selection as a bundle.
 | `skills` | array | The saved entries, as skill ids. |
 | `overwritten` | boolean | `true` when `--force` replaced an existing bundle. |
 
-## `unam bundle ls --json`
+## `pouch bundle ls --json`
 
 <!-- snap: bundle_ls -->
 
@@ -145,7 +145,7 @@ Saves the project's current selection as a bundle.
 | `bundles` | array | One object per bundle: `slug`, `name`, `description`, `skill_count`, `has_instruction` (boolean), and `path`. |
 | `diagnostics` | array | Problems reading bundle files, such as a duplicate slug. |
 
-## `unam bundle show --json`
+## `pouch bundle show --json`
 
 <!-- snap: bundle_show -->
 
@@ -163,7 +163,7 @@ Saves the project's current selection as a bundle.
 
 An unknown bundle fails with exit 4, empty `data`, and `errors[0].code` `bundle-not-found`.
 
-## `unam bundle edit --json`
+## `pouch bundle edit --json`
 
 <!-- snap: bundle_edit -->
 
@@ -174,7 +174,7 @@ An unknown bundle fails with exit 4, empty `data`, and `errors[0].code` `bundle-
 | `changed` | boolean | `true` when the editor changed the file and the result was valid. |
 | `problems` | number | Entries that did not resolve after the edit. |
 
-## `unam bundle duplicate --json`
+## `pouch bundle duplicate --json`
 
 <!-- snap: bundle_duplicate -->
 
@@ -186,7 +186,7 @@ An unknown bundle fails with exit 4, empty `data`, and `errors[0].code` `bundle-
 | `path` | string | The new file. |
 | `overwritten` | boolean | `true` when `--force` replaced an existing bundle. |
 
-## `unam bundle rm --json`
+## `pouch bundle rm --json`
 
 <!-- snap: bundle_rm_bundle -->
 
@@ -211,7 +211,7 @@ With references, the entries are removed from the bundle.
 | `rewrite` | boolean | `true` when the whole file was rewritten (which drops comments), `false` when only the affected lines were edited. |
 | `skill_count` | number | Entries left. |
 
-## `unam bundle add --json`
+## `pouch bundle add --json`
 
 <!-- snap: bundle_add -->
 
@@ -224,7 +224,7 @@ With references, the entries are removed from the bundle.
 | `rewrite` | boolean | `true` when the whole file was rewritten, `false` when lines were edited in place. |
 | `skill_count` | number | Entries after the change. |
 
-## `unam add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with `--json`
+## `pouch add`, `rm`, `use`, `deactivate`, `resume`, `rollback` with `--json`
 
 These six commands plan a change, apply it, and print the same `data` shape. The recorded cases below differ in `status` and in which keys are null or empty.
 
@@ -256,11 +256,11 @@ These six commands plan a change, apply it, and print the same `data` shape. The
 | `selection` | object or null | The project selection after the command: `written` (boolean), `path`, `bundles`, `add`, `remove`. Null for `resume` and `rollback`. |
 | `plan` | object or null | The plan: `steps` (each with `n`, `op` as `add` or `remove`, `id`, `name`, `dest`, `strategy`, and for an add `source` and `provenance`), `unchanged`, `carried`, `conflicts` (each with `code`, `message`, `dest`, `found`, `source`, `id`), `warnings`, and `estimate` (`skills`, `tokens`, and `estimate: true`, since the token count is approximate). |
 | `results` | array | One object per executed step: `n`, `op`, `name`, `result` (`done`, `failed`, or `skipped`), `code`, `message`. |
-| `receipt` | object or null | The record of what unam placed: `path`, `entries`, `last_op_id`. Null when nothing was applied. |
+| `receipt` | object or null | The record of what pouch placed: `path`, `entries`, `last_op_id`. Null when nothing was applied. |
 | `refresh` | object or null | What to do so a running agent notices the change: `kind`, `command`, `text`, `evidence` (the source of the claim). |
-| `followups` | array | Extra suggested commands, such as trusting a repository for an agent that needs it. unam never runs them. |
+| `followups` | array | Extra suggested commands, such as trusting a repository for an agent that needs it. pouch never runs them. |
 | `removal_caveat` | string or null | Set when a removal was applied: a conversation that already loaded the instructions keeps them until it ends. Null otherwise. |
-| `gitignore_lines` | array | Lines unam suggests adding to `.gitignore`. |
+| `gitignore_lines` | array | Lines pouch suggests adding to `.gitignore`. |
 | `visible_to` | array | The agents that read the destination. |
 | `recovered` | object | Present only on `resume` and `rollback`: `op_id` of the interrupted operation and `action` (`resume` or `rollback`). |
 
@@ -270,20 +270,20 @@ Failures keep the same shape: `blocked` exits 6, `refused` exits 2, `partial` ex
 
 <!-- snap: interrupted_exit_10 -->
 
-An apply that was cut off leaves a journal. The next change refuses with exit 10 until you run `unam resume` or `unam rollback`.
+An apply that was cut off leaves a journal. The next change refuses with exit 10 until you run `pouch resume` or `pouch rollback`.
 
 | Key | Type | Meaning |
 |---|---|---|
 | `interrupted` | object | The journal: `op_id`, `command`, `target`, `started_at`, `receipt_written` (boolean), and `steps` (each with `n`, `op`, `name`, and `state` such as `started` or `done`). |
-| `next` | array | The commands to run, for example `unam resume`. |
+| `next` | array | The commands to run, for example `pouch resume`. |
 
 <!-- snap: locked_exit_11 -->
 
 | Key | Type | Meaning |
 |---|---|---|
-| `locked` | object | The lock holder: `pid`, the process id of the other `unam`. Exit 11. |
+| `locked` | object | The lock holder: `pid`, the process id of the other `pouch`. Exit 11. |
 
-## `unam status --json`
+## `pouch status --json`
 
 <!-- snap: status_json -->
 <!-- snap: status_agents_neutral_json -->
@@ -301,7 +301,7 @@ Shows the six-state table for the target. `ok` is `false` and the exit code is 8
 | `summary` | object | A count per state: `selected`, `applied`, `active`, `shadowed`, `foreign`, `orphaned`. |
 | `footer` | string | A note on what "verified" means: discoverable under the target's documented scan rules, not proven to be loaded by a running agent. |
 
-## `unam reconcile --json`
+## `pouch reconcile --json`
 
 <!-- snap: reconcile_json -->
 
@@ -318,11 +318,11 @@ Reports where the destination diverges from the selection; `--repair` applies th
 | `summary` | object | The same counts as in `status`. |
 | `footer` | string | The same note as in `status`. |
 | `divergences` | array | One object per divergence: `cause` (for example `hand-deleted`), `id`, `name`, `dest`, `detail`. |
-| `findings` | array | Things unam notices but never touches: `kind` (for example `foreign`), `name`, `dest`, `detail`. |
+| `findings` | array | Things pouch notices but never touches: `kind` (for example `foreign`), `name`, `dest`, `detail`. |
 | `plan` | object | The repair plan, with the shape described under the apply commands. |
 | `repair_blocked` | string or null | The reason a repair cannot run (for example conflicts), or null when the plan can be applied. |
 
-## `unam doctor --json`
+## `pouch doctor --json`
 
 <!-- snap: doctor_json -->
 
