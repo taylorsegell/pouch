@@ -1,0 +1,56 @@
+---
+source: crates/pouch-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "status",
+  "data": {
+    "command": "status",
+    "project_root": "[TMP]/work/p",
+    "root_detection": "git",
+    "target": "agents-neutral",
+    "destination": ".agents/skills",
+    "records": [
+      {
+        "id": "fx:sdlc/code-review",
+        "name": "code-review",
+        "category": "sdlc",
+        "source_path": "[TMP]/work/lib/sdlc/code-review",
+        "dest": ".agents/skills/code-review",
+        "strategy": "symlink",
+        "provenance": [
+          {
+            "adhoc": true
+          }
+        ],
+        "state": "active"
+      },
+      {
+        "id": "fx:testing/pytest-fixtures",
+        "name": "pytest-fixtures",
+        "category": "testing",
+        "source_path": "[TMP]/work/lib/testing/pytest-fixtures",
+        "dest": ".agents/skills/pytest-fixtures",
+        "strategy": "symlink",
+        "provenance": [
+          {
+            "adhoc": true
+          }
+        ],
+        "state": "active"
+      }
+    ],
+    "summary": {
+      "selected": 0,
+      "applied": 0,
+      "active": 2,
+      "shadowed": 0,
+      "foreign": 0,
+      "orphaned": 0
+    },
+    "footer": "Verified means discoverable under the target's documented scan rules. It does not mean the agent has read it."
+  },
+  "warnings": [],
+  "errors": []
+}

@@ -1,0 +1,146 @@
+---
+source: crates/pouch-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "use",
+  "data": {
+    "command": "use",
+    "project_root": "[TMP]/work/p",
+    "root_detection": "git",
+    "target": "claude-code",
+    "destination": ".claude/skills",
+    "strategy": "symlink",
+    "detection": "present",
+    "status": "applied",
+    "op_id": "[OP_ID]",
+    "selection": {
+      "written": true,
+      "path": "[TMP]/work/p/.pouch/selection.yaml",
+      "bundles": [
+        "hermes-only"
+      ],
+      "add": [],
+      "remove": []
+    },
+    "plan": {
+      "steps": [
+        {
+          "n": 1,
+          "op": "remove",
+          "id": "fx:data/schema-migration",
+          "name": "schema-migration",
+          "dest": ".claude/skills/schema-migration",
+          "strategy": "symlink"
+        },
+        {
+          "n": 2,
+          "op": "add",
+          "id": "fx:sdlc/code-review",
+          "name": "code-review",
+          "dest": ".claude/skills/code-review",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib/sdlc/code-review",
+          "provenance": [
+            {
+              "bundle": "hermes-only"
+            }
+          ]
+        },
+        {
+          "n": 3,
+          "op": "add",
+          "id": "fx:testing/pytest-fixtures",
+          "name": "pytest-fixtures",
+          "dest": ".claude/skills/pytest-fixtures",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib/testing/pytest-fixtures",
+          "provenance": [
+            {
+              "bundle": "hermes-only"
+            }
+          ]
+        },
+        {
+          "n": 4,
+          "op": "add",
+          "id": "fx:alpha-root-skill",
+          "name": "alpha-root-skill",
+          "dest": ".claude/skills/alpha-root-skill",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib/alpha-root-skill",
+          "provenance": [
+            {
+              "bundle": "hermes-only"
+            }
+          ]
+        }
+      ],
+      "unchanged": [],
+      "carried": [],
+      "conflicts": [],
+      "warnings": [],
+      "estimate": {
+        "skills": 3,
+        "tokens": 103,
+        "estimate": true
+      }
+    },
+    "results": [
+      {
+        "n": 1,
+        "op": "remove",
+        "name": "schema-migration",
+        "result": "done",
+        "code": null,
+        "message": null
+      },
+      {
+        "n": 2,
+        "op": "add",
+        "name": "code-review",
+        "result": "done",
+        "code": null,
+        "message": null
+      },
+      {
+        "n": 3,
+        "op": "add",
+        "name": "pytest-fixtures",
+        "result": "done",
+        "code": null,
+        "message": null
+      },
+      {
+        "n": 4,
+        "op": "add",
+        "name": "alpha-root-skill",
+        "result": "done",
+        "code": null,
+        "message": null
+      }
+    ],
+    "receipt": {
+      "path": "[TMP]/work/p/.pouch/claude-code/applied.json",
+      "entries": 3,
+      "last_op_id": "[OP_ID]"
+    },
+    "refresh": {
+      "kind": "none",
+      "command": null,
+      "text": "no restart or reload required (Claude Code watches existing skill directories; evidence: https://code.claude.com/docs/en/skills)",
+      "evidence": "https://code.claude.com/docs/en/skills"
+    },
+    "followups": [],
+    "removal_caveat": "Removed from future discovery. A conversation that already loaded these instructions keeps them until that conversation ends.",
+    "gitignore_lines": [],
+    "visible_to": [
+      "claude-code",
+      "cursor (compat read)",
+      "windsurf-devin (when Claude config reading is enabled)"
+    ]
+  },
+  "warnings": [],
+  "errors": []
+}

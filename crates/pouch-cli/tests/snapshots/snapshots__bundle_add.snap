@@ -1,0 +1,22 @@
+---
+source: crates/pouch-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "bundle add",
+  "data": {
+    "slug": "commented",
+    "path": "[TMP]/bundles/commented.yaml",
+    "added": [
+      "fx:engineering/frontend/error-handling"
+    ],
+    "skipped": [
+      "alpha-root-skill"
+    ],
+    "rewrite": false,
+    "skill_count": 5
+  },
+  "warnings": [],
+  "errors": []
+}

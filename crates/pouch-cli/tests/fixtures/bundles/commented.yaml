@@ -1,0 +1,14 @@
+# Backend bundle, maintained by hand.
+name: commented
+description: Backend feature work.
+skills:
+  - fx:sdlc/code-review        # primary review flow
+  # testing helpers
+  - "fx:testing/pytest-fixtures"
+  - 'fx:data/schema-migration'
+  - alpha-root-skill
+instruction: |
+  Start with the review flow.
+metadata:
+  pouch:
+    version: 1

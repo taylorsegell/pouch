@@ -1,0 +1,19 @@
+---
+source: crates/pouch-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": true,
+  "command": "bundle rm",
+  "data": {
+    "slug": "commented",
+    "path": "[TMP]/bundles/commented.yaml",
+    "removed": [
+      "fx:data/schema-migration"
+    ],
+    "rewrite": false,
+    "skill_count": 3
+  },
+  "warnings": [],
+  "errors": []
+}

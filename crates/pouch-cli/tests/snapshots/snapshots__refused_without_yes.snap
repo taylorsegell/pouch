@@ -1,0 +1,74 @@
+---
+source: crates/pouch-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": false,
+  "command": "add",
+  "data": {
+    "command": "add",
+    "project_root": "[TMP]/work/p",
+    "root_detection": "git",
+    "target": "claude-code",
+    "destination": ".claude/skills",
+    "strategy": "symlink",
+    "detection": "absent",
+    "status": "refused",
+    "op_id": null,
+    "selection": {
+      "written": false,
+      "path": "[TMP]/work/p/.pouch/selection.yaml",
+      "bundles": [],
+      "add": [
+        "fx:sdlc/code-review"
+      ],
+      "remove": []
+    },
+    "plan": {
+      "steps": [
+        {
+          "n": 1,
+          "op": "add",
+          "id": "fx:sdlc/code-review",
+          "name": "code-review",
+          "dest": ".claude/skills/code-review",
+          "strategy": "symlink",
+          "source": "[TMP]/work/lib/sdlc/code-review",
+          "provenance": [
+            {
+              "adhoc": true
+            }
+          ]
+        }
+      ],
+      "unchanged": [],
+      "carried": [],
+      "conflicts": [],
+      "warnings": [],
+      "estimate": {
+        "skills": 1,
+        "tokens": 35,
+        "estimate": true
+      }
+    },
+    "results": [],
+    "receipt": null,
+    "refresh": null,
+    "followups": [],
+    "removal_caveat": null,
+    "gitignore_lines": [],
+    "visible_to": [
+      "claude-code",
+      "cursor (compat read)",
+      "windsurf-devin (when Claude config reading is enabled)"
+    ]
+  },
+  "warnings": [],
+  "errors": [
+    {
+      "code": "confirmation-required",
+      "message": "this change needs confirmation and no terminal is available",
+      "remedy": "Pass `--yes` to apply without a prompt; the plan is still printed. Nothing was changed."
+    }
+  ]
+}

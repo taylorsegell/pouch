@@ -1,0 +1,21 @@
+---
+source: crates/pouch-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": false,
+  "command": "add",
+  "data": {
+    "locked": {
+      "pid": "[PID]"
+    }
+  },
+  "warnings": [],
+  "errors": [
+    {
+      "code": "locked",
+      "message": "the project is locked by process [PID]",
+      "remedy": "Another `pouch` process is changing this project. Wait for it to finish, or close the open picker."
+    }
+  ]
+}

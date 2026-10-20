@@ -1,0 +1,41 @@
+[package]
+name = "pouch"
+description = "Only the skills this project needs."
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+authors.workspace = true
+keywords = ["agent", "skills", "claude-code", "cli", "symlink"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "pouch"
+path = "src/main.rs"
+
+[package.metadata.dist]
+dist = true
+
+[lints]
+workspace = true
+
+[dependencies]
+pouch-core.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_norway.workspace = true
+anyhow.workspace = true
+ratatui.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+assert_cmd.workspace = true
+predicates.workspace = true
+tempfile.workspace = true
+serde_json.workspace = true

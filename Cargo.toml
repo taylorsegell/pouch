@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/unam-core", "crates/unam-cli"]
+members = ["crates/pouch-core", "crates/pouch-cli"]
 
 [workspace.package]
 edition = "2024"
@@ -8,7 +8,7 @@ version = "0.1.0"
 publish = false
 rust-version = "1.89"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/taylorsegell/unambiguous"
+repository = "https://github.com/taylorsegell/pouch"
 readme = "README.md"
 authors = ["Taylor Segell"]
 
@@ -19,7 +19,7 @@ unsafe_code = "forbid"
 unwrap_used = "deny"
 
 [workspace.dependencies]
-unam-core = { path = "crates/unam-core", version = "0.1.0" }
+pouch-core = { path = "crates/pouch-core", version = "0.1.0" }
 clap = { version = "4.6.7", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }

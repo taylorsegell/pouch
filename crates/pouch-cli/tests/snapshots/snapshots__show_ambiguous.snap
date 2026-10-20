@@ -1,0 +1,21 @@
+---
+source: crates/pouch-cli/tests/snapshots.rs
+expression: v
+---
+{
+  "ok": false,
+  "command": "show",
+  "data": {},
+  "warnings": [],
+  "errors": [
+    {
+      "code": "ambiguous",
+      "message": "reference \"error-handling\" is ambiguous: 2 skills match",
+      "remedy": "Qualify the reference, for example `skillzone:sdlc/code-review`.",
+      "candidates": [
+        "fx:engineering/backend/api/error-handling",
+        "fx:engineering/frontend/error-handling"
+      ]
+    }
+  ]
+}
