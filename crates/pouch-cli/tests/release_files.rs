@@ -103,8 +103,11 @@ fn dist_problems(text: &str) -> Vec<String> {
     {
         out.push("homebrew installer missing".to_string());
     }
-    if lines.iter().any(|l| l.starts_with("publish-jobs")) {
-        out.push("publish-jobs is set".to_string());
+    if !lines
+        .iter()
+        .any(|l| l.starts_with("publish-jobs") && l.contains("\"homebrew\""))
+    {
+        out.push("homebrew publish job missing".to_string());
     }
     out
 }
@@ -229,18 +232,18 @@ fn release_files_check_detects_bad_input() {
     assert!(metadata_problems(&one).len() >= 2);
 
     // dist-workspace.toml: good passes; a missing target, a missing
-    // installer, and a publish-jobs line each fail.
-    let dist_good = "# c\n[dist]\ntargets = [\"aarch64-apple-darwin\", \"x86_64-apple-darwin\", \"x86_64-unknown-linux-gnu\", \"aarch64-unknown-linux-gnu\"]\ninstallers = [\"shell\", \"homebrew\"]\n";
+    // installer, and a missing or commented-out publish-jobs line each fail.
+    let dist_good = "# c\n[dist]\ntargets = [\"aarch64-apple-darwin\", \"x86_64-apple-darwin\", \"x86_64-unknown-linux-gnu\", \"aarch64-unknown-linux-gnu\"]\ninstallers = [\"shell\", \"homebrew\"]\npublish-jobs = [\"homebrew\"]\n";
     assert!(dist_problems(dist_good).is_empty());
     let no_target = dist_good.replace(", \"aarch64-unknown-linux-gnu\"", "");
     assert_eq!(dist_problems(&no_target).len(), 1);
     let no_brew = dist_good.replace(", \"homebrew\"", "");
     assert_eq!(dist_problems(&no_brew).len(), 1);
-    let with_jobs = format!("{dist_good}publish-jobs = [\"homebrew\"]\n");
-    assert_eq!(dist_problems(&with_jobs).len(), 1);
+    let no_jobs = dist_good.replace("publish-jobs = [\"homebrew\"]\n", "");
+    assert_eq!(dist_problems(&no_jobs).len(), 1);
     // A commented-out publish-jobs line is not a setting.
-    let commented = format!("{dist_good}# publish-jobs = [\"homebrew\"]\n");
-    assert!(dist_problems(&commented).is_empty());
+    let commented = dist_good.replace("publish-jobs", "# publish-jobs");
+    assert_eq!(dist_problems(&commented).len(), 1);
 
     // Cargo.toml: good passes; a missing table, a profile that does not
     // inherit release, and a panic abort line each fail.

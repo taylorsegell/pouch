@@ -21,7 +21,7 @@ const REQUIRED: [&str; 6] = [
     "Linux: tests pass in CI on Ubuntu x86_64",
     "Cursor editor and Windsurf are not tested",
     "does not work, because the crate is not published to crates.io",
-    "Homebrew is not available yet",
+    "brew install taylorsegell/tap/pouch",
     "no telemetry",
     "no network",
 ];
