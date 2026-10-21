@@ -2,12 +2,14 @@
 members = ["cargo:."]
 
 # Config for cargo-dist 0.32.0. Verified locally with `dist generate` and
-# `dist plan`; nothing here publishes anything (no publish-jobs entry, no tap
-# repository). The release workflow runs only when a version tag is pushed.
+# `dist plan`. The release workflow runs only when a version tag is pushed; it
+# then publishes the Homebrew formula to taylorsegell/homebrew-tap using the
+# HOMEBREW_TAP_TOKEN repository secret.
 [dist]
 cargo-dist-version = "0.32.0"
 ci = "github"
 installers = ["shell", "homebrew"]
 tap = "taylorsegell/homebrew-tap"
+publish-jobs = ["homebrew"]
 targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
 install-path = "CARGO_HOME"

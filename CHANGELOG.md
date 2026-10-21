@@ -2,6 +2,17 @@
 
 All notable changes to this project are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project intends to follow [Semantic Versioning](https://semver.org/) once it is published.
 
+## [Unreleased]
+
+### Added
+
+- A Homebrew tap: `brew install taylorsegell/tap/pouch`.
+
+### Changed
+
+- The release workflow now publishes the Homebrew formula to the tap.
+- The GitHub repository is renamed to `taylorsegell/pouch`.
+
 ## [0.1.0] - 2026-10-19
 
 The first version. It was tagged and released on GitHub with prebuilt archives and a shell installer. It is not published to crates.io or Homebrew; see the README for what exists and what is untested.

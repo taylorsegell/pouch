@@ -9,6 +9,7 @@ publish = false
 rust-version = "1.89"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/taylorsegell/pouch"
+homepage = "https://github.com/taylorsegell/pouch"
 readme = "README.md"
 authors = ["Taylor Segell"]
 

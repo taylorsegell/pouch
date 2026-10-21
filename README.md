@@ -31,7 +31,11 @@ This installs the `pouch` binary into `~/.cargo/bin`. Prebuilt archives for macO
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/taylorsegell/pouch/releases/download/v0.1.0/pouch-installer.sh | sh
 ```
 
-`cargo install pouch` does not work, because the crate is not published to crates.io. Homebrew is not available yet.
+`cargo install pouch` does not work, because the crate is not published to crates.io. To install through Homebrew instead:
+
+```
+brew install taylorsegell/tap/pouch
+```
 
 ## First activation without the picker
 
