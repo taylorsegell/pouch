@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 ### Added
 
 - A Homebrew tap: `brew install taylorsegell/tap/pouch`.
+- The picker's Categories pane opens collapsed below the top level and expands and collapses with Right, Left and Enter.
 
 ### Changed
 

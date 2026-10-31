@@ -8,9 +8,9 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Wrap};
 
-pub const HINTS: &str = "type: filter  space: select  enter: plan  tab: pane  b: bundles  t: target  ?: help  esc: clear/quit";
+pub const HINTS: &str = "type:filter space:select enter:plan tab:pane </>:fold b:bundles t:target ?:help esc:clear/quit";
 
 fn pane_block(title: &str, focused: bool) -> Block<'_> {
     let style = if focused {
@@ -53,26 +53,33 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
     preview(f, app, cols[2]);
 }
 
-fn categories(f: &mut Frame, app: &App, area: Rect) {
+fn categories(f: &mut Frame, app: &mut App, area: Rect) {
     let items: Vec<ListItem> = app
-        .categories
+        .visible
         .iter()
+        .filter_map(|&i| app.categories.get(i))
         .map(|c| {
             let indent = "  ".repeat(c.depth.saturating_sub(1));
+            let fold = match (c.has_children, app.expanded.contains(&c.path)) {
+                (false, _) => ' ',
+                (true, true) => '-',
+                (true, false) => '+',
+            };
             ListItem::new(format!(
-                "{indent}{} {}/{}",
+                "{indent}{fold}{} {}/{}",
                 head(&c.label, 24),
                 c.marked,
                 c.total
             ))
         })
         .collect();
-    let mut state = ListState::default().with_selected(Some(app.cat_ix));
+    let selected = app.visible_pos();
+    app.cat_list_state.select(selected);
     let list = List::new(items)
         .block(pane_block("Categories", app.focus == Pane::Category))
         .highlight_symbol("> ")
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
-    f.render_stateful_widget(list, area, &mut state);
+    f.render_stateful_widget(list, area, &mut app.cat_list_state);
 }
 
 fn search_box(f: &mut Frame, app: &App, area: Rect) {

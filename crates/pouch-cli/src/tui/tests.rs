@@ -6,6 +6,7 @@
 
 use super::actions::{Action, Session};
 use super::app::{App, Effect, MIXED_MESSAGE, Mode, Opts, Pane};
+use super::picker;
 use super::term;
 use super::views;
 use pouch_core::catalog::{Catalog, LoadOptions};
@@ -85,6 +86,49 @@ impl Fx {
             "pytest-markers",
             "Pytest markers.",
         );
+        let project = base.join("proj");
+        fs::create_dir_all(project.join(".git")).unwrap();
+        let dirs = env_for(&base);
+        let mut config = Config::default();
+        config.sources.push(SourceEntry {
+            alias: "fx".into(),
+            path: lib.to_string_lossy().into_owned(),
+            precedence: 10,
+        });
+        Fx {
+            tmp,
+            lib,
+            project,
+            dirs,
+            config,
+        }
+    }
+
+    /// A library nested three levels deep: `a`, `a/c`, `a/c/d` with an
+    /// interleaved sibling `a-b`, an `_inbox` with its own subtree, and one
+    /// leaf-only top-level category (`solo`).
+    fn nested() -> Fx {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = fs::canonicalize(tmp.path()).unwrap();
+        let lib = base.join("lib");
+        skill(&lib, "a/s1", "s1", "Top a.");
+        skill(&lib, "a-b/s2", "s2", "Sibling a-b.");
+        skill(&lib, "a/c/s3", "s3", "Deeper c.");
+        skill(&lib, "a/c/d/s4", "s4", "Deepest d.");
+        skill(&lib, "solo/lone", "lone", "Leaf only.");
+        for (rel, name) in [
+            ("_inbox/n01", "n01"),
+            ("_inbox/n02", "n02"),
+            ("_inbox/x/n03", "n03"),
+            ("_inbox/x/n04", "n04"),
+            ("_inbox/x/n05", "n05"),
+            ("_inbox/x/y/n06", "n06"),
+            ("_inbox/x/y/n07", "n07"),
+            ("_inbox/z/n08", "n08"),
+            ("_inbox/z/n09", "n09"),
+        ] {
+            skill(&lib, rel, name, "Inbox skill.");
+        }
         let project = base.join("proj");
         fs::create_dir_all(project.join(".git")).unwrap();
         let dirs = env_for(&base);
@@ -422,6 +466,12 @@ fn tui_state_key_routing_letters_are_typed_in_search_and_act_elsewhere() {
         0,
         "space on the focused result from the search pane"
     );
+    // h and l are typed letters in the categories pane, never fold keys.
+    app.focus = Pane::Category;
+    press(&mut app, &typed("hl"));
+    assert_eq!(app.query, "hl");
+    assert_eq!(app.focus, Pane::Category);
+    assert!(app.expanded.is_empty());
 }
 
 #[test]
@@ -446,6 +496,423 @@ fn tui_state_category_pane_filters_and_counts() {
     press(&mut app, &[Key::Esc]);
     assert_eq!(app.hits.len(), 4);
     assert!(app.adds.is_empty());
+}
+
+/// The category paths of the full row list.
+fn cat_paths(app: &App) -> Vec<&str> {
+    app.categories.iter().map(|c| c.path.as_str()).collect()
+}
+
+#[test]
+fn tui_state_tree_rows_are_component_ordered() {
+    let fx = Fx::nested();
+    let app = fx.app();
+    assert_eq!(
+        cat_paths(&app),
+        [
+            "",
+            "_inbox",
+            "_inbox/x",
+            "_inbox/x/y",
+            "_inbox/z",
+            "a",
+            "a/c",
+            "a/c/d",
+            "a-b",
+            "solo"
+        ]
+    );
+    // Every row's descendants follow it as one contiguous block.
+    for (i, row) in app.categories.iter().enumerate().skip(1) {
+        let prefix = format!("{}/", row.path);
+        let after: Vec<bool> = app.categories[i + 1..]
+            .iter()
+            .map(|r| r.path.starts_with(&prefix))
+            .collect();
+        let block = after.iter().take_while(|b| **b).count();
+        assert!(
+            after[block..].iter().all(|b| !*b),
+            "descendants of {} are not contiguous: {:?}",
+            row.path,
+            cat_paths(&app)
+        );
+    }
+}
+
+/// The path of the selected category row.
+fn sel_path(app: &App) -> &str {
+    app.categories[app.cat_ix].path.as_str()
+}
+
+/// The category paths of the visible rows, in order.
+fn vis_paths(app: &App) -> Vec<&str> {
+    app.visible
+        .iter()
+        .map(|&i| app.categories[i].path.as_str())
+        .collect()
+}
+
+/// A nested picker with the category pane focused and a pending add held
+/// (Space on the first result while the search box has focus).
+fn nested_category_app(fx: &Fx) -> App {
+    let mut app = fx.app();
+    press(&mut app, &[SPACE]);
+    assert_eq!(app.adds.len(), 1);
+    app.focus = Pane::Category;
+    app
+}
+
+#[test]
+fn tui_state_tree_default_collapsed_below_depth_one() {
+    let fx = Fx::nested();
+    let app = fx.app();
+    assert_eq!(vis_paths(&app), ["", "_inbox", "a", "a-b", "solo"]);
+    assert_eq!(sel_path(&app), "");
+    assert!(app.expanded.is_empty());
+    let flat = Fx::new();
+    let app = flat.app();
+    assert_eq!(vis_paths(&app), ["", "sdlc", "testing"]);
+}
+
+#[test]
+fn tui_state_tree_restored_selection_ancestors_open() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right, Key::Down, Key::Right]);
+    assert_eq!(sel_path(&app), "_inbox/x");
+    press(&mut app, &[Key::Down]);
+    assert_eq!(sel_path(&app), "_inbox/x/y");
+    // Forget the expansion, then let a rebuild (Space on a result) restore it.
+    app.expanded.clear();
+    press(&mut app, &[TAB, SPACE]);
+    assert_eq!(sel_path(&app), "_inbox/x/y");
+    assert!(app.expanded.contains("_inbox"));
+    assert!(app.expanded.contains("_inbox/x"));
+    assert!(vis_paths(&app).contains(&"_inbox/x/y"));
+    assert!(app.visible_pos().is_some());
+}
+
+#[test]
+fn tui_state_tree_right_expands_collapsed() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down]);
+    assert_eq!(sel_path(&app), "_inbox");
+    press(&mut app, &[Key::Right]);
+    assert!(app.expanded.contains("_inbox"));
+    assert_eq!(app.focus, Pane::Category);
+    assert_eq!(sel_path(&app), "_inbox");
+    assert_eq!(
+        vis_paths(&app),
+        ["", "_inbox", "_inbox/x", "_inbox/z", "a", "a-b", "solo"]
+    );
+}
+
+#[test]
+fn tui_state_tree_right_falls_through_to_results() {
+    let fx = Fx::nested();
+    let mut app = nested_category_app(&fx);
+    // Expanded category with children: the first Right expands, the second
+    // moves focus.
+    press(&mut app, &[Key::Down, Key::Right]);
+    assert_eq!(app.focus, Pane::Category);
+    press(&mut app, &[Key::Right]);
+    assert_eq!(app.focus, Pane::Results);
+    assert!(app.expanded.contains("_inbox"));
+    assert_eq!(app.mode, Mode::Picker);
+    // All.
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Home, Key::Right]);
+    assert_eq!(app.focus, Pane::Results);
+    assert_eq!(app.mode, Mode::Picker);
+    // A leaf.
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::End]);
+    assert_eq!(sel_path(&app), "solo");
+    press(&mut app, &[Key::Right]);
+    assert_eq!(app.focus, Pane::Results);
+    assert_eq!(app.mode, Mode::Picker);
+    assert_eq!(app.adds.len(), 1);
+}
+
+#[test]
+fn tui_state_tree_left_collapses_expanded() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right]);
+    assert!(app.expanded.contains("_inbox"));
+    press(&mut app, &[Key::Left]);
+    assert!(!app.expanded.contains("_inbox"));
+    assert_eq!(sel_path(&app), "_inbox");
+    assert_eq!(app.focus, Pane::Category);
+    assert_eq!(vis_paths(&app), ["", "_inbox", "a", "a-b", "solo"]);
+}
+
+#[test]
+fn tui_state_tree_left_selects_parent_or_noops() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right, Key::Down, Key::Right]);
+    press(&mut app, &[Key::Down]);
+    assert_eq!(sel_path(&app), "_inbox/x/y");
+    // A leaf selects its parent.
+    press(&mut app, &[Key::Left]);
+    assert_eq!(sel_path(&app), "_inbox/x");
+    // An expanded row collapses and keeps the selection.
+    press(&mut app, &[Key::Left]);
+    assert_eq!(sel_path(&app), "_inbox/x");
+    assert!(!app.expanded.contains("_inbox/x"));
+    // A collapsed row with a parent selects the parent.
+    press(&mut app, &[Key::Left]);
+    assert_eq!(sel_path(&app), "_inbox");
+    // Top level: collapse, then no-op.
+    press(&mut app, &[Key::Left]);
+    assert!(!app.expanded.contains("_inbox"));
+    press(&mut app, &[Key::Left]);
+    assert_eq!(sel_path(&app), "_inbox");
+    assert_eq!(app.focus, Pane::Category);
+    // All: no-op.
+    press(&mut app, &[Key::Home, Key::Left]);
+    assert_eq!(sel_path(&app), "");
+    assert_eq!(app.focus, Pane::Category);
+}
+
+#[test]
+fn tui_state_tree_enter_toggles_category_with_children() {
+    let fx = Fx::nested();
+    let mut app = nested_category_app(&fx);
+    press(&mut app, &[Key::Down, ENTER]);
+    assert!(app.expanded.contains("_inbox"));
+    assert_eq!(app.mode, Mode::Picker);
+    press(&mut app, &[ENTER]);
+    assert!(!app.expanded.contains("_inbox"));
+    assert_eq!(app.mode, Mode::Picker);
+    assert_eq!(app.adds.len(), 1);
+    assert_eq!(app.focus, Pane::Category);
+}
+
+#[test]
+fn tui_state_tree_enter_on_all_or_leaf_keeps_plan_behavior() {
+    let fx = Fx::nested();
+    let mut app = nested_category_app(&fx);
+    press(&mut app, &[ENTER]);
+    assert_eq!(app.mode, Mode::Plan, "enter on All opens the plan");
+    press(&mut app, &[Key::Esc]);
+    assert_eq!(app.mode, Mode::Picker);
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::End]);
+    assert_eq!(sel_path(&app), "solo");
+    press(&mut app, &[ENTER]);
+    assert_eq!(app.mode, Mode::Plan, "enter on a leaf opens the plan");
+}
+
+#[test]
+fn tui_state_tree_keys_unchanged_outside_category_pane() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    press(&mut app, &[SPACE]);
+    assert_eq!(app.focus, Pane::Search);
+    press(&mut app, &[ENTER]);
+    assert_eq!(app.mode, Mode::Plan, "enter in the search box");
+    press(&mut app, &[Key::Esc]);
+    app.focus = Pane::Results;
+    press(&mut app, &[ENTER]);
+    assert_eq!(app.mode, Mode::Plan, "enter in the results pane");
+    press(&mut app, &[Key::Esc]);
+    press(&mut app, &[Key::Right]);
+    assert_eq!(app.focus, Pane::Results, "right in results stays");
+    press(&mut app, &[Key::Left]);
+    assert_eq!(app.focus, Pane::Category, "left in results");
+    app.focus = Pane::Search;
+    press(&mut app, &[Key::Left]);
+    assert_eq!(app.focus, Pane::Category, "left in search");
+    app.focus = Pane::Search;
+    press(&mut app, &[Key::Right]);
+    assert_eq!(app.focus, Pane::Results, "right in search");
+    assert!(app.expanded.is_empty());
+}
+
+#[test]
+fn tui_state_tree_collapse_ancestor_moves_selection_and_keeps_results() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right, Key::Down, Key::Down]);
+    assert_eq!(sel_path(&app), "_inbox/z");
+    assert_eq!(app.hits.len(), 2);
+    press(&mut app, &[Key::Left]);
+    assert_eq!(sel_path(&app), "_inbox");
+    press(&mut app, &[Key::Left]);
+    assert_eq!(sel_path(&app), "_inbox");
+    assert!(!app.expanded.contains("_inbox"));
+    assert_eq!(app.hits.len(), 9, "the subtree stays in the results");
+}
+
+#[test]
+fn tui_state_tree_navigation_skips_hidden_rows() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    let mut seen = Vec::new();
+    for _ in 0..6 {
+        seen.push(sel_path(&app).to_string());
+        press(&mut app, &[Key::Down]);
+    }
+    assert_eq!(seen, ["", "_inbox", "a", "a-b", "solo", "solo"]);
+    press(&mut app, &[Key::Home]);
+    assert_eq!(sel_path(&app), "");
+    press(&mut app, &[Key::End]);
+    assert_eq!(sel_path(&app), "solo");
+    press(&mut app, &[Key::Home, Key::PageDown]);
+    assert_eq!(sel_path(&app), "solo");
+    press(&mut app, &[Key::PageUp]);
+    assert_eq!(sel_path(&app), "");
+    // With _inbox open the hidden y row is still skipped.
+    press(&mut app, &[Key::Down, Key::Right, Key::Down, Key::Down]);
+    assert_eq!(sel_path(&app), "_inbox/z");
+    press(&mut app, &[Key::Up, Key::Up, Key::Up]);
+    assert_eq!(sel_path(&app), "");
+    press(&mut app, &[Key::Down, Key::Down, Key::Down, Key::Down]);
+    assert_eq!(sel_path(&app), "a");
+    press(&mut app, &[Key::Up]);
+    assert_eq!(sel_path(&app), "_inbox/z");
+    for _ in 0..12 {
+        press(&mut app, &[Key::Down]);
+        assert!(app.visible_pos().is_some(), "{}", sel_path(&app));
+    }
+}
+
+#[test]
+fn tui_state_tree_collapsed_counts_aggregate_subtree() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    press(&mut app, &typed("n06"));
+    press(&mut app, &[SPACE]);
+    press(&mut app, &[Key::Backspace; 3]);
+    let row = |app: &App, path: &str| {
+        let r = app.categories.iter().find(|c| c.path == path).unwrap();
+        (r.marked, r.total)
+    };
+    assert_eq!(row(&app, "_inbox"), (1, 9));
+    assert_eq!(row(&app, "_inbox/x"), (1, 5));
+    assert_eq!(row(&app, "_inbox/x/y"), (1, 2));
+    assert_eq!(row(&app, ""), (1, 14));
+    let frame = render(&mut app);
+    assert!(frame.contains("+_inbox 1/9"), "{frame}");
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right]);
+    let frame = render(&mut app);
+    assert!(frame.contains("-_inbox 1/9"), "{frame}");
+    assert!(frame.contains("+x 1/5"), "{frame}");
+}
+
+#[test]
+fn tui_state_tree_collapse_hides_only_descendants_with_interleaved_sibling() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    // _inbox, a, a-b, solo are top level: go to a.
+    press(&mut app, &[Key::Down, Key::Down, Key::Right]);
+    assert_eq!(sel_path(&app), "a");
+    assert_eq!(vis_paths(&app), ["", "_inbox", "a", "a/c", "a-b", "solo"]);
+    press(&mut app, &[Key::Down, Key::Right]);
+    assert_eq!(sel_path(&app), "a/c");
+    assert_eq!(
+        vis_paths(&app),
+        ["", "_inbox", "a", "a/c", "a/c/d", "a-b", "solo"]
+    );
+    press(&mut app, &[Key::Up, Key::Left]);
+    assert_eq!(sel_path(&app), "a");
+    assert_eq!(vis_paths(&app), ["", "_inbox", "a", "a-b", "solo"]);
+    assert!(app.expanded.contains("a/c"), "the child keeps its state");
+}
+
+#[test]
+fn tui_state_tree_query_does_not_change_rows() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right]);
+    app.focus = Pane::Search;
+    let rows = app.categories.clone();
+    let expanded = app.expanded.clone();
+    let visible = app.visible.clone();
+    press(&mut app, &typed("s1"));
+    assert_eq!(app.categories, rows);
+    assert_eq!(app.expanded, expanded);
+    assert_eq!(app.visible, visible);
+}
+
+#[test]
+fn tui_state_tree_esc_ignores_expansion() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right, Key::Home]);
+    assert!(app.expanded.contains("_inbox"));
+    assert_eq!(sel_path(&app), "");
+    assert_eq!(app.handle_key(Key::Esc), Effect::Quit);
+}
+
+#[test]
+fn tui_state_tree_clear_all_resets_expansion() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right, Key::Down, Key::Right]);
+    assert_eq!(sel_path(&app), "_inbox/x");
+    assert_eq!(app.handle_key(Key::Esc), Effect::Continue);
+    assert!(app.expanded.is_empty());
+    assert_eq!(sel_path(&app), "");
+    assert_eq!(vis_paths(&app), ["", "_inbox", "a", "a-b", "solo"]);
+    assert_eq!(app.handle_key(Key::Esc), Effect::Quit);
+}
+
+#[test]
+fn tui_render_tree_shrink_after_scroll_does_not_panic() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    press(&mut app, &[Key::Down, Key::Right, Key::Down, Key::Right]);
+    press(&mut app, &[Key::End]);
+    assert_eq!(sel_path(&app), "solo");
+    // Five list rows on screen against eight visible rows: the offset moves.
+    let first = render_size(&mut app, 100, 10);
+    assert!(first.contains("solo"), "{first}");
+    assert!(!first.contains("_inbox"), "{first}");
+    // Collapse without drawing in between: the list shrinks under the offset.
+    press(&mut app, &[Key::Home, Key::Down, ENTER]);
+    assert_eq!(sel_path(&app), "_inbox");
+    assert!(!app.expanded.contains("_inbox"));
+    let second = render_size(&mut app, 100, 10);
+    assert!(second.contains("+_inbox"), "{second}");
+}
+
+#[test]
+fn tui_state_hints_length_at_most_100() {
+    assert!(picker::HINTS.chars().count() <= 100, "{}", picker::HINTS);
+    assert!(picker::HINTS.contains("</>:fold"));
+}
+
+#[test]
+fn tui_state_help_lists_the_fold_keys() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    press(&mut app, &[TAB, Key::Char('?')]);
+    assert_eq!(app.mode, Mode::Help);
+    let frame = render_size(&mut app, 100, 30);
+    for needle in [
+        "left / right",
+        "expand or collapse",
+        "go to the plan for the pending selection",
+        "Press any key to close this help.",
+    ] {
+        assert!(frame.contains(needle), "{needle}: {frame}");
+    }
 }
 
 #[test]
@@ -1183,6 +1650,36 @@ fn tui_snapshot_markers_and_category_counts() {
     assert!(screen.contains("[\u{25cf}] refactor"), "{screen}");
     assert!(screen.contains("[\u{25cb}] pytest-markers"), "{screen}");
     insta::assert_snapshot!("tui_snapshot_markers_and_category_counts", screen);
+}
+
+#[test]
+fn tui_snapshot_tree_collapsed() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    insta::assert_snapshot!("tui_snapshot_tree_collapsed", render(&mut app));
+}
+
+#[test]
+fn tui_snapshot_tree_expanded_depth3() {
+    let fx = Fx::nested();
+    let mut app = fx.app();
+    // Categories pane, _inbox open, then a and a/c open.
+    press(
+        &mut app,
+        &[
+            TAB,
+            Key::Down,
+            Key::Right,
+            Key::Down,
+            Key::Down,
+            Key::Down,
+            Key::Right,
+            Key::Down,
+            Key::Right,
+        ],
+    );
+    assert_eq!(sel_path(&app), "a/c");
+    insta::assert_snapshot!("tui_snapshot_tree_expanded_depth3", render(&mut app));
 }
 
 #[test]

@@ -80,6 +80,8 @@ pub struct CategoryRow {
     /// Selected over total (the `3/12` of spec 6).
     pub marked: usize,
     pub total: usize,
+    /// True when another row's path starts with `path + "/"`.
+    pub has_children: bool,
 }
 
 /// The plan view's content.
@@ -102,6 +104,11 @@ pub struct App {
     pub focus: Pane,
     pub categories: Vec<CategoryRow>,
     pub cat_ix: usize,
+    /// Category paths the user has opened (view state only).
+    pub expanded: BTreeSet<String>,
+    /// Indices into `categories` of the rows on screen, in order.
+    pub visible: Vec<usize>,
+    pub cat_list_state: ListState,
     pub hits: Vec<Hit>,
     pub cursor: usize,
     pub list_state: ListState,
@@ -173,6 +180,9 @@ impl App {
             focus: Pane::Search,
             categories: Vec::new(),
             cat_ix: 0,
+            expanded: BTreeSet::new(),
+            visible: Vec::new(),
+            cat_list_state: ListState::default(),
             hits: Vec::new(),
             cursor: 0,
             list_state: ListState::default(),
@@ -296,7 +306,8 @@ impl App {
     }
 
     /// Rebuild the category tree and its `3/12` counts, keeping the
-    /// selected row when it still exists.
+    /// selected row when it still exists (else its nearest existing
+    /// ancestor, else All) and opening that row's ancestors.
     fn rebuild_categories(&mut self) {
         let keep = self
             .categories
@@ -327,20 +338,136 @@ impl App {
             depth: 0,
             marked: all.0,
             total: all.1,
+            has_children: false,
         }];
-        for (path, (marked, total)) in counts {
+        let parents: BTreeSet<String> = counts
+            .keys()
+            .filter_map(|p| p.rsplit_once('/').map(|(parent, _)| parent.to_string()))
+            .collect();
+        // Component order keeps every subtree contiguous (`a`, `a/c`, then
+        // `a-b`), which plain string order does not.
+        let mut entries: Vec<(String, (usize, usize))> = counts.into_iter().collect();
+        entries.sort_by(|a, b| a.0.split('/').cmp(b.0.split('/')));
+        for (path, (marked, total)) in entries {
             let depth = path.matches('/').count() + 1;
             let label = path.rsplit('/').next().unwrap_or(&path).to_string();
+            let has_children = parents.contains(&path);
             rows.push(CategoryRow {
                 path,
                 label,
                 depth,
                 marked,
                 total,
+                has_children,
             });
         }
-        self.cat_ix = rows.iter().position(|r| r.path == keep).unwrap_or(0);
+        let mut sel = keep;
+        while !sel.is_empty() && !rows.iter().any(|r| r.path == sel) {
+            sel = sel
+                .rsplit_once('/')
+                .map(|(parent, _)| parent.to_string())
+                .unwrap_or_default();
+        }
+        if let Some((parent, _)) = sel.rsplit_once('/') {
+            let mut prefix = String::new();
+            for part in parent.split('/') {
+                if !prefix.is_empty() {
+                    prefix.push('/');
+                }
+                prefix.push_str(part);
+                self.expanded.insert(prefix.clone());
+            }
+        }
+        self.cat_ix = rows.iter().position(|r| r.path == sel).unwrap_or(0);
         self.categories = rows;
+        self.rebuild_visible();
+    }
+
+    /// Recompute which rows are on screen: depth 1 and All always, deeper
+    /// rows only when their parent is open and itself on screen.
+    fn rebuild_visible(&mut self) {
+        let mut shown: BTreeSet<&str> = BTreeSet::new();
+        let mut visible = Vec::new();
+        for (i, row) in self.categories.iter().enumerate() {
+            let show = row.depth <= 1
+                || row.path.rsplit_once('/').is_some_and(|(parent, _)| {
+                    shown.contains(parent) && self.expanded.contains(parent)
+                });
+            if show {
+                shown.insert(row.path.as_str());
+                visible.push(i);
+            }
+        }
+        self.visible = visible;
+    }
+
+    /// The position of the selected row among the visible rows.
+    pub fn visible_pos(&self) -> Option<usize> {
+        self.visible.iter().position(|&i| i == self.cat_ix)
+    }
+
+    /// Right in the categories pane: open a closed category with children,
+    /// otherwise move focus to the results.
+    fn cat_expand_or_results(&mut self) {
+        let open = self
+            .categories
+            .get(self.cat_ix)
+            .filter(|c| c.has_children && !self.expanded.contains(&c.path))
+            .map(|c| c.path.clone());
+        if let Some(path) = open {
+            self.expanded.insert(path);
+            self.rebuild_visible();
+        } else {
+            self.focus = Pane::Results;
+        }
+    }
+
+    /// Left in the categories pane: close an open category, else select
+    /// the parent, else nothing.
+    fn cat_collapse_or_parent(&mut self) {
+        let Some(row) = self.categories.get(self.cat_ix) else {
+            return;
+        };
+        if row.has_children && self.expanded.contains(&row.path) {
+            self.collapse(self.cat_ix);
+        } else if let Some((parent, _)) = row.path.rsplit_once('/')
+            && let Some(ix) = self.categories.iter().position(|r| r.path == parent)
+        {
+            self.cat_ix = ix;
+            self.refilter();
+        }
+    }
+
+    /// Enter in the categories pane: toggle a category with children, else
+    /// go to the plan (All and leaves).
+    fn cat_enter(&mut self) {
+        let Some(row) = self.categories.get(self.cat_ix) else {
+            return self.enter();
+        };
+        if !row.has_children {
+            return self.enter();
+        }
+        if self.expanded.contains(&row.path) {
+            self.collapse(self.cat_ix);
+        } else {
+            self.expanded.insert(row.path.clone());
+            self.rebuild_visible();
+        }
+    }
+
+    /// Close the row at `ix`; a selection inside it moves up to the row.
+    fn collapse(&mut self, ix: usize) {
+        let path = self.categories[ix].path.clone();
+        self.expanded.remove(&path);
+        let inside = self
+            .categories
+            .get(self.cat_ix)
+            .is_some_and(|c| c.path.starts_with(&format!("{path}/")));
+        if inside {
+            self.cat_ix = ix;
+            self.refilter();
+        }
+        self.rebuild_visible();
     }
 
     fn refilter(&mut self) {
@@ -420,6 +547,7 @@ impl App {
     fn clear_all(&mut self) {
         self.query.clear();
         self.cat_ix = 0;
+        self.expanded.clear();
         self.adds.clear();
         self.drops.clear();
         self.rebuild_categories();
@@ -441,6 +569,9 @@ impl App {
             }
             Key::Char('\t') => self.cycle_focus(true),
             Key::BackTab => self.cycle_focus(false),
+            Key::Left if self.focus == Pane::Category => self.cat_collapse_or_parent(),
+            Key::Right if self.focus == Pane::Category => self.cat_expand_or_results(),
+            Key::Char('\n') if self.focus == Pane::Category => self.cat_enter(),
             Key::Left => self.focus = Pane::Category,
             Key::Right => self.focus = Pane::Results,
             Key::Char('\n') => self.enter(),
@@ -491,8 +622,11 @@ impl App {
 
     fn move_by(&mut self, delta: isize) {
         if self.focus == Pane::Category {
-            let last = self.categories.len().saturating_sub(1);
-            let next = self.cat_ix.saturating_add_signed(delta).min(last);
+            let Some(last) = self.visible.len().checked_sub(1) else {
+                return;
+            };
+            let pos = self.visible_pos().unwrap_or(0);
+            let next = self.visible[pos.saturating_add_signed(delta).min(last)];
             if next != self.cat_ix {
                 self.cat_ix = next;
                 self.refilter();
