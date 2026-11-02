@@ -147,6 +147,51 @@ impl Fx {
         }
     }
 
+    /// A library whose categories hold `skills` folders below the top
+    /// level (ARK-450): a sole `skills` child, loose and nested `skills`
+    /// folders, a chain, a top-level `skills`, near names, and duplicate
+    /// labels with children.
+    fn skills_dirs() -> Fx {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = fs::canonicalize(tmp.path()).unwrap();
+        let lib = base.join("lib");
+        for (rel, name) in [
+            ("agent-launcher/skills/x1", "x1"),
+            ("agent-launcher/skills/x2", "x2"),
+            ("c-level-advisor/skills/y", "y"),
+            ("c-level-advisor/skills/arquiteto/skills/z", "z"),
+            ("c-level-advisor/skills/zeta/w", "w"),
+            ("c-level-advisor/beta/v", "v"),
+            ("top/skills/p/skills/r/q", "q"),
+            ("skills/s", "s"),
+            ("skills/skills/t", "t"),
+            ("mixed/Skills/a1", "a1"),
+            ("mixed/skills-foo/a2", "a2"),
+            ("dup/foo/d1", "d1"),
+            ("dup/foo/bar/d2", "d2"),
+            ("dup/skills/foo/d3", "d3"),
+            ("dup/skills/foo/baz/d4", "d4"),
+        ] {
+            skill(&lib, rel, name, "Skills dir skill.");
+        }
+        let project = base.join("proj");
+        fs::create_dir_all(project.join(".git")).unwrap();
+        let dirs = env_for(&base);
+        let mut config = Config::default();
+        config.sources.push(SourceEntry {
+            alias: "fx".into(),
+            path: lib.to_string_lossy().into_owned(),
+            precedence: 10,
+        });
+        Fx {
+            tmp,
+            lib,
+            project,
+            dirs,
+            config,
+        }
+    }
+
     fn opts(&self) -> Opts {
         Opts {
             use_cache: false,
@@ -679,6 +724,234 @@ fn tui_state_tree_left_selects_parent_or_noops() {
     press(&mut app, &[Key::Home, Key::Left]);
     assert_eq!(sel_path(&app), "");
     assert_eq!(app.focus, Pane::Category);
+}
+
+/// The category row with this path; panics when there is none.
+fn cat_row<'a>(app: &'a App, path: &str) -> &'a super::app::CategoryRow {
+    app.categories
+        .iter()
+        .find(|r| r.path == path)
+        .unwrap_or_else(|| panic!("no row {path}"))
+}
+
+fn has_row(app: &App, path: &str) -> bool {
+    app.categories.iter().any(|r| r.path == path)
+}
+
+/// A `Fx::skills_dirs` picker with the category pane focused.
+fn skills_category_app(fx: &Fx) -> App {
+    let mut app = fx.app();
+    app.focus = Pane::Category;
+    app
+}
+
+#[test]
+fn tui_state_tree_skills_merged_leaf() {
+    let fx = Fx::skills_dirs();
+    let app = fx.app();
+    let row = cat_row(&app, "agent-launcher");
+    assert!(!row.has_children);
+    assert_eq!(row.total, 2);
+    assert_eq!(row.depth, 1);
+    assert!(!has_row(&app, "agent-launcher/skills"));
+}
+
+#[test]
+fn tui_state_tree_skills_children_shift_up() {
+    let fx = Fx::skills_dirs();
+    let app = fx.app();
+    let row = cat_row(&app, "c-level-advisor/skills/arquiteto");
+    assert_eq!(row.depth, 2);
+    assert_eq!(row.label, "arquiteto");
+    assert_eq!(row.parent, "c-level-advisor");
+    assert!(!row.has_children);
+    assert_eq!(cat_row(&app, "c-level-advisor").total, 4);
+    assert!(cat_row(&app, "c-level-advisor").has_children);
+    assert!(!has_row(&app, "c-level-advisor/skills"));
+}
+
+#[test]
+fn tui_state_tree_skills_left_selects_effective_parent() {
+    let fx = Fx::skills_dirs();
+    let mut app = skills_category_app(&fx);
+    press(&mut app, &[Key::Down, Key::Down, Key::Right, Key::Down]);
+    assert_eq!(sel_path(&app), "c-level-advisor/skills/arquiteto");
+    press(&mut app, &[Key::Left]);
+    assert_eq!(sel_path(&app), "c-level-advisor");
+    // Top level leaf: no-op, never All.
+    press(&mut app, &[Key::Home, Key::Down]);
+    assert_eq!(sel_path(&app), "agent-launcher");
+    press(&mut app, &[Key::Left]);
+    assert_eq!(sel_path(&app), "agent-launcher");
+    assert_eq!(app.focus, Pane::Category);
+}
+
+#[test]
+fn tui_state_tree_skills_collapse_and_expand_merged_child() {
+    let fx = Fx::skills_dirs();
+    let mut app = skills_category_app(&fx);
+    press(&mut app, &[Key::Down, Key::Down]);
+    assert!(!vis_paths(&app).contains(&"c-level-advisor/skills/arquiteto"));
+    press(&mut app, &[Key::Right]);
+    let vis = vis_paths(&app);
+    assert!(vis.contains(&"c-level-advisor/skills/arquiteto"));
+    assert!(vis.contains(&"c-level-advisor/skills/zeta"));
+    assert!(vis.contains(&"c-level-advisor/beta"));
+    press(&mut app, &[Key::Down, Key::Left]);
+    assert_eq!(sel_path(&app), "c-level-advisor");
+    press(&mut app, &[Key::Left]);
+    assert!(!app.expanded.contains("c-level-advisor"));
+    assert_eq!(sel_path(&app), "c-level-advisor");
+    let vis = vis_paths(&app);
+    assert!(!vis.contains(&"c-level-advisor/skills/arquiteto"));
+    assert!(!vis.contains(&"c-level-advisor/skills/zeta"));
+    assert!(!vis.contains(&"c-level-advisor/beta"));
+}
+
+#[test]
+fn tui_state_tree_skills_parent_filter_returns_subtree() {
+    let fx = Fx::skills_dirs();
+    let mut app = skills_category_app(&fx);
+    press(&mut app, &[Key::Down, Key::Down]);
+    assert_eq!(sel_path(&app), "c-level-advisor");
+    let mut names: Vec<String> = app
+        .hits
+        .iter()
+        .map(|h| {
+            let id = h.id.to_string();
+            id.rsplit('/').next().unwrap_or_default().to_string()
+        })
+        .collect();
+    names.sort();
+    assert_eq!(names, ["v", "w", "y", "z"]);
+}
+
+#[test]
+fn tui_state_tree_skills_top_level_stays() {
+    let fx = Fx::skills_dirs();
+    let app = fx.app();
+    let row = cat_row(&app, "skills");
+    assert_eq!(row.depth, 1);
+    assert!(!row.has_children);
+    assert_eq!(row.total, 2);
+    assert!(!has_row(&app, "skills/skills"));
+}
+
+#[test]
+fn tui_state_tree_skills_near_names_not_merged() {
+    let fx = Fx::skills_dirs();
+    let app = fx.app();
+    assert_eq!(cat_row(&app, "mixed/Skills").depth, 2);
+    assert_eq!(cat_row(&app, "mixed/skills-foo").depth, 2);
+    assert!(cat_row(&app, "mixed").has_children);
+}
+
+#[test]
+fn tui_state_tree_skills_chain_collapses() {
+    let fx = Fx::skills_dirs();
+    let app = fx.app();
+    let rows: Vec<(&str, usize)> = app
+        .categories
+        .iter()
+        .filter(|r| r.path == "top" || r.path.starts_with("top/"))
+        .map(|r| (r.path.as_str(), r.depth))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            ("top", 1),
+            ("top/skills/p", 2),
+            ("top/skills/p/skills/r", 3)
+        ]
+    );
+    assert_eq!(
+        cat_row(&app, "top/skills/p/skills/r").parent,
+        "top/skills/p"
+    );
+}
+
+#[test]
+fn tui_state_tree_skills_selection_restore() {
+    let fx = Fx::skills_dirs();
+    let mut app = skills_category_app(&fx);
+    press(
+        &mut app,
+        &[Key::End, Key::Right, Key::Down, Key::Right, Key::Down],
+    );
+    assert_eq!(sel_path(&app), "top/skills/p/skills/r");
+    // Forget the expansion, then let a rebuild (Space on a result) restore it.
+    app.expanded.clear();
+    press(&mut app, &[TAB, SPACE]);
+    assert_eq!(sel_path(&app), "top/skills/p/skills/r");
+    let expanded: Vec<&str> = app.expanded.iter().map(String::as_str).collect();
+    assert_eq!(expanded, ["top", "top/skills/p"]);
+    assert!(vis_paths(&app).contains(&"top/skills/p/skills/r"));
+    assert!(app.visible_pos().is_some());
+}
+
+#[test]
+fn tui_state_tree_skills_selection_falls_to_kept_ancestor() {
+    let fx = Fx::skills_dirs();
+    let mut app = skills_category_app(&fx);
+    press(&mut app, &[Key::Down, Key::Down, Key::Right]);
+    press(&mut app, &[Key::Down, Key::Down, Key::Down]);
+    assert_eq!(sel_path(&app), "c-level-advisor/skills/zeta");
+    fs::remove_dir_all(fx.lib.join("c-level-advisor/skills/zeta")).unwrap();
+    app.load().unwrap();
+    assert_eq!(sel_path(&app), "c-level-advisor");
+}
+
+#[test]
+fn tui_state_tree_skills_sort_and_contiguity() {
+    let fx = Fx::skills_dirs();
+    let app = fx.app();
+    let under = |p: &str| -> Vec<&str> {
+        app.categories
+            .iter()
+            .filter(|r| r.path.starts_with(&format!("{p}/")))
+            .map(|r| r.path.as_str())
+            .collect()
+    };
+    assert_eq!(
+        under("c-level-advisor"),
+        [
+            "c-level-advisor/skills/arquiteto",
+            "c-level-advisor/beta",
+            "c-level-advisor/skills/zeta"
+        ]
+    );
+    let dup: Vec<&str> = app
+        .categories
+        .iter()
+        .map(|r| r.path.as_str())
+        .filter(|p| p.starts_with("dup/"))
+        .collect();
+    assert_eq!(
+        dup,
+        [
+            "dup/foo",
+            "dup/foo/bar",
+            "dup/skills/foo",
+            "dup/skills/foo/baz"
+        ]
+    );
+    // Every parent comes before its children, and each subtree is contiguous.
+    for (i, row) in app.categories.iter().enumerate().skip(1) {
+        if row.parent.is_empty() {
+            continue;
+        }
+        let p = app
+            .categories
+            .iter()
+            .position(|r| r.path == row.parent)
+            .unwrap();
+        assert!(p < i);
+        assert!(
+            app.categories[p + 1..i]
+                .iter()
+                .all(|r| r.path.starts_with(&format!("{}/", row.parent)))
+        );
+    }
 }
 
 #[test]
@@ -1680,6 +1953,35 @@ fn tui_snapshot_tree_expanded_depth3() {
     );
     assert_eq!(sel_path(&app), "a/c");
     insta::assert_snapshot!("tui_snapshot_tree_expanded_depth3", render(&mut app));
+}
+
+#[test]
+fn tui_snapshot_skills_dirs_expanded() {
+    let fx = Fx::skills_dirs();
+    let mut app = fx.app();
+    // Categories pane, c-level-advisor open, then dup and top open.
+    press(
+        &mut app,
+        &[
+            TAB,
+            Key::Down,
+            Key::Down,
+            Key::Right,
+            Key::Down,
+            Key::Down,
+            Key::Down,
+            Key::Down,
+            Key::Right,
+            Key::Down,
+            Key::Down,
+            Key::Down,
+            Key::Down,
+            Key::Down,
+            Key::Right,
+        ],
+    );
+    assert_eq!(sel_path(&app), "top");
+    insta::assert_snapshot!("tui_snapshot_skills_dirs_expanded", render(&mut app));
 }
 
 #[test]

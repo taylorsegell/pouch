@@ -80,8 +80,10 @@ pub struct CategoryRow {
     /// Selected over total (the `3/12` of spec 6).
     pub marked: usize,
     pub total: usize,
-    /// True when another row's path starts with `path + "/"`.
+    /// True when another row's `parent` is this row.
     pub has_children: bool,
+    /// The row this one is shown under (`""` for All and top-level rows).
+    pub parent: String,
 }
 
 /// The plan view's content.
@@ -148,6 +150,25 @@ fn warning_summary(warnings: &[FlatDiagnostic]) -> Option<String> {
         "{n} warning{}: {head}",
         if n == 1 { "" } else { "s" }
     ))
+}
+
+/// The raw prefixes of `path` that end at a kept segment. A segment named
+/// exactly `skills` below the top level is dropped (ARK-450): it gets no
+/// row, and its children show under the nearest kept ancestor. `a/skills/b`
+/// gives `["a", "a/skills/b"]`; `a/skills` gives `["a"]`.
+fn kept_prefixes(path: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut end = 0;
+    for (i, part) in path.split('/').enumerate() {
+        if i > 0 {
+            end += 1;
+        }
+        end += part.len();
+        if i == 0 || part != "skills" {
+            out.push(&path[..end]);
+        }
+    }
+    out
 }
 
 fn printable(c: char) -> bool {
@@ -339,17 +360,46 @@ impl App {
             marked: all.0,
             total: all.1,
             has_children: false,
+            parent: String::new(),
         }];
-        let parents: BTreeSet<String> = counts
-            .keys()
-            .filter_map(|p| p.rsplit_once('/').map(|(parent, _)| parent.to_string()))
+        // Rows only for paths whose last segment is kept; dropped `skills`
+        // segments still counted toward their ancestors above.
+        let mut entries: Vec<(String, (usize, usize), usize, String)> = counts
+            .into_iter()
+            .filter_map(|(path, n)| {
+                let kept = kept_prefixes(&path);
+                if kept.last().copied() != Some(path.as_str()) {
+                    return None;
+                }
+                let depth = kept.len();
+                let parent = if depth > 1 {
+                    kept[depth - 2].to_string()
+                } else {
+                    String::new()
+                };
+                Some((path, n, depth, parent))
+            })
+            .collect();
+        let parents: BTreeSet<String> = entries
+            .iter()
+            .filter(|e| !e.3.is_empty())
+            .map(|e| e.3.clone())
             .collect();
         // Component order keeps every subtree contiguous (`a`, `a/c`, then
-        // `a-b`), which plain string order does not.
-        let mut entries: Vec<(String, (usize, usize))> = counts.into_iter().collect();
-        entries.sort_by(|a, b| a.0.split('/').cmp(b.0.split('/')));
-        for (path, (marked, total)) in entries {
-            let depth = path.matches('/').count() + 1;
+        // `a-b`), which plain string order does not. Each component is a
+        // kept segment paired with the raw prefix ending at it, so two rows
+        // with the same label (`a/foo`, `a/skills/foo`) keep their subtrees
+        // apart.
+        entries.sort_by_cached_key(|e| {
+            kept_prefixes(&e.0)
+                .into_iter()
+                .map(|prefix| {
+                    let seg = prefix.rsplit('/').next().unwrap_or(prefix);
+                    (seg.to_string(), prefix.to_string())
+                })
+                .collect::<Vec<(String, String)>>()
+        });
+        for (path, (marked, total), depth, parent) in entries {
             let label = path.rsplit('/').next().unwrap_or(&path).to_string();
             let has_children = parents.contains(&path);
             rows.push(CategoryRow {
@@ -359,6 +409,7 @@ impl App {
                 marked,
                 total,
                 has_children,
+                parent,
             });
         }
         let mut sel = keep;
@@ -368,14 +419,10 @@ impl App {
                 .map(|(parent, _)| parent.to_string())
                 .unwrap_or_default();
         }
-        if let Some((parent, _)) = sel.rsplit_once('/') {
-            let mut prefix = String::new();
-            for part in parent.split('/') {
-                if !prefix.is_empty() {
-                    prefix.push('/');
-                }
-                prefix.push_str(part);
-                self.expanded.insert(prefix.clone());
+        let ancestors = kept_prefixes(&sel);
+        if let Some((_, above)) = ancestors.split_last() {
+            for prefix in above {
+                self.expanded.insert((*prefix).to_string());
             }
         }
         self.cat_ix = rows.iter().position(|r| r.path == sel).unwrap_or(0);
@@ -390,9 +437,7 @@ impl App {
         let mut visible = Vec::new();
         for (i, row) in self.categories.iter().enumerate() {
             let show = row.depth <= 1
-                || row.path.rsplit_once('/').is_some_and(|(parent, _)| {
-                    shown.contains(parent) && self.expanded.contains(parent)
-                });
+                || (shown.contains(row.parent.as_str()) && self.expanded.contains(&row.parent));
             if show {
                 shown.insert(row.path.as_str());
                 visible.push(i);
@@ -430,8 +475,8 @@ impl App {
         };
         if row.has_children && self.expanded.contains(&row.path) {
             self.collapse(self.cat_ix);
-        } else if let Some((parent, _)) = row.path.rsplit_once('/')
-            && let Some(ix) = self.categories.iter().position(|r| r.path == parent)
+        } else if !row.parent.is_empty()
+            && let Some(ix) = self.categories.iter().position(|r| r.path == row.parent)
         {
             self.cat_ix = ix;
             self.refilter();

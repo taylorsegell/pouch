@@ -8,6 +8,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 - A Homebrew tap: `brew install taylorsegell/tap/pouch`.
 - The picker's Categories pane opens collapsed below the top level and expands and collapses with Right, Left and Enter.
+- The picker's Categories pane no longer shows a row for a `skills` folder below the top level; its skills count toward the parent and its subfolders appear directly under the parent.
 
 ### Changed
 
