@@ -4,8 +4,11 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-12
+
 ### Added
 
+- A Pouch plugin for Claude Code and Codex with seven skills that use the local CLI: search, project, bundle, source, status, audit, and recover.
 - A Homebrew tap: `brew install taylorsegell/tap/pouch`.
 - The picker's Categories pane opens collapsed below the top level and expands and collapses with Right, Left and Enter.
 - The picker's Categories pane no longer shows a row for a `skills` folder below the top level; its skills count toward the parent and its subfolders appear directly under the parent.
@@ -14,6 +17,30 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 - The release workflow now publishes the Homebrew formula to the tap.
 - The GitHub repository is renamed to `taylorsegell/pouch`.
+
+### Install the plugin
+
+Install the Pouch CLI with `brew install taylorsegell/tap/pouch` or use the
+CLI installer attached to this release. The plugin needs `pouch` on the agent's PATH.
+Clone the release source:
+
+```sh
+git clone --branch v0.2.0 https://github.com/taylorsegell/pouch.git
+```
+
+For Claude Code, run `/plugin marketplace add /absolute/path/to/pouch/plugins`
+and then `/plugin install pouch@pouch-local`. Try `/pouch:search` or
+`/pouch:status`. If the separate Pouch skill-toggle pane is enabled, disable
+it first. Both plugins use the `pouch` name.
+
+For Codex, run:
+
+```sh
+codex plugin marketplace add /absolute/path/to/pouch/plugins
+codex plugin add pouch@pouch-local
+```
+
+Start a new Codex session and select a skill such as `pouch:status`.
 
 ## [0.1.0] - 2026-10-19
 

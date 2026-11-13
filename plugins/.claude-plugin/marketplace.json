@@ -1,0 +1,12 @@
+{
+  "name": "pouch-local",
+  "description": "Install the Pouch CLI skills from this checkout.",
+  "owner": { "name": "Taylor Segell" },
+  "plugins": [
+    {
+      "name": "pouch",
+      "source": "./pouch",
+      "description": "Find, manage, and verify project skills with the local Pouch CLI."
+    }
+  ]
+}

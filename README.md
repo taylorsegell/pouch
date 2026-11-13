@@ -25,10 +25,10 @@ From a clone of this repository (needs a Rust toolchain, 1.89 or newer):
 cargo install --path crates/pouch-cli --locked
 ```
 
-This installs the `pouch` binary into `~/.cargo/bin`. Prebuilt archives for macOS and Linux (x86_64 and aarch64) and a shell installer are on the [v0.1.0 release page](https://github.com/taylorsegell/pouch/releases/tag/v0.1.0). To install with the shell installer:
+This installs the `pouch` binary into `~/.cargo/bin`. Prebuilt archives for macOS and Linux (x86_64 and aarch64) and a shell installer are on the [v0.2.0 release page](https://github.com/taylorsegell/pouch/releases/tag/v0.2.0). To install with the shell installer:
 
 ```
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/taylorsegell/pouch/releases/download/v0.1.0/pouch-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/taylorsegell/pouch/releases/download/v0.2.0/pouch-installer.sh | sh
 ```
 
 `cargo install pouch` does not work, because the crate is not published to crates.io. To install through Homebrew instead:
@@ -51,6 +51,36 @@ pouch status                             # the six-state table for this project
 ```
 
 `--yes` skips the confirmation prompt; the plan is still printed. Without it, and without a terminal, `pouch` refuses rather than guessing. Without `--target`, a change uses the target already in the project's selection; a new project gets the agent `pouch` detects there, or Claude Code (`.claude/skills`) when it detects none. Pass `--target agents-neutral` for the shared `.agents/skills` directory that Codex, Cursor, Windsurf and Devin, and Hermes read.
+
+## Agent plugin
+
+The [Pouch plugin](plugins/pouch) packages seven skills for Claude Code and Codex.
+Install the Pouch binary first and make sure it is on the agent's PATH. The
+plugin calls the local CLI and uses your existing Pouch configuration.
+
+For a Claude Code session, load the plugin from a clone:
+
+```sh
+claude --plugin-dir /absolute/path/to/pouch/plugins/pouch
+```
+
+For a persistent Claude Code installation, add the local marketplace with
+`/plugin marketplace add /absolute/path/to/pouch/plugins`, then run
+`/plugin install pouch@pouch-local`. Use `/pouch:search`, `/pouch:project`,
+`/pouch:bundle`, `/pouch:source`, `/pouch:status`, `/pouch:audit`, or
+`/pouch:recover`. If you use the separate Pouch skill-toggle pane, disable
+that plugin before loading this one in Claude Code. Both use the `pouch` name.
+
+For Codex, add the marketplace and install the plugin:
+
+```sh
+codex plugin marketplace add /absolute/path/to/pouch/plugins
+codex plugin add pouch@pouch-local
+```
+
+In a new Codex session, select a skill such as `pouch:status`. Run project
+activation in the project you want to configure. This Pouch source repository
+uses its own development toolkit to manage skills.
 
 ## Commands
 

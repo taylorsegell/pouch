@@ -1,0 +1,9 @@
+{
+  "name": "pouch",
+  "version": "0.2.0",
+  "description": "Find, manage, and verify project skills with the local Pouch CLI.",
+  "author": { "name": "Taylor Segell" },
+  "repository": "https://github.com/taylorsegell/pouch",
+  "license": "MIT OR Apache-2.0",
+  "skills": "./skills/"
+}
